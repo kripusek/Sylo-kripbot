@@ -54,6 +54,7 @@ const LAYOUT = [
       'giveaways',
       'autoresponder',
       'auto-react',
+      'auto-threads',
       'afk',
       'server-stats',
       'insights',

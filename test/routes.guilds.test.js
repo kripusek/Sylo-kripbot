@@ -24,6 +24,8 @@ test('GET /overview renders the plugin grid shell', async () => {
   const html = await res.text();
   assert.match(html, /^<!doctype html>/i);
   assert.match(html, /class="plugin-grid"/);
+  assert.match(html, /Automatyczne wątki/);
+  assert.match(html, /m\/auto-threads/);
   assert.ok(html.includes(`of ${MODULES.length} plugins`)); // overview health line
   assert.match(html, /data-bulk-url=/); // 3.6 bulk-select wiring present
 });

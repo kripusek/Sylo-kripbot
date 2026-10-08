@@ -85,6 +85,7 @@ const CATEGORIES = [
       { module: 'reminders' },
       { module: 'autoresponder' },
       { module: 'auto-react', label: 'Auto-react' },
+      { module: 'auto-threads' },
       { module: 'afk' },
       { module: 'server-stats' },
       { module: 'temp-voice' },
