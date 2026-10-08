@@ -60,6 +60,7 @@ import { getCounting, setCount, resetCount } from '../../db/counting.js';
 import { listCountingPenalties, clearCountingPenalty } from '../../db/countingPenalties.js';
 import { normaliseCustomCommands, CC_PLACEHOLDERS } from '../../modules/customCommands.js';
 import { normaliseAutoresponder, AR_MATCH_MODES, AR_PLACEHOLDERS } from '../../modules/autoresponder.js';
+import { normaliseAutoThreads } from '../../modules/autoThreads.js';
 import { normaliseAutoReact, AUTO_REACT_MODES, AUTO_REACT_ROLE_ACTIONS } from '../../modules/autoReact.js';
 import {
   normaliseVerificationConfig,
@@ -165,6 +166,7 @@ const router = Router();
 
 // Module ids that have a real settings partial (views/guild/modules/<id>.ejs).
 const CONFIG_VIEWS = new Set([
+  'auto-threads',
   'moderation',
   'logging',
   'welcome',
@@ -1258,6 +1260,8 @@ router.post(
           deleteTrigger: del[i] === 'delete',
         })),
       });
+    } else if (mod.id === 'auto-threads') {
+      config = normaliseAutoThreads(req.body);
     } else if (mod.id === 'auto-react') {
       // Rows come as parallel arrays, same shape as autoresponder's ar_* fields.
       // Each row has at most one target role (a single <select>, not a

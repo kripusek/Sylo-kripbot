@@ -21,6 +21,15 @@ import { config } from '../config.js';
 /** @type {ModuleDef[]} */
 export const MODULES = [
   {
+    id: 'auto-threads',
+    name: 'Automatyczne wątki',
+    description: 'Twórz publiczny wątek pod każdą nową wiadomością na wybranych kanałach.',
+    icon: '🧵',
+    requiredIntents: [],
+    defaultEnabled: false,
+    configurable: true,
+  },
+  {
     id: 'moderation',
     name: 'Moderation',
     description: 'Mod-log channel, warning thresholds, mute role, ban manager.',

@@ -105,21 +105,20 @@ export async function ensureVerifyMessage(guild, cfg) {
   if (!cfg.channelId || !cfg.verifiedRoleId) return;
   const channel =
     guild.channels.cache.get(cfg.channelId) ?? (await guild.channels.fetch(cfg.channelId).catch(() => null));
-  if (!channel?.isTextBased()) return;
+  if (!channel?.isTextBased()) throw new Error('Verification channel is missing or is not a text channel.');
   const me = guild.members.me;
-  if (!channel.permissionsFor(me)?.has(['ViewChannel', 'SendMessages', 'EmbedLinks'])) return;
+  if (!me || !channel.permissionsFor(me)?.has(['ViewChannel', 'SendMessages', 'EmbedLinks'])) {
+    throw new Error('Verification message needs View Channel, Send Messages and Embed Links permissions.');
+  }
 
   if (cfg.messageId) {
     const existing = await channel.messages.fetch(cfg.messageId).catch(() => null);
     if (existing) {
-      await existing.edit({ embeds: [verifyEmbed(cfg)], components: [verifyButtonRow()] }).catch(() => {});
+      await existing.edit({ embeds: [verifyEmbed(cfg)], components: [verifyButtonRow()] });
       return;
     }
   }
-  const posted = await channel
-    .send({ embeds: [verifyEmbed(cfg)], components: [verifyButtonRow()] })
-    .catch(() => null);
-  if (!posted) return;
+  const posted = await channel.send({ embeds: [verifyEmbed(cfg)], components: [verifyButtonRow()] });
   const fresh = (await getGuildModule(guild.id, 'verification')).config;
   await setGuildModule(guild.id, 'verification', { config: { ...fresh, messageId: posted.id } });
 }

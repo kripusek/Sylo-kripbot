@@ -1,6 +1,7 @@
 import { startWebApp, post } from './helpers/webApp.js';
 import { GID, MEMBER_ID, ADMIN_ROLE, CH } from './helpers/fakeGuild.js';
 import test from 'node:test';
+import { MODULES } from '../src/modules/registry.js';
 import assert from 'node:assert/strict';
 
 let app;
@@ -23,7 +24,7 @@ test('GET /overview renders the plugin grid shell', async () => {
   const html = await res.text();
   assert.match(html, /^<!doctype html>/i);
   assert.match(html, /class="plugin-grid"/);
-  assert.match(html, /of 34 plugins/); // overview health line
+  assert.ok(html.includes(`of ${MODULES.length} plugins`)); // overview health line
   assert.match(html, /data-bulk-url=/); // 3.6 bulk-select wiring present
 });
 
@@ -355,4 +356,20 @@ test('POST /m/automod/config pushes and later removes native AutoMod rules', asy
     { 'HX-Request': 'true' }
   );
   assert.equal(app.sink.automodRules.length, 0);
+});
+
+test('auto-threads settings render and save selected channels in V1', async () => {
+  const page = await get(`/guilds/${GID}/m/auto-threads`);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /name="channelIds"/);
+  const saved = await post(app.base, `/guilds/${GID}/m/auto-threads/config`, {
+    channelIds: CH.general,
+    nameTemplate: 'Temat {author}',
+    autoArchiveDuration: '60',
+  });
+  assert.equal(saved.status, 302);
+  const { getGuildModule } = await import('../src/db/modules.js');
+  const { config } = await getGuildModule(GID, 'auto-threads');
+  assert.deepEqual(config.channelIds, [CH.general]);
+  assert.equal(config.autoArchiveDuration, 60);
 });

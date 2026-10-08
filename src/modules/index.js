@@ -12,6 +12,7 @@ import './scheduledMessages.js';
 import './leveling.js';
 import './autoresponder.js';
 import './autoReact.js';
+import './autoThreads.js';
 import './verification.js';
 import './afk.js';
 import './serverStats.js';

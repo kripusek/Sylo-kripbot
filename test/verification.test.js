@@ -44,3 +44,14 @@ test('verify token: rejects tampering and garbage', () => {
   assert.equal(verifyVerifyToken('not.a.token'), null);
   assert.equal(verifyVerifyToken(''), null);
 });
+
+test('verify message reports missing channel permissions instead of silently succeeding', async () => {
+  const { ensureVerifyMessage } = await import('../src/modules/verification.js');
+  const guild = {
+    members: { me: {} },
+    channels: {
+      cache: new Map([[G, { isTextBased: () => true, permissionsFor: () => ({ has: () => false }) }]]),
+    },
+  };
+  await assert.rejects(ensureVerifyMessage(guild, { channelId: G, verifiedRoleId: U }), /permissions/);
+});

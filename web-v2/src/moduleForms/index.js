@@ -10,6 +10,7 @@ import Birthdays from './Birthdays.jsx';
 import Verification from './Verification.jsx';
 import FreeGames from './FreeGames.jsx';
 import Counting from './Counting.jsx';
+import AutoThreads from './AutoThreads.jsx';
 import AutoReact from './AutoReact.jsx';
 import Logging from './Logging.jsx';
 import Tickets from './Tickets.jsx';
@@ -68,6 +69,7 @@ export const MODULE_FORMS = {
   'free-games': FreeGames,
   counting: Counting,
   'auto-react': AutoReact,
+  'auto-threads': AutoThreads,
   logging: Logging,
   tickets: Tickets,
   appeals: Appeals,

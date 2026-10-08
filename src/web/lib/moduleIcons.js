@@ -24,6 +24,7 @@ export const MODULE_ICONS = {
   polls: 'bar-chart',
   autoresponder: 'message-circle',
   'auto-react': 'zap',
+  'auto-threads': 'message-square',
   afk: 'moon',
   'server-stats': 'activity',
   'temp-voice': 'mic',
