@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<%= typeof language !== 'undefined' ? language : 'en' %>">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title><%= typeof title !== 'undefined' ? title : 'Sylo' %></title>
+  <title><%= uiText(typeof title !== 'undefined' ? title : 'Sylo') %></title>
   <%# Favicon: the bot's own Discord avatar when the client is ready, else a
       plain fallback mark so tabs are never icon-less (e.g. during startup). %>
   <% if (typeof botAvatarUrl !== 'undefined' && botAvatarUrl) { %>
@@ -18,6 +18,8 @@
   <script>(function(){var d=document.documentElement;d.classList.add('has-js');try{var t=localStorage.getItem('sylo:theme');if(t==='light'||t==='dark')d.dataset.theme=t;}catch(e){}})();</script>
   <style>.has-js .banner-flash{display:none}</style>
   <link rel="stylesheet" href="/styles.css" />
+  <script src="/dashboard-translations.js" defer></script>
+  <script src="/i18n.js" defer></script>
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/htmx-setup.js" defer></script>
   <script src="/app.js" defer></script>
@@ -81,10 +83,10 @@
 <% var mg = typeof manageableGuilds !== 'undefined' ? manageableGuilds : []; %>
 <% function ico(n) { return n ? '<svg class="sb-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-' + n + '"/></svg>' : ''; } %>
 <% function navrow(i) { %>
-  <a class="sb-link <%= i.active ? 'active' : '' %>" href="<%= i.href %>" data-mod-name="<%= i.label %>"<% if (i.id) { %> data-module="<%= i.id %>"<% } %>>
+  <a class="sb-link <%= i.active ? 'active' : '' %>" href="<%= i.href %>" data-mod-name="<%= uiText(i.label) %>"<% if (i.id) { %> data-module="<%= i.id %>"<% } %>>
     <% if (typeof i.dot !== 'undefined') { %><span class="sb-dot <%= i.dot %>"></span><% } %>
     <%- ico(i.icon) %>
-    <span><%= i.label %></span>
+    <span><%= uiText(i.label) %></span>
   </a>
 <% } %>
 
@@ -103,7 +105,7 @@
         <summary>
           <span class="srv-switch-face">
             <% if (curG && curG.icon) { %><img class="srv-switch-icon" src="<%= curG.icon %>" alt="" /><% } else { %><span class="srv-switch-ph"><%= curG ? curG.name.charAt(0) : '+' %></span><% } %>
-            <span class="srv-switch-name"><%= curG ? curG.name : 'Select a server' %></span>
+            <span class="srv-switch-name"><%= curG ? curG.name : uiText('Select a server') %></span>
           </span>
           <span class="srv-switch-caret" aria-hidden="true">▾</span>
         </summary>
@@ -150,6 +152,10 @@
     </nav>
 
     <div class="sb-foot">
+      <nav class="language-switch" aria-label="Language" hx-boost="false">
+        <a href="<%= typeof languageHref === 'function' ? languageHref('pl') : '?lang=pl' %>" lang="pl" aria-label="Polski" <%- typeof language !== 'undefined' && language === 'pl' ? 'aria-current="true"' : '' %>>PL</a>
+        <a href="<%= typeof languageHref === 'function' ? languageHref('en') : '?lang=en' %>" lang="en" aria-label="English" <%- typeof language === 'undefined' || language === 'en' ? 'aria-current="true"' : '' %>>EN</a>
+      </nav>
       <button type="button" class="sb-theme" aria-label="Toggle light and dark theme" title="Toggle theme">
         <svg class="sb-ico sb-theme-dark" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-sun"/></svg>
         <svg class="sb-ico sb-theme-light" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-moon"/></svg>

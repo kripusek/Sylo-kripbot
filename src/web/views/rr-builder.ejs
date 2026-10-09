@@ -81,7 +81,7 @@
         <div class="rr-row">
           <span class="emoji-cellwrap" x-data="emojiPicker('<%= guildId %>')" @emoji-pick="row.emoji = $event.detail">
             <input type="text" name="rr_emoji" class="rr-emoji" x-model="row.emoji"
-                   :placeholder="style === 'reaction' ? 'Emoji, :name: or emoji ID' : 'Emoji (optional)'" />
+                   :placeholder="window.syloT(style === 'reaction' ? 'Emoji, :name: or emoji ID' : 'Emoji (optional)')" />
             <button type="button" class="emoji-btn" @click="toggle()">😀</button>
             <div class="emoji-pop" x-show="open" @click.outside="open = false" x-cloak>
               <template x-if="custom.length">
@@ -109,7 +109,7 @@
             <template x-for="r in roles" :key="r.id"><option :value="r.id" x-text="r.name"></option></template>
           </select>
           <select name="rr_btnstyle" class="rr-row-btnstyle" x-model="row.btnStyle" x-show="style === 'buttons'">
-            <template x-for="b in btnStyles" :key="b"><option :value="b" x-text="b"></option></template>
+            <template x-for="b in btnStyles" :key="b"><option :value="b" x-text="window.syloT(b)"></option></template>
           </select>
           <button type="button" class="wc-x" @click="removeRow(i)" title="Remove">×</button>
         </div>

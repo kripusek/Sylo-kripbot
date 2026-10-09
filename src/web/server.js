@@ -25,6 +25,7 @@ import githubWebhookRouter from './routes/githubWebhook.js';
 import v2ApiRouter from './routes/v2Api.js';
 import v2ClientRouter from './routes/v2Client.js';
 import roadmapRouter from './routes/roadmap.js';
+import { mountI18n } from './lib/i18n.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -39,6 +40,7 @@ export function createApp() {
   app.set('view engine', 'ejs');
   app.set('views', join(here, 'views'));
   app.disable('x-powered-by');
+  mountI18n(app);
 
   // First in the chain: per-request debug log + the HTTP request counter.
   app.use(requestLog);

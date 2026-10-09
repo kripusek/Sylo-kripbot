@@ -175,18 +175,22 @@ document.addEventListener('alpine:init', function () {
         return this.style === 'reaction' ? 20 : 25;
       },
       get rowsTitle() {
-        return this.style === 'reaction'
-          ? 'Reactions & roles'
-          : this.style === 'buttons'
-            ? 'Buttons & roles'
-            : 'Menu options';
+        return window.syloT(
+          this.style === 'reaction'
+            ? 'Reactions & roles'
+            : this.style === 'buttons'
+              ? 'Buttons & roles'
+              : 'Menu options'
+        );
       },
       get addLabel() {
-        return this.style === 'reaction'
-          ? '＋ Add reaction'
-          : this.style === 'buttons'
-            ? '＋ Add button'
-            : '＋ Add option';
+        return window.syloT(
+          this.style === 'reaction'
+            ? '＋ Add reaction'
+            : this.style === 'buttons'
+              ? '＋ Add button'
+              : '＋ Add option'
+        );
       },
       addRow() {
         if (this.rows.length < this.max)
@@ -286,7 +290,10 @@ document.addEventListener('alpine:init', function () {
         this.sync();
       },
       pickImg(key) {
-        var u = window.prompt('Image URL (https://…). Leave blank to remove.', this.e[key] || '');
+        var u = window.prompt(
+          window.syloT('Image URL (https://…). Leave blank to remove.'),
+          this.e[key] || ''
+        );
         if (u === null) return;
         u = String(u).trim();
         this.e[key] = URL_RE.test(u) ? u : '';
@@ -411,7 +418,7 @@ document.addEventListener('alpine:init', function () {
         this.items.splice(j, 0, it);
       },
       reset() {
-        if (!window.confirm('Clear all elements and the message text?')) return;
+        if (!window.confirm(window.syloT('Clear all elements and the message text?'))) return;
         this.items = [];
         this.content = '';
       },
@@ -422,7 +429,7 @@ document.addEventListener('alpine:init', function () {
         row.fields.splice(fi, 1);
       },
       pickImg(row, key) {
-        var u = window.prompt('Image URL (https://…). Leave blank to remove.', row[key] || '');
+        var u = window.prompt(window.syloT('Image URL (https://…). Leave blank to remove.'), row[key] || '');
         if (u === null) return;
         u = String(u).trim();
         row[key] = URL_RE.test(u) ? u : '';
@@ -593,7 +600,7 @@ document.addEventListener('alpine:init', function () {
         var t = this.types.find(function (x) {
           return x.type === type;
         });
-        return (t && t.title) || type;
+        return window.syloT((t && t.title) || type);
       },
       addAction(type) {
         this.actions.push(normAction({ type: type }));
@@ -629,7 +636,7 @@ document.addEventListener('alpine:init', function () {
       },
       pickUrl(m, key) {
         if (!m.embed) return;
-        var u = window.prompt('URL (https://…). Leave blank to remove.', m.embed[key] || '');
+        var u = window.prompt(window.syloT('URL (https://…). Leave blank to remove.'), m.embed[key] || '');
         if (u === null) return;
         u = String(u).trim();
         m.embed[key] = URL_RE.test(u) ? u : '';

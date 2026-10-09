@@ -112,7 +112,7 @@
       <tbody>
         <% modules.forEach(function (m) { %>
           <tr>
-            <td><%= m.icon %> <%= m.name %></td>
+            <td><%= m.icon %> <%= uiText(m.name) %></td>
             <td class="num"><%= m.guilds %></td>
           </tr>
         <% }) %>
@@ -191,9 +191,9 @@
     btn.addEventListener('click', function () {
       var file = input.files[0];
       if (!file) return;
-      if (!window.confirm('Upload "' + file.name + '" as a backup snapshot?')) return;
+      if (!window.confirm(window.syloT('Upload "' + file.name + '" as a backup snapshot?'))) return;
       btn.disabled = true;
-      btn.textContent = 'Uploading…';
+      btn.textContent = window.syloT('Uploading…');
       fetch('/health/backups/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/octet-stream' },

@@ -1,14 +1,14 @@
 <% var cfg = moduleConfig || {}; %>
-<p class="muted small">Publiczny wątek pod każdą nową wiadomością człowieka. Pomija boty, webhooki i wiadomości wewnątrz wątków. Nie przetwarza starszych wiadomości.</p>
+<p class="muted small">Create a public thread for each new member message. Bots, webhooks and messages inside threads are skipped. Older messages are not processed.</p>
 <form method="POST" action="/guilds/<%= guild.id %>/m/auto-threads/config" hx-post="/guilds/<%= guild.id %>/m/auto-threads/config" hx-target="#module-config" hx-swap="outerHTML" class="stack u-mw-lg">
-<label>Kanały — zaznacz kilka za pomocą Ctrl</label>
+<label>Channels — use Ctrl to select multiple</label>
 <select name="channelIds" multiple size="8">
 <% channels.forEach(function(c) { %><option value="<%= c.id %>" <%= (cfg.channelIds || []).includes(c.id) ? 'selected' : '' %>>#<%= c.name %></option><% }) %>
 </select>
-<label>Nazwa wątku</label><input name="nameTemplate" maxlength="100" value="<%= cfg.nameTemplate || 'Dyskusja — {author}' %>" />
-<p class="muted small">Zmienne: {author} i {message}. Treść wiadomości wymaga Message Content Intent.</p>
-<label>Archiwizacja po braku aktywności</label><select name="autoArchiveDuration">
-<% [[60,'1 godzina'],[1440,'1 dzień'],[4320,'3 dni'],[10080,'7 dni']].forEach(function(a) { %><option value="<%= a[0] %>" <%= (cfg.autoArchiveDuration || 1440) === a[0] ? 'selected' : '' %>><%= a[1] %></option><% }) %>
-</select><button type="submit">Zapisz</button>
+<label>Thread name</label><input name="nameTemplate" maxlength="100" value="<%= cfg.nameTemplate || 'Dyskusja — {author}' %>" />
+<p class="muted small">Placeholders: {author} and {message}. Message text requires Message Content Intent.</p>
+<label>Archive after inactivity</label><select name="autoArchiveDuration">
+<% [[60,'1 hour'],[1440,'1 day'],[4320,'3 days'],[10080,'7 days']].forEach(function(a) { %><option value="<%= a[0] %>" <%= (cfg.autoArchiveDuration || 1440) === a[0] ? 'selected' : '' %>><%= a[1] %></option><% }) %>
+</select><button type="submit">Save</button>
 </form>
-<p class="muted small">Włącz moduł. Bot potrzebuje uprawnień: Wyświetlanie kanału, Czytanie historii wiadomości i Tworzenie publicznych wątków.</p>
+<p class="muted small">Enable the module. The bot needs View Channel, Read Message History and Create Public Threads permissions.</p>

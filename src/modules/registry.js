@@ -31,8 +31,8 @@ export const MODULES = [
   },
   {
     id: 'auto-threads',
-    name: 'Automatyczne wątki',
-    description: 'Twórz publiczny wątek pod każdą nową wiadomością na wybranych kanałach.',
+    name: 'Auto threads',
+    description: 'Create public threads for new messages in selected channels.',
     icon: '🧵',
     requiredIntents: [],
     defaultEnabled: false,

@@ -23,7 +23,7 @@
     }
     var el = document.createElement('div');
     el.className = 'toast ' + (kind || 'ok');
-    el.textContent = message;
+    el.textContent = window.syloT ? window.syloT(message) : message;
     toastHost.appendChild(el);
     setTimeout(function () {
       el.classList.add('show');

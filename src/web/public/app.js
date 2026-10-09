@@ -45,7 +45,7 @@
     (e) => {
       // data-confirm may sit on the <form> or on the submitter <button>.
       const msg = e.submitter?.getAttribute('data-confirm') || e.target.getAttribute('data-confirm');
-      if (msg && !window.confirm(msg)) {
+      if (msg && !window.confirm(window.syloT ? window.syloT(msg) : msg)) {
         e.preventDefault();
         e.stopPropagation();
       }
@@ -56,7 +56,13 @@
     'click',
     (e) => {
       const link = e.target.closest('[data-confirm]');
-      if (link && link.tagName === 'A' && !window.confirm(link.getAttribute('data-confirm'))) {
+      if (
+        link &&
+        link.tagName === 'A' &&
+        !window.confirm(
+          window.syloT ? window.syloT(link.getAttribute('data-confirm')) : link.getAttribute('data-confirm')
+        )
+      ) {
         e.preventDefault();
         e.stopPropagation();
       }

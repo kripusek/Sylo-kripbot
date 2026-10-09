@@ -148,7 +148,7 @@
     <button type="button" id="cc-add-action" class="secondary" x-show="!picking" @click="picking = true">＋ Add another action</button>
     <div class="cc-typepicker" x-show="picking">
       <template x-for="t in types" :key="t.type">
-        <button type="button" @click="addAction(t.type)" x-text="t.title"></button>
+        <button type="button" @click="addAction(t.type)" x-text="window.syloT(t.title)"></button>
       </template>
       <button type="button" class="link-btn" @click="picking = false">cancel</button>
     </div>
