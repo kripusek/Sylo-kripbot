@@ -1,5 +1,5 @@
 import { startWebApp, post } from './helpers/webApp.js';
-import { GID, CH } from './helpers/fakeGuild.js';
+import { GID, CH, ROLE } from './helpers/fakeGuild.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getGuildModule } from '../src/db/modules.js';
@@ -11,6 +11,7 @@ test('V1 publishes feedback panel and exposes the module in overview and sidebar
       panelChannel: CH.general,
       reviewChannel: CH.bots,
       title: 'Complaints',
+      subjectRoles: ROLE.member,
       buttonLabel: 'Write feedback',
       action: 'publish',
     });
@@ -18,9 +19,12 @@ test('V1 publishes feedback panel and exposes the module in overview and sidebar
     const { config } = await getGuildModule(GID, 'feedback');
     assert.ok(config.panelMessageId);
     assert.equal(config.anonymous, false);
+    assert.deepEqual(config.subjectRoles, [ROLE.member]);
     const page = await fetch(`${app.base}/guilds/${GID}/m/feedback`);
     assert.equal(page.status, 200);
-    assert.match(await page.text(), /Staff review channel/);
+    const html = await page.text();
+    assert.match(html, /Staff review channel/);
+    assert.match(html, /Roles shown in member picker/);
     const overview = await fetch(`${app.base}/guilds/${GID}/overview`);
     assert.match(await overview.text(), /m\/feedback/);
   } finally {

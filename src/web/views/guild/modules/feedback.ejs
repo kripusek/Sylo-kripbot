@@ -5,6 +5,9 @@
   <select name="panelChannel"><option value="">— none —</option><% channels.forEach(function(c) { %><option value="<%= c.id %>" <%= c.id === cfg.panelChannel ? 'selected' : '' %>>#<%= c.name %></option><% }) %></select>
   <label>Staff review channel</label>
   <select name="reviewChannel"><option value="">— none —</option><% channels.forEach(function(c) { %><option value="<%= c.id %>" <%= c.id === cfg.reviewChannel ? 'selected' : '' %>>#<%= c.name %></option><% }) %></select>
+  <label>Roles shown in member picker</label>
+  <select name="subjectRoles" multiple size="6"><% roles.forEach(function(role) { %><option value="<%= role.id %>" <%= (cfg.subjectRoles || []).includes(role.id) ? 'selected' : '' %>><%= role.name %></option><% }) %></select>
+  <p class="muted small">Members choose a person with any selected role before writing feedback. Leave empty for general feedback without a person picker. Server Members Intent is required to list all eligible members.</p>
   <label>Panel title</label><input name="title" maxlength="256" value="<%= cfg.title || 'Complaints and feedback' %>" />
   <label>Panel message</label><textarea name="message" maxlength="2000" rows="4"><%= cfg.message || 'Share feedback or report an issue to the administration.' %></textarea>
   <label>Button label</label><input name="buttonLabel" maxlength="80" value="<%= cfg.buttonLabel || 'Write feedback' %>" />

@@ -1,3 +1,4 @@
+import ChipPicker from '../components/ChipPicker.jsx';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getModuleConfig, saveModuleConfig } from '../api.js';
@@ -55,6 +56,19 @@ export default function Feedback() {
             </select>
           </div>
         ))}
+        <div className="v2-field">
+          <label>Roles shown in member picker</label>
+          <ChipPicker
+            kind="role"
+            items={data.roles}
+            value={form.subjectRoles || []}
+            onChange={(subjectRoles) => set({ subjectRoles })}
+          />
+          <p className="v2-field-hint">
+            Members choose a person with any selected role. Leave empty for general feedback. Server Members
+            Intent is required to list all eligible members.
+          </p>
+        </div>
         <div className="v2-field">
           <label htmlFor="title">Panel title</label>
           <input

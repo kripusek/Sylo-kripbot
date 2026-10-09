@@ -81,3 +81,102 @@ test('feedback forms identify their privacy mode, route modal submissions, hide 
   assert.match(replies.at(-1), /disabled/);
   runtime.client = null;
 });
+
+test('role-filtered feedback lists eligible people, paginates and records a validated rating', async () => {
+  const { feedbackCandidates, feedbackPicker } = await import('../src/modules/feedback.js');
+  const role = '100000000000000700';
+  const targetId = '900000000000000111';
+  const target = {
+    id: targetId,
+    displayName: 'Administrator',
+    user: { tag: 'admin', username: 'admin', bot: false },
+    roles: { cache: new Collection([[role, {}]]) },
+  };
+  const outsider = {
+    id: '900000000000000112',
+    user: { username: 'other', tag: 'other', bot: false },
+    roles: { cache: new Collection() },
+  };
+  const members = new Collection([
+    [targetId, target],
+    [outsider.id, outsider],
+  ]);
+  const guild = { members: { cache: members, fetch: async (id) => members.get(id) }, memberCount: 2 };
+  assert.deepEqual(
+    feedbackCandidates(guild, [role]).map((member) => member.id),
+    [targetId]
+  );
+  const page = feedbackPicker(
+    Array.from({ length: 26 }, (_, index) => ({
+      ...target,
+      id: String(100000000000000000n + BigInt(index)),
+    })),
+    '900000000000000222',
+    1
+  );
+  assert.equal(page.components[0].toJSON().components[0].options.length, 1);
+  assert.match(page.content, /page 2\/2/);
+  const config = { ...cfg, subjectRoles: [role] };
+  await setGuildModule(guildId, 'feedback', { enabled: true, config });
+  const sent = [];
+  runtime.client = {
+    guilds: {
+      cache: new Collection([
+        [
+          guildId,
+          {
+            channels: {
+              cache: new Collection([
+                [
+                  cfg.reviewChannel,
+                  {
+                    isTextBased: () => true,
+                    send: async (payload) => {
+                      sent.push(payload);
+                      return { id: 'log' };
+                    },
+                  },
+                ],
+              ]),
+            },
+            members: {},
+          },
+        ],
+      ]),
+    },
+  };
+  let modal;
+  let reply;
+  const interaction = {
+    guild,
+    guildId,
+    channelId: cfg.panelChannel,
+    customId: 'feedback:person:900000000000000222',
+    user: { id: '900000000000000222', tag: 'reviewer' },
+    values: [targetId],
+    isStringSelectMenu: () => true,
+    isModalSubmit: () => true,
+    showModal: async (value) => {
+      modal = value.toJSON();
+    },
+    deferReply: async () => {},
+    editReply: async (value) => {
+      reply = value;
+    },
+    fields: { getTextInputValue: (key) => (key === 'rating' ? '6' : 'A useful opinion.') },
+  };
+  await handleFeedback(interaction);
+  assert.equal(modal.components[0].components[0].custom_id, 'rating');
+  assert.match(modal.custom_id, new RegExp(`${targetId}$`));
+  interaction.customId = modal.custom_id;
+  await handleFeedback(interaction);
+  assert.match(reply, /from 0 to 5/);
+  assert.equal(sent.length, 0);
+  interaction.fields.getTextInputValue = (key) => (key === 'rating' ? '0' : 'A useful opinion.');
+  await handleFeedback(interaction);
+  assert.equal(sent.length, 1);
+  const fields = sent[0].embeds[0].toJSON().fields;
+  assert.equal(fields.find((field) => field.name === 'Rating').value, '0/5');
+  assert.match(fields.find((field) => field.name === 'Feedback about').value, /admin/);
+  runtime.client = null;
+});

@@ -813,6 +813,7 @@ async function moduleViewLocals(mod, req, configOverride) {
     thresholdActions: THRESHOLD_ACTIONS,
     modlogChannelId: (await getGuildSettings(req.guild.id))?.modlog_channel_id ?? '',
     roles: [
+      'feedback',
       'roles',
       'tickets',
       'automod',

@@ -7,6 +7,7 @@ import {
   TextInputBuilder,
   TextInputStyle,
   MessageFlags,
+  StringSelectMenuBuilder,
 } from 'discord.js';
 import { registerComponent } from '../bot/lib/components.js';
 import { getGuildModule, isModuleEnabled } from '../db/modules.js';
@@ -31,6 +32,7 @@ export function normaliseFeedbackConfig(input = {}, previous = {}) {
       String(input.buttonLabel || 'Write feedback')
         .trim()
         .slice(0, 80) || 'Write feedback',
+    subjectRoles: [...new Set([].concat(input.subjectRoles ?? []).filter((role) => snowflake(role)))],
     anonymous: input.anonymous === true || input.anonymous === 'on',
   };
 }
@@ -76,6 +78,86 @@ export async function publishFeedbackPanel(guild, cfg) {
   return (await channel.send(payload)).id;
 }
 
+export function feedbackCandidates(guild, roles) {
+  return [...guild.members.cache.values()]
+    .filter((member) => !member.user.bot && roles.some((role) => member.roles.cache.has(role)))
+    .sort(
+      (a, b) =>
+        (a.displayName || a.user.username).localeCompare(b.displayName || b.user.username) ||
+        a.id.localeCompare(b.id)
+    );
+}
+
+export function feedbackPicker(members, userId, requestedPage = 0) {
+  const pages = Math.ceil(members.length / 25);
+  const page = Math.min(Math.max(0, requestedPage), Math.max(0, pages - 1));
+  if (!members.length)
+    return { content: 'No members currently have the selected roles. Please contact staff.', components: [] };
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId(`feedback:person:${userId}`)
+    .setPlaceholder('Choose the person your feedback concerns')
+    .addOptions(
+      members.slice(page * 25, page * 25 + 25).map((member) => ({
+        label: String(member.displayName || member.user.username).slice(0, 100),
+        value: member.id,
+        description: String(`${member.user.tag} · ${member.id}`).slice(0, 100),
+      }))
+    );
+  const components = [new ActionRowBuilder().addComponents(menu)];
+  if (pages > 1)
+    components.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`feedback:page:${userId}:${page - 1}`)
+          .setLabel('Previous')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(page === 0),
+        new ButtonBuilder()
+          .setCustomId(`feedback:page:${userId}:${page + 1}`)
+          .setLabel('Next')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(page === pages - 1)
+      )
+    );
+  return {
+    content: `Choose the person your feedback concerns${pages > 1 ? ` (page ${page + 1}/${pages})` : ''}:`,
+    components,
+  };
+}
+
+function feedbackModal(cfg, targetId = '') {
+  return new ModalBuilder()
+    .setCustomId(
+      `feedback:submit:${cfg.anonymous ? 'anonymous' : 'identified'}${targetId ? `:${targetId}` : ''}`
+    )
+    .setTitle(
+      targetId
+        ? `Complaint or rating (${cfg.anonymous ? 'anonymous' : 'identified'})`
+        : cfg.anonymous
+          ? 'Anonymous feedback'
+          : 'Feedback (staff can see your identity)'
+    )
+    .addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId(targetId ? 'rating' : 'subject')
+          .setLabel(targetId ? 'Rating from 0 to 5' : 'Subject')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+          .setMaxLength(targetId ? 1 : 100)
+          .setPlaceholder(targetId ? 'e.g. 5' : 'Subject of your feedback')
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('body')
+          .setLabel('Your complaint or feedback')
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true)
+          .setMaxLength(2000)
+      )
+    );
+}
+
 // Only cooldown timestamps are kept in memory; submission text is sent to Discord.
 const cooldowns = new Map();
 const pending = new Set();
@@ -98,35 +180,47 @@ export async function handleFeedback(interaction) {
         content: 'The staff review channel is not configured.',
         flags: MessageFlags.Ephemeral,
       });
-    const modal = new ModalBuilder()
-      .setCustomId(`feedback:submit:${cfg.anonymous ? 'anonymous' : 'identified'}`)
-      .setTitle(cfg.anonymous ? 'Anonymous feedback' : 'Feedback (staff can see your identity)')
-      .addComponents(
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('subject')
-            .setLabel('Subject')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setMaxLength(100)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('body')
-            .setLabel('Your complaint or feedback')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true)
-            .setMaxLength(2000)
+    if (cfg.subjectRoles.length) {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      try {
+        if (interaction.guild.members.cache.size < interaction.guild.memberCount)
+          await interaction.guild.members.fetch();
+        return interaction.editReply(
+          feedbackPicker(feedbackCandidates(interaction.guild, cfg.subjectRoles), interaction.user.id)
+        );
+      } catch {
+        return interaction.editReply(
+          'Could not load members. Staff should check that Server Members Intent is enabled for the bot.'
+        );
+      }
+    }
+    return interaction.showModal(feedbackModal(cfg));
+  }
+  const person = /^feedback:person:(\d{17,20})$/.exec(interaction.customId);
+  const page = /^feedback:page:(\d{17,20}):(-?\d+)$/.exec(interaction.customId);
+  if (person || page) {
+    if ((person || page)[1] !== interaction.user.id)
+      return interaction.reply({ content: 'Open your own feedback form.', flags: MessageFlags.Ephemeral });
+    if (page)
+      return interaction.update(
+        feedbackPicker(
+          feedbackCandidates(interaction.guild, cfg.subjectRoles),
+          interaction.user.id,
+          Number(page[2])
         )
       );
-    return interaction.showModal(modal);
+    if (!interaction.isStringSelectMenu()) return;
+    const target = interaction.guild.members.cache.get(interaction.values[0]);
+    if (!target || target.user.bot || !cfg.subjectRoles.some((role) => target.roles.cache.has(role)))
+      return interaction.reply({
+        content: 'This person is no longer available. Please open the form again.',
+        flags: MessageFlags.Ephemeral,
+      });
+    return interaction.showModal(feedbackModal(cfg, target.id));
   }
-  if (
-    !interaction.isModalSubmit() ||
-    !['feedback:submit:anonymous', 'feedback:submit:identified'].includes(interaction.customId)
-  )
-    return;
-  if (interaction.customId.endsWith(':anonymous') !== cfg.anonymous)
+  const submitted = /^feedback:submit:(anonymous|identified)(?::(\d{17,20}))?$/.exec(interaction.customId);
+  if (!interaction.isModalSubmit() || !submitted) return;
+  if ((submitted[1] === 'anonymous') !== cfg.anonymous)
     return interaction.reply({
       content: 'The privacy setting changed. Please open the form again before submitting.',
       flags: MessageFlags.Ephemeral,
@@ -134,15 +228,34 @@ export async function handleFeedback(interaction) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   if (!cfg.reviewChannel || cfg.reviewChannel === cfg.panelChannel)
     return interaction.editReply('The staff review channel is unavailable. Please contact an administrator.');
+  const targetId = submitted[2];
+  if (cfg.subjectRoles.length && !targetId)
+    return interaction.editReply('Please open the form again and choose a person.');
+  let target = null;
+  if (targetId) {
+    target = await interaction.guild.members.fetch(targetId).catch(() => null);
+    if (!target || target.user.bot || !cfg.subjectRoles.some((role) => target.roles.cache.has(role)))
+      return interaction.editReply('The selected person is no longer available. Please open the form again.');
+  }
   const key = `${interaction.guildId}:${interaction.user.id}`;
   if (pending.has(key) || (cooldowns.get(key) || 0) > Date.now())
     return interaction.editReply('Please wait one minute before sending another submission.');
-  const subject = interaction.fields.getTextInputValue('subject').trim().slice(0, 100);
+  const rating = target ? interaction.fields.getTextInputValue('rating').trim() : null;
+  if (target && !/^[0-5]$/.test(rating))
+    return interaction.editReply('Enter a whole-number rating from 0 to 5.');
+  const subject = target
+    ? 'Staff complaint or rating'
+    : interaction.fields.getTextInputValue('subject').trim().slice(0, 100);
   const body = interaction.fields.getTextInputValue('body').trim().slice(0, 2000);
   if (!subject || !body) return interaction.editReply('Please enter a subject and your feedback.');
   pending.add(key);
   try {
     const embed = new EmbedBuilder().setColor(0x4aa3df).setTitle(subject).setDescription(body).setTimestamp();
+    if (target)
+      embed.addFields(
+        { name: 'Feedback about', value: `${target.user.tag} (${target.id})` },
+        { name: 'Rating', value: `${rating}/5`, inline: true }
+      );
     if (cfg.anonymous) embed.setFooter({ text: 'Anonymous submission' });
     else embed.addFields({ name: 'Submitted by', value: `${interaction.user.tag} (${interaction.user.id})` });
     const delivered = await sendToChannel(interaction.guildId, cfg.reviewChannel, {
