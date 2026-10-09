@@ -18,6 +18,9 @@ export const LOG_EVENTS = [
   ['memberTimeout', 'Member timed out / untimed'],
   ['nickChange', 'Nickname changed'],
   ['roleChange', "Member's roles changed"],
+  ['voiceJoin', 'Voice channel joined'],
+  ['voiceLeave', 'Voice channel left'],
+  ['voiceMove', 'Voice channel switched'],
   ['messageCreate', 'Message sent'],
   ['messageDelete', 'Message deleted'],
   ['messageEdit', 'Message edited'],
@@ -155,6 +158,27 @@ on('logging', 'guildMemberUpdate', ({ old: o, new: n }, config, guildId) => {
   return Promise.all(embeds.map(([key, e]) => log(guildId, config, key, e)));
 });
 
+// Log channel transitions only; mute/deafen/video updates do not create noise.
+export function logVoiceChange({ old: previous, new: current }, config, guildId) {
+  if (previous.channelId === current.channelId) return;
+  const key = !previous.channelId ? 'voiceJoin' : !current.channelId ? 'voiceLeave' : 'voiceMove';
+  if (!want(config, key)) return;
+  const member = current.member ?? previous.member;
+  const id = current.id ?? previous.id ?? member?.id;
+  const title = {
+    voiceJoin: 'Voice channel joined',
+    voiceLeave: 'Voice channel left',
+    voiceMove: 'Voice channel switched',
+  }[key];
+  const embed = base(key === 'voiceLeave' ? COLORS.remove : COLORS.info, title)
+    .setDescription(`<@${id}> · ${member?.user?.tag ?? id}`)
+    .addFields({ name: 'Member ID', value: String(id), inline: true });
+  if (previous.channelId) embed.addFields({ name: 'From', value: `<#${previous.channelId}>`, inline: true });
+  if (current.channelId) embed.addFields({ name: 'To', value: `<#${current.channelId}>`, inline: true });
+  return log(guildId, config, key, embed);
+}
+on('logging', 'voiceStateUpdate', logVoiceChange);
+
 // --- message events ----------------------------------------------------
 
 export function logSentMessage(message, config, guildId) {
@@ -167,18 +191,35 @@ export function logSentMessage(message, config, guildId) {
     [config.channel, ...Object.values(config.eventChannels || {})].includes(message.channelId)
   )
     return;
-  return log(
-    guildId,
-    config,
-    'messageCreate',
-    base(COLORS.info, 'Message sent')
-      .setDescription(`In ${message.channel} by ${message.author?.tag ?? 'unknown'} · [jump](${message.url})`)
-      .addFields(
-        { name: 'Author ID', value: String(message.author.id), inline: true },
-        { name: 'Message ID', value: String(message.id), inline: true },
-        { name: 'Content', value: truncate(message.content) }
-      )
+  const embed = base(COLORS.info, 'Message sent')
+    .setDescription(`In ${message.channel} by ${message.author?.tag ?? 'unknown'} · [jump](${message.url})`)
+    .addFields(
+      { name: 'Author ID', value: String(message.author.id), inline: true },
+      { name: 'Message ID', value: String(message.id), inline: true },
+      { name: 'Content', value: truncate(message.content) }
+    );
+  const attachments = [...(message.attachments?.values() ?? [])].slice(0, 10);
+  if (attachments.length) {
+    const links = attachments.map((file, index) => `[Attachment ${index + 1}](${file.url})`);
+    // Keep complete links and stay within Discord's field limit.
+    let value = '';
+    for (const link of links) {
+      if (value.length + link.length + 1 > 1024) break;
+      value += `${value ? '\n' : ''}${link}`;
+    }
+    if (value) embed.addFields({ name: 'Attachments', value });
+  }
+  const images = attachments.filter(
+    (file) => file.contentType?.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(file.name || '')
   );
+  if (images[0]) embed.setImage(images[0].url);
+  const embeds = [
+    embed,
+    ...images.slice(1).map((file) => base(COLORS.info, 'Message image').setImage(file.url)),
+  ];
+  return sendToChannel(guildId, logChannel(config, 'messageCreate'), {
+    embeds: embeds.map((item) => item.setTimestamp(Date.now())),
+  });
 }
 on('logging', 'messageCreate', logSentMessage);
 

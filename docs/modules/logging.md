@@ -35,6 +35,10 @@ Choose a Default log channel, then choose a Channel for each event. Use default 
 
 ## Message sent
 
-Disabled by default. Copies new server messages from members into the selected channel, including author ID, message ID, a jump link and up to 1024 characters of text. Requires Message Content Intent for text. DMs, bot messages, webhooks, system messages and configured log channels are excluded. No history is imported and attachments are not downloaded or copied.
+Disabled by default. Copies new server messages from members into the selected channel, including author ID, message ID, a jump link and up to 1024 characters of text. Requires Message Content Intent for text. DMs, bot messages, webhooks, system messages and configured log channels are excluded. No history is imported. Up to ten attachments are linked, with image previews for uploaded PNG, JPEG, GIF, WebP and other image MIME types. Files are referenced using Discord URLs rather than downloaded or stored; previews can stop working when the source attachment is deleted or its URL expires.
 
 Use this for a disclosed moderation purpose, restrict access and define a retention period. Log copies remain on Discord after the source message is deleted; /forget does not remove these copies. Automatic retention is not provided for Discord log channels.
+
+## Voice channels
+
+Enable Voice channel joined, Voice channel left and/or Voice channel switched, and choose a destination for each (for example #voice-logs). Logs show member ID and the source/destination channels. Mute, deafen and video changes do not generate entries. Includes voice and Stage channel transitions; no audio is recorded.
