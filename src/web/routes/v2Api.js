@@ -1,3 +1,4 @@
+import { normaliseFeedbackConfig, publishFeedbackPanel } from '../../modules/feedback.js';
 import { normaliseChannelTickets, publishTicketPanel } from '../../modules/channelTickets.js';
 // JSON API for the V2 dashboard SPA (web-v2/). Mounted at /api/v2, entirely
 // after the app-wide requireAuth (src/web/server.js), so every route here
@@ -1338,6 +1339,30 @@ router.post(
     await recordAudit(req.guild.id, {
       actor: moderatorDisplayName(req),
       action: 'module:logging',
+      detail: 'settings saved',
+    });
+    res.json({ config });
+  })
+);
+
+router.get(
+  '/guilds/:guildId/modules/feedback/config',
+  asyncHandler(async (req, res) => {
+    const { config } = await getGuildModule(req.guild.id, 'feedback');
+    res.json({ config: normaliseFeedbackConfig(config, config), channels: guildTextChannels(req.guild) });
+  })
+);
+router.post(
+  '/guilds/:guildId/modules/feedback/config',
+  asyncHandler(async (req, res) => {
+    const previous = (await getGuildModule(req.guild.id, 'feedback')).config;
+    let config = normaliseFeedbackConfig(req.body, previous);
+    if (req.body.action === 'publish')
+      config = { ...config, panelMessageId: await publishFeedbackPanel(req.guild, config) };
+    await setGuildModule(req.guild.id, 'feedback', { config });
+    await recordAudit(req.guild.id, {
+      actor: moderatorDisplayName(req),
+      action: 'module:feedback',
       detail: 'settings saved',
     });
     res.json({ config });

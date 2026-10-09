@@ -21,6 +21,15 @@ import { config } from '../config.js';
 /** @type {ModuleDef[]} */
 export const MODULES = [
   {
+    id: 'feedback',
+    name: 'Complaints & feedback',
+    description: 'A button and form for feedback, delivered to a staff channel.',
+    icon: '📝',
+    requiredIntents: [],
+    defaultEnabled: false,
+    configurable: true,
+  },
+  {
     id: 'auto-threads',
     name: 'Automatyczne wątki',
     description: 'Twórz publiczny wątek pod każdą nową wiadomością na wybranych kanałach.',

@@ -34,3 +34,5 @@ import './birthdays.js'; // no gateway handlers, but runs the daily birthday swe
 import './channelCleanup.js'; // no gateway handlers, but runs the scheduled cleanup loop
 
 import './channelTickets.js';
+
+import './feedback.js';

@@ -1,3 +1,4 @@
+import { normaliseFeedbackConfig, publishFeedbackPanel } from '../../modules/feedback.js';
 import { normaliseChannelTickets, publishTicketPanel } from '../../modules/channelTickets.js';
 // Per-guild control panel: module toggles, general settings, command
 // management, and the moderation panel (warnings + bans). Every route requires
@@ -167,6 +168,7 @@ const router = Router();
 
 // Module ids that have a real settings partial (views/guild/modules/<id>.ejs).
 const CONFIG_VIEWS = new Set([
+  'feedback',
   'auto-threads',
   'moderation',
   'logging',
@@ -1139,6 +1141,8 @@ router.post(
         },
         prev
       );
+    } else if (mod.id === 'feedback') {
+      config = normaliseFeedbackConfig(req.body, (await getGuildModule(req.guild.id, 'feedback')).config);
     } else if (mod.id === 'tickets') {
       const previous = (await getGuildModule(req.guild.id, 'tickets')).config;
       const labels = [].concat(req.body.ticketLabel ?? []);
@@ -1520,6 +1524,10 @@ router.post(
       primeInviteCache(req.guild).catch((err) =>
         log.error('invite-tracker', 'cache prime after save failed:', err.message)
       );
+    }
+    if (mod.id === 'feedback' && req.body.action === 'publish') {
+      config = { ...config, panelMessageId: await publishFeedbackPanel(req.guild, config) };
+      await setGuildModule(req.guild.id, 'feedback', { config });
     }
     if (mod.id === 'tickets' && req.body.action === 'publish') {
       const panelMessageId = await publishTicketPanel(req.guild, config);

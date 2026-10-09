@@ -11,6 +11,7 @@ export const MODULE_ICONS = {
   verification: 'shield-check',
   appeals: 'gavel',
   tickets: 'ticket',
+  feedback: 'message-square',
   welcome: 'users',
   birthdays: 'cake',
   'welcome-channel': 'megaphone',

@@ -64,6 +64,7 @@ const CATEGORIES = [
     key: 'management',
     title: 'Server management',
     items: [
+      { module: 'feedback' },
       { page: 'appeals', dotModule: 'appeals', label: 'Ban appeals' },
       { page: 'tickets', dotModule: 'tickets', label: 'Tickets' },
       { module: 'custom-commands' },

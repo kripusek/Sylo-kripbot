@@ -37,7 +37,10 @@ const KEY_PERMS = [
 // of the synthetic cards built below ('general', 'commands', 'messages').
 const LAYOUT = [
   { title: 'Core', ids: ['general', 'commands', 'moderation'] },
-  { title: 'Moderation & filtering', ids: ['automod', 'honeypot', 'verification', 'appeals', 'logging'] },
+  {
+    title: 'Moderation & filtering',
+    ids: ['automod', 'honeypot', 'verification', 'appeals', 'feedback', 'logging'],
+  },
   {
     title: 'Engagement',
     ids: ['welcome', 'welcome-channel', 'roles', 'counting', 'leveling', 'starboard', 'sticky', 'birthdays'],

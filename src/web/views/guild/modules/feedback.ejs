@@ -1,0 +1,14 @@
+<% var cfg = moduleConfig || {}; %>
+<p class="muted small">Publish a button that opens a complaint or feedback form. Submissions go to the review channel. Restrict that channel to staff in Discord.</p>
+<form method="POST" action="/guilds/<%= guild.id %>/m/feedback/config" hx-post="/guilds/<%= guild.id %>/m/feedback/config" hx-target="#module-config" hx-swap="outerHTML" class="stack u-mw-lg">
+  <label>Panel channel</label>
+  <select name="panelChannel"><option value="">— none —</option><% channels.forEach(function(c) { %><option value="<%= c.id %>" <%= c.id === cfg.panelChannel ? 'selected' : '' %>>#<%= c.name %></option><% }) %></select>
+  <label>Staff review channel</label>
+  <select name="reviewChannel"><option value="">— none —</option><% channels.forEach(function(c) { %><option value="<%= c.id %>" <%= c.id === cfg.reviewChannel ? 'selected' : '' %>>#<%= c.name %></option><% }) %></select>
+  <label>Panel title</label><input name="title" maxlength="256" value="<%= cfg.title || 'Complaints and feedback' %>" />
+  <label>Panel message</label><textarea name="message" maxlength="2000" rows="4"><%= cfg.message || 'Share feedback or report an issue to the administration.' %></textarea>
+  <label>Button label</label><input name="buttonLabel" maxlength="80" value="<%= cfg.buttonLabel || 'Write feedback' %>" />
+  <label class="check"><input type="checkbox" name="anonymous" <%= cfg.anonymous ? 'checked' : '' %> />Anonymous submissions</label>
+  <p class="muted small">Off by default: staff see the author's Discord username and ID. When enabled, the bot omits the author's identity from the submission. The panel and form explain the current setting. One submission per member per minute. Submission text is sent to Discord, not stored in the bot database.</p>
+  <div><button type="submit">Save</button> <button type="submit" name="action" value="publish">Save and publish panel</button></div>
+</form>

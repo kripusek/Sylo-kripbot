@@ -48,7 +48,7 @@ export async function overrideBlockReason(interaction) {
 
 /** @param {import('discord.js').Interaction} interaction */
 export async function execute(interaction) {
-  if (interaction.isMessageComponent()) {
+  if (interaction.isMessageComponent() || interaction.isModalSubmit()) {
     await routeComponent(interaction);
     return;
   }

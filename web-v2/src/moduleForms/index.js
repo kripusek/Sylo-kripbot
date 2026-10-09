@@ -1,3 +1,4 @@
+import Feedback from './Feedback.jsx';
 // Registry of module ids with a real V2 settings form. Overview links a
 // module's row here when it has an entry, and to V1's own config page
 // (already given by the overview API as each card's `href`) otherwise —
@@ -40,6 +41,7 @@ import Roles from './Roles.jsx';
 import CustomCommands from './CustomCommands.jsx';
 
 export const MODULE_FORMS = {
+  feedback: Feedback,
   afk: Afk,
   moderation: Moderation,
   automod: Automod,
