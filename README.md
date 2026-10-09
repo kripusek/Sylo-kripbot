@@ -1,47 +1,85 @@
 <div align="center">
 
-<img src="unraid/sylo.jpg" alt="Sylo" width="512" />
+# Sylo-kripbot
 
-# Sylo
+**Fork Sylo rozwijany przez kripuska — bot Discord z panelem WWW i automatycznymi wątkami.**
 
-**Multi-function Discord bot with a MEE6-style web dashboard — add the hosted instance, or self-host on Unraid via Docker.**
-
-[![Add to Discord](https://img.shields.io/badge/add%20to-Discord-5865F2?logo=discord&logoColor=white)](https://discord.com/oauth2/authorize?client_id=1374856793469227029)
-[![Discord](https://img.shields.io/discord/1545464180340039751?logo=discord&logoColor=white&label=community&color=5865F2)](https://discord.gg/GAzR9k5hhS)
-[![Test](https://github.com/Ferdinand99/Sylo/actions/workflows/test.yml/badge.svg)](https://github.com/Ferdinand99/Sylo/actions/workflows/test.yml)
-[![Release](https://img.shields.io/github/v/release/Ferdinand99/Sylo?sort=semver&label=release)](https://github.com/Ferdinand99/Sylo/releases)
-[![Docker Hub](https://img.shields.io/docker/v/iwgamin/sylo?sort=semver&logo=docker&logoColor=white&label=docker%20hub)](https://hub.docker.com/r/iwgamin/sylo)
-[![Pulls](https://img.shields.io/docker/pulls/iwgamin/sylo?logo=docker&logoColor=white&label=pulls)](https://hub.docker.com/r/iwgamin/sylo)
-[![GHCR](https://img.shields.io/badge/ghcr.io-Ferdinand99%2FSylo-2496ED?logo=github&logoColor=white)](https://github.com/Ferdinand99/Sylo/pkgs/container/sylo)
-[![Node](https://img.shields.io/badge/node-%E2%89%A522-5FA04E?logo=node.js&logoColor=white)](https://nodejs.org)
-[![License: MIT](https://img.shields.io/github/license/Ferdinand99/Sylo)](LICENSE)
-[![Website](https://img.shields.io/badge/website-sylobot.com-7C6CFF)](https://sylobot.com)
-[![Roadmap](https://img.shields.io/badge/roadmap-sylobot.com-8B5CF6)](https://roadmap.sylobot.com/roadmap)
+[![Node](https://img.shields.io/badge/Node.js-22%2B-5FA04E?logo=node.js&logoColor=white)](https://nodejs.org)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Upstream](https://img.shields.io/badge/upstream-Ferdinand99%2FSylo-5865F2?logo=github)](https://github.com/Ferdinand99/Sylo)
 
 </div>
 
-Thirty-three per-guild **modules**, Discord **OAuth2 login**, a public leveling
-**leaderboard**, and — via the optional Game stats module — **Battlefield-series**
-and **RuneScape** (OSRS / RS3) player lookups. Everything runs in **one Node
-process, one container, no build step** — and stays that way past Discord's
-2,500-guild gateway limit via in-process sharding.
+Projekt bazuje na [Sylo autorstwa Ferdinand99](https://github.com/Ferdinand99/Sylo).
+Ten fork dodaje własne funkcje i poprawki dla samodzielnie hostowanego bota.
+Oryginalny bot, jego publiczna instancja i obrazy Docker są osobnymi wydaniami;
+nie zawierają automatycznie zmian z tego repozytorium.
 
-Don't want to run your own instance? Sylo is a Discord-verified bot —
-[add it to your server](https://discord.com/oauth2/authorize?client_id=1374856793469227029)
-directly. The rest of this README, and [self-hosting](#self-hosting) below, is
-for running your own copy instead.
+## Co zmienia ten fork?
 
-<details>
-<summary>The 33 modules</summary>
+- **Automatyczne wątki** — publiczny wątek pod nową wiadomością na wybranych
+  kanałach tekstowych lub kanałach ogłoszeń. Wybór wielu kanałów, nazwa z
+  `{author}` / `{message}` i archiwizacja po 1 godzinie, 1, 3 lub 7 dniach.
+- **Konfiguracja w V1 i V2** — moduł dostępny w ustawieniach obu paneli;
+  w V1 także na liście kafelków i w bocznym menu.
+- **Diagnostyka weryfikacji** — błędy publikowania lub edycji wiadomości
+  weryfikacyjnej są zgłaszane w konsoli.
 
-moderation · logging · tickets · reaction roles · verification · welcome ·
-welcome channel · birthdays · sticky messages · auto-moderation · counting · custom commands ·
-autoresponder · auto-react · reminders · leveling · AFK · server statistics · server insights · free games ·
-ban appeals · temporary voice channels · starboard · invite tracker · polls ·
-giveaways · game stats · Twitch alerts · YouTube alerts · Kick alerts · RSS alerts · channel cleanup ·
-GitHub alerts
+Wątki pomijają boty, webhooki, wiadomości systemowe i wiadomości wewnątrz
+wątków. Nie przetwarzają starszych wiadomości.
+[Instrukcja i uprawnienia modułu](docs/modules/auto-threads.md).
 
-</details>
+Pozostałe funkcje pochodzą z Sylo: moderacja, logi, weryfikacja, role,
+tymczasowe kanały głosowe, modmail, leveling, automatyczne odpowiedzi i inne.
+Panel **V1 działa bez budowania frontendu**. Opcjonalny panel V2 wymaga
+`npm run build:v2`.
+
+## Pelican — szybki start (V1)
+
+Użyj egga **Node.js generic** z obrazem **Node.js 22**:
+
+| Pole | Wartość |
+| --- | --- |
+| Git Repo Address | `https://github.com/kripusek/Sylo-kripbot.git` |
+| Install Branch | `main` |
+| Main File | `src/index.js` |
+
+Po instalacji skopiuj `.env.example` do `.env` i uzupełnij ustawienia
+według [instrukcji self-hostingu](docs/self-hosting.md). Ustaw `WEB_PORT`
+na przydzielony port Pelicana. Dla publicznego panelu skonfiguruj
+`DISCORD_CLIENT_SECRET`, losowy `SESSION_SECRET` oraz `DASHBOARD_URL`.
+W Discord Developer Portal dodaj dokładny redirect:
+`<DASHBOARD_URL>/auth/discord/callback`.
+
+Komenda startowa:
+
+```bash
+npm install && node /home/container/src/index.js
+```
+
+Aktualizacja przy każdym starcie, jeśli `origin` wskazuje na ten fork:
+
+```bash
+git pull --ff-only origin main && npm install && node /home/container/src/index.js
+```
+
+Przy przenoszeniu istniejącej instalacji z oryginalnego repozytorium zmień
+najpierw zdalny adres `origin`:
+
+```bash
+git remote set-url origin https://github.com/kripusek/Sylo-kripbot.git
+```
+
+Aktualizacje są pobierane przy starcie, nie podczas działania bota.
+Zachowaj `.env` i katalog `data`; przed aktualizacją wykonaj kopię bazy.
+Zmiany z upstreamu trzeba osobno synchronizować do forka.
+
+## Dokumentacja oryginalnego projektu
+
+Poniżej zachowano szczegółowy opis Sylo. Linki do publicznego bota,
+społeczności, roadmapy i gotowych obrazów dotyczą **oryginalnego projektu**.
+Politykę prywatności własnej instancji należy dostosować do jej operatora
+i faktycznie używanych funkcji.
 
 ## Documentation
 
@@ -230,7 +268,7 @@ settings panel per module — saves swap in place with a toast.
   non-moderators.
 - **Extensible game adapters** — one file per game, registered in a central
   registry. Adding a game does not touch bot or web code.
-- **Per-guild modules** — 33 feature groups, each toggled and configured from the
+- **Per-guild modules** — configurable feature groups, each toggled and configured from the
   dashboard:
   - **Moderation** — warning thresholds that auto-timeout/kick/ban, one-click unban
   - **Server logging** — member / message / role / channel events to a log channel
@@ -424,8 +462,8 @@ data/                   SQLite file lives here (git-ignored, volume-mounted)
 Requires **Node.js 22+** and a Discord application with a bot.
 
 ```bash
-git clone <this repo>
-cd Sylo
+git clone https://github.com/kripusek/Sylo-kripbot.git
+cd Sylo-kripbot
 npm install
 cp .env.example .env     # then edit .env (see docs/self-hosting.md)
 npm test                 # optional: run the adapter test suite
