@@ -3,7 +3,7 @@
       hx-target="<%= typeof fragTarget !== 'undefined' ? fragTarget : '#module-config' %>"
       hx-swap="<%= typeof fragSwap !== 'undefined' ? fragSwap : 'outerHTML' %>"
       class="stack u-mw-lg">
-  <label>Log channel</label>
+  <label>Default log channel</label>
   <select name="channel">
     <option value="">— none —</option>
     <% channels.forEach(function (c) { %>
@@ -14,12 +14,23 @@
   <label class="u-mt-2">Events to log</label>
   <div class="check-grid">
     <% logEvents.forEach(function (pair) { var key = pair[0], name = pair[1]; %>
+      <div>
       <label class="check">
         <input type="checkbox" name="ev_<%= key %>" <%= (moduleConfig.events && moduleConfig.events[key]) ? 'checked' : '' %> />
         <%= name %>
       </label>
+      <label for="channel_<%= key %>">Channel for <%= name %></label>
+      <select id="channel_<%= key %>" name="channel_<%= key %>">
+        <option value="">Use default channel</option>
+        <% channels.forEach(function (c) { %>
+          <option value="<%= c.id %>" <%= c.id === moduleConfig.eventChannels?.[key] ? 'selected' : '' %>>#<%= c.name %></option>
+        <% }) %>
+      </select>
+      </div>
     <% }) %>
   </div>
+
+  <p>Message sent copies new messages from members in server channels the bot can access. DMs, bots, webhooks and configured log channels are excluded. Inform members, restrict log access and define a retention period. Copies remain after the original is deleted. Message Content Intent is required to include text.</p>
 
   <div><button type="submit">Save</button></div>
 </form>

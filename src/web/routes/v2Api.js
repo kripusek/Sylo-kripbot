@@ -1312,6 +1312,7 @@ router.get(
       config: {
         channel: cfg.channel || '',
         events: Object.fromEntries(LOG_EVENTS.map(([key]) => [key, Boolean(cfg.events?.[key])])),
+        eventChannels: Object.fromEntries(LOG_EVENTS.map(([key]) => [key, cfg.eventChannels?.[key] || ''])),
       },
       channels: guildTextChannels(req.guild),
       logEvents: LOG_EVENTS,
@@ -1325,6 +1326,12 @@ router.post(
     const config = {
       channel: /^\d{17,20}$/.test(req.body.channel ?? '') ? req.body.channel : '',
       events: Object.fromEntries(LOG_EVENTS.map(([key]) => [key, Boolean(req.body.events?.[key])])),
+      eventChannels: Object.fromEntries(
+        LOG_EVENTS.map(([key]) => [
+          key,
+          /^\d{17,20}$/.test(req.body.eventChannels?.[key] ?? '') ? req.body.eventChannels[key] : '',
+        ])
+      ),
     };
     await setGuildModule(req.guild.id, 'logging', { config });
     await recordAudit(req.guild.id, {

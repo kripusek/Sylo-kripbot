@@ -18,6 +18,7 @@ export const LOG_EVENTS = [
   ['memberTimeout', 'Member timed out / untimed'],
   ['nickChange', 'Nickname changed'],
   ['roleChange', "Member's roles changed"],
+  ['messageCreate', 'Message sent'],
   ['messageDelete', 'Message deleted'],
   ['messageEdit', 'Message edited'],
   ['messageBulkDelete', 'Messages bulk-deleted'],
@@ -25,10 +26,11 @@ export const LOG_EVENTS = [
   ['channelCreateDelete', 'Channel created / deleted'],
 ];
 
-const want = (config, key) => Boolean(config?.channel) && config?.events?.[key];
+export const logChannel = (config, key) => config?.eventChannels?.[key] || config?.channel || '';
+const want = (config, key) => Boolean(logChannel(config, key)) && config?.events?.[key];
 
-function log(guildId, config, embed) {
-  return sendToChannel(guildId, config.channel, { embeds: [embed.setTimestamp(Date.now())] });
+function log(guildId, config, key, embed) {
+  return sendToChannel(guildId, logChannel(config, key), { embeds: [embed.setTimestamp(Date.now())] });
 }
 
 function base(color, title) {
@@ -48,6 +50,7 @@ on('logging', 'guildMemberAdd', (member, config, guildId) => {
   return log(
     guildId,
     config,
+    'memberJoin',
     base(COLORS.add, 'Member joined')
       .setThumbnail(member.user.displayAvatarURL())
       .setDescription(`${member} · ${member.user.tag} (\`${member.id}\`)`)
@@ -66,6 +69,7 @@ on('logging', 'guildMemberRemove', (member, config, guildId) => {
   return log(
     guildId,
     config,
+    'memberLeave',
     base(COLORS.remove, 'Member left')
       .setThumbnail(member.user.displayAvatarURL())
       .setDescription(`${member.user.tag} (\`${member.id}\`)`)
@@ -86,6 +90,7 @@ on('logging', 'guildBanAdd', async (ban, config, guildId) => {
   return log(
     guildId,
     config,
+    'memberBan',
     base(COLORS.remove, 'Member banned')
       .setDescription(`${ban.user.tag} (\`${ban.user.id}\`)`)
       .addFields({ name: 'Reason', value: reason || '*none*' })
@@ -97,15 +102,18 @@ on('logging', 'guildBanRemove', (ban, config, guildId) => {
   return log(
     guildId,
     config,
+    'memberUnban',
     base(COLORS.add, 'Member unbanned').setDescription(`${ban.user.tag} (\`${ban.user.id}\`)`)
   );
 });
 
 on('logging', 'guildMemberUpdate', ({ old: o, new: n }, config, guildId) => {
   const embeds = [];
+  const queue = (key, embed) => embeds.push([key, embed]);
 
   if (want(config, 'nickChange') && o.nickname !== n.nickname) {
-    embeds.push(
+    queue(
+      'nickChange',
       base(COLORS.edit, 'Nickname changed')
         .setDescription(`${n} (\`${n.id}\`)`)
         .addFields(
@@ -119,7 +127,8 @@ on('logging', 'guildMemberUpdate', ({ old: o, new: n }, config, guildId) => {
     const wasTimedOut = o.communicationDisabledUntilTimestamp > Date.now();
     const isTimedOut = n.communicationDisabledUntilTimestamp > Date.now();
     if (!wasTimedOut && isTimedOut) {
-      embeds.push(
+      queue(
+        'memberTimeout',
         base(COLORS.remove, 'Member timed out')
           .setDescription(`${n} (\`${n.id}\`)`)
           .addFields({
@@ -128,7 +137,7 @@ on('logging', 'guildMemberUpdate', ({ old: o, new: n }, config, guildId) => {
           })
       );
     } else if (wasTimedOut && !isTimedOut) {
-      embeds.push(base(COLORS.add, 'Timeout removed').setDescription(`${n} (\`${n.id}\`)`));
+      queue('memberTimeout', base(COLORS.add, 'Timeout removed').setDescription(`${n} (\`${n.id}\`)`));
     }
   }
 
@@ -139,20 +148,46 @@ on('logging', 'guildMemberUpdate', ({ old: o, new: n }, config, guildId) => {
       const e = base(COLORS.info, "Member's roles changed").setDescription(`${n} (\`${n.id}\`)`);
       if (added.length) e.addFields({ name: 'Added', value: added.map((r) => `${r}`).join(' ') });
       if (removed.length) e.addFields({ name: 'Removed', value: removed.map((r) => r.name).join(', ') });
-      embeds.push(e);
+      queue('roleChange', e);
     }
   }
 
-  return Promise.all(embeds.map((e) => log(guildId, config, e)));
+  return Promise.all(embeds.map(([key, e]) => log(guildId, config, key, e)));
 });
 
 // --- message events ----------------------------------------------------
+
+export function logSentMessage(message, config, guildId) {
+  if (
+    !want(config, 'messageCreate') ||
+    !message.guildId ||
+    message.author?.bot ||
+    message.webhookId ||
+    message.system ||
+    [config.channel, ...Object.values(config.eventChannels || {})].includes(message.channelId)
+  )
+    return;
+  return log(
+    guildId,
+    config,
+    'messageCreate',
+    base(COLORS.info, 'Message sent')
+      .setDescription(`In ${message.channel} by ${message.author?.tag ?? 'unknown'} · [jump](${message.url})`)
+      .addFields(
+        { name: 'Author ID', value: String(message.author.id), inline: true },
+        { name: 'Message ID', value: String(message.id), inline: true },
+        { name: 'Content', value: truncate(message.content) }
+      )
+  );
+}
+on('logging', 'messageCreate', logSentMessage);
 
 on('logging', 'messageDelete', (message, config, guildId) => {
   if (!want(config, 'messageDelete') || message.author?.bot) return;
   return log(
     guildId,
     config,
+    'messageDelete',
     base(COLORS.remove, 'Message deleted')
       .setDescription(`In ${message.channel} by ${message.author ? message.author.tag : 'unknown'}`)
       .addFields({ name: 'Content', value: truncate(message.content) })
@@ -164,6 +199,7 @@ on('logging', 'messageUpdate', ({ old: o, new: n }, config, guildId) => {
   return log(
     guildId,
     config,
+    'messageEdit',
     base(COLORS.edit, 'Message edited')
       .setDescription(`In ${n.channel} by ${n.author?.tag} · [jump](${n.url})`)
       .addFields(
@@ -178,6 +214,7 @@ on('logging', 'messageDeleteBulk', ({ messages, channel }, config, guildId) => {
   return log(
     guildId,
     config,
+    'messageBulkDelete',
     base(COLORS.remove, 'Messages bulk-deleted').setDescription(
       `${messages.size} messages deleted in ${channel}`
     )
@@ -188,13 +225,19 @@ on('logging', 'messageDeleteBulk', ({ messages, channel }, config, guildId) => {
 
 on('logging', 'roleCreate', (role, config, guildId) => {
   if (!want(config, 'roleCreateDelete')) return;
-  return log(guildId, config, base(COLORS.add, 'Role created').setDescription(`${role} (\`${role.id}\`)`));
+  return log(
+    guildId,
+    config,
+    'roleCreateDelete',
+    base(COLORS.add, 'Role created').setDescription(`${role} (\`${role.id}\`)`)
+  );
 });
 on('logging', 'roleDelete', (role, config, guildId) => {
   if (!want(config, 'roleCreateDelete')) return;
   return log(
     guildId,
     config,
+    'roleCreateDelete',
     base(COLORS.remove, 'Role deleted').setDescription(`**${role.name}** (\`${role.id}\`)`)
   );
 });
@@ -204,6 +247,7 @@ on('logging', 'channelCreate', (channel, config, guildId) => {
   return log(
     guildId,
     config,
+    'channelCreateDelete',
     base(COLORS.add, 'Channel created').setDescription(`${channel} (\`${channel.id}\`)`)
   );
 });
@@ -212,6 +256,7 @@ on('logging', 'channelDelete', (channel, config, guildId) => {
   return log(
     guildId,
     config,
+    'channelCreateDelete',
     base(COLORS.remove, 'Channel deleted').setDescription(`**#${channel.name}** (\`${channel.id}\`)`)
   );
 });

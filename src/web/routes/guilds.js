@@ -1062,6 +1062,12 @@ router.post(
       config = {
         channel: /^\d{17,20}$/.test(req.body.channel ?? '') ? req.body.channel : '',
         events: Object.fromEntries(LOG_EVENTS.map(([key]) => [key, req.body[`ev_${key}`] === 'on'])),
+        eventChannels: Object.fromEntries(
+          LOG_EVENTS.map(([key]) => [
+            key,
+            /^\d{17,20}$/.test(req.body[`channel_${key}`] ?? '') ? req.body[`channel_${key}`] : '',
+          ])
+        ),
       };
     } else if (mod.id === 'welcome') {
       const chan = (v) => (/^\d{17,20}$/.test(v ?? '') ? v : '');
