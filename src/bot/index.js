@@ -18,6 +18,7 @@ function buildIntents() {
     GatewayIntentBits.GuildModeration, // ban add/remove, audit-log-adjacent events
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMessageReactions, // reaction roles
+    GatewayIntentBits.GuildExpressions, // keep custom server emojis in sync
     GatewayIntentBits.GuildVoiceStates, // temporary "join to create" voice channels
     GatewayIntentBits.GuildInvites, // invite tracker
     GatewayIntentBits.DirectMessages, // ticket / modmail

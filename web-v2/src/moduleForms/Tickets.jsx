@@ -39,7 +39,10 @@ export default function Tickets() {
     setSaving(true);
     setSaved(false);
     try {
-      const { config } = await saveModuleConfig(guildId, 'tickets', form);
+      const { config } = await saveModuleConfig(guildId, 'tickets', {
+        ...form,
+        action: e.nativeEvent.submitter?.value,
+      });
       setForm(config);
       setSaved(true);
     } catch (err) {
@@ -51,7 +54,7 @@ export default function Tickets() {
 
   return (
     <>
-      <h1 className="v2-section-title">Tickets (modmail)</h1>
+      <h1 className="v2-section-title">Tickets</h1>
       <p className="v2-field-hint">
         Members open a ticket by sending the bot a direct message. Staff read and reply from the{' '}
         <a href={`/guilds/${guildId}/tickets`}>Tickets</a> page — replies reach the member as an anonymous
@@ -59,6 +62,108 @@ export default function Tickets() {
       </p>
 
       <form onSubmit={onSave}>
+        <h2>Discord ticket panel</h2>
+        <p className="v2-field-hint">
+          Each topic opens a private text channel in its selected category. Staff roles below and
+          administrators have access. Closing locks the member's replies and retains the channel. Modmail
+          retention does not delete channel tickets.
+        </p>
+        <div className="v2-field">
+          <label>Panel channel</label>
+          <select value={form.panelChannel || ''} onChange={(e) => set({ panelChannel: e.target.value })}>
+            <option value="">— none —</option>
+            {data.channels.map((c) => (
+              <option key={c.id} value={c.id}>
+                #{c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="v2-field">
+          <label>Panel title</label>
+          <input
+            maxLength={256}
+            value={form.panelTitle || ''}
+            onChange={(e) => set({ panelTitle: e.target.value })}
+          />
+        </div>
+        <div className="v2-field">
+          <label>Panel message</label>
+          <textarea
+            maxLength={2000}
+            value={form.panelText || ''}
+            onChange={(e) => set({ panelText: e.target.value })}
+          />
+        </div>
+        <div className="v2-field">
+          <label>Ticket log channel</label>
+          <select
+            value={form.ticketLogChannel || ''}
+            onChange={(e) => set({ ticketLogChannel: e.target.value })}
+          >
+            <option value="">— none —</option>
+            {data.channels.map((c) => (
+              <option key={c.id} value={c.id}>
+                #{c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <h3>Ticket topics</h3>
+        <p className="v2-field-hint">
+          Up to 25 topics. One open channel ticket per member. Save and publish to update the Discord menu.
+        </p>
+        {(form.ticketTypes || []).map((type, index) => {
+          const update = (patch) =>
+            set({
+              ticketTypes: form.ticketTypes.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+            });
+          return (
+            <fieldset key={type.id || index} className="v2-field">
+              <label>Topic name</label>
+              <input maxLength={100} value={type.label} onChange={(e) => update({ label: e.target.value })} />
+              <label>Description</label>
+              <input
+                maxLength={100}
+                value={type.description}
+                onChange={(e) => update({ description: e.target.value })}
+              />
+              <label>Destination category</label>
+              <select value={type.categoryId} onChange={(e) => update({ categoryId: e.target.value })}>
+                <option value="">— choose a category —</option>
+                {data.categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => set({ ticketTypes: form.ticketTypes.filter((_, i) => i !== index) })}
+              >
+                Remove topic
+              </button>
+            </fieldset>
+          );
+        })}
+        <button
+          type="button"
+          disabled={(form.ticketTypes || []).length >= 25}
+          onClick={() =>
+            set({
+              ticketTypes: [
+                ...(form.ticketTypes || []),
+                { id: crypto.randomUUID(), label: '', description: '', categoryId: '' },
+              ],
+            })
+          }
+        >
+          Add topic
+        </button>
+        <button type="submit" value="publish" disabled={saving}>
+          Save and publish panel
+        </button>
+        <h2>DM tickets (modmail)</h2>
         <div className="v2-field">
           <label htmlFor="greeting">
             Greeting sent when a ticket opens{' '}

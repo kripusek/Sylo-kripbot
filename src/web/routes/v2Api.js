@@ -1,3 +1,4 @@
+import { normaliseChannelTickets, publishTicketPanel } from '../../modules/channelTickets.js';
 // JSON API for the V2 dashboard SPA (web-v2/). Mounted at /api/v2, entirely
 // after the app-wide requireAuth (src/web/server.js), so every route here
 // already has a signed-in req.session.user — same cookie-session V1 uses,
@@ -1349,6 +1350,7 @@ router.get(
     const { config: cfg } = await getGuildModule(req.guild.id, 'tickets');
     res.json({
       config: {
+        ...normaliseChannelTickets(cfg, cfg),
         greeting: cfg.greeting || '',
         closeMessage: cfg.closeMessage || '',
         notifyChannel: cfg.notifyChannel || '',
@@ -1358,6 +1360,7 @@ router.get(
       },
       channels: guildTextChannels(req.guild),
       roles: assignableRoles(req.guild),
+      categories: guildCategories(req.guild),
     });
   })
 );
@@ -1365,7 +1368,9 @@ router.get(
 router.post(
   '/guilds/:guildId/modules/tickets/config',
   asyncHandler(async (req, res) => {
-    const config = {
+    const previous = (await getGuildModule(req.guild.id, 'tickets')).config;
+    let config = {
+      ...normaliseChannelTickets(req.body, previous),
       greeting: String(req.body.greeting ?? '').slice(0, 1500),
       closeMessage: String(req.body.closeMessage ?? '').slice(0, 1500),
       notifyChannel: /^\d{17,20}$/.test(req.body.notifyChannel ?? '') ? req.body.notifyChannel : '',
@@ -1374,6 +1379,10 @@ router.post(
       showMessageInAlert: Boolean(req.body.showMessageInAlert),
     };
     await setGuildModule(req.guild.id, 'tickets', { config });
+    if (req.body.action === 'publish') {
+      config = { ...config, panelMessageId: await publishTicketPanel(req.guild, config) };
+      await setGuildModule(req.guild.id, 'tickets', { config });
+    }
     await recordAudit(req.guild.id, {
       actor: moderatorDisplayName(req),
       action: 'module:tickets',

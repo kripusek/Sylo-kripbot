@@ -81,7 +81,7 @@
         <div class="rr-row">
           <span class="emoji-cellwrap" x-data="emojiPicker('<%= guildId %>')" @emoji-pick="row.emoji = $event.detail">
             <input type="text" name="rr_emoji" class="rr-emoji" x-model="row.emoji"
-                   :placeholder="style === 'reaction' ? '👋 (required)' : '👋 (optional)'" />
+                   :placeholder="style === 'reaction' ? 'Emoji, :name: or emoji ID' : 'Emoji (optional)'" />
             <button type="button" class="emoji-btn" @click="toggle()">😀</button>
             <div class="emoji-pop" x-show="open" @click.outside="open = false" x-cloak>
               <template x-if="custom.length">

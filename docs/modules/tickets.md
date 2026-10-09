@@ -1,4 +1,22 @@
-# Tickets (modmail)
+# Tickets
+
+## Discord dropdown panel
+
+In the Tickets module, enable the module and configure:
+
+- **Panel channel**: the text channel where members select a topic.
+- **Panel title / Panel message**: the public panel text.
+- **Ticket topics**: add up to 25 names, descriptions and destination categories. Categories contain the newly created private text channels.
+- **Staff roles**: roles allowed to read and reply in newly created tickets. Administrators can also access them. Category permissions are not inherited; explicit private permissions protect each ticket.
+- **Ticket log channel**: records member, topic and channel on opening, and member, closing user and channel on closure.
+
+Click **Save and publish panel** to create or update the dropdown message. Ordinary Save stores settings; publish updates the visible Discord menu. Use Add topic / Remove topic whenever you need to change the options. Existing tickets retain their current permissions and destination.
+
+The bot needs View Channel, Send Messages and Embed Links in the panel and log channels, and Manage Channels / Manage Roles to create channels and manage permission overwrites. The bot must be allowed to grant the ticket permissions.
+
+Members may have one open channel ticket per server. Duplicate clicks are guarded. The **Close ticket** button is available to the owner or staff. Closing makes the ticket read-only for the owner and retains the channel for review. Staff can delete it manually. Channel tickets are independent of the dashboard modmail queue and its transcript retention; their conversations stay in Discord and are not copied into the modmail database. Changing Staff roles applies to new channel tickets.
+
+# DM tickets (modmail)
 
 Members open a ticket by **DMing the bot**. Staff read the conversation and reply
 from the dashboard — replies are delivered to the member as a DM from Sylo.

@@ -32,3 +32,5 @@ import './messageCreator.js'; // registers the role-button / role-select compone
 import './moderation.js'; // no gateway handlers, but runs the temporary-ban expiry loop
 import './birthdays.js'; // no gateway handlers, but runs the daily birthday sweep
 import './channelCleanup.js'; // no gateway handlers, but runs the scheduled cleanup loop
+
+import './channelTickets.js';

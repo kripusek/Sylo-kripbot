@@ -1,0 +1,166 @@
+import './helpers/tmpDb.js';
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { Collection, ChannelType, PermissionFlagsBits } from 'discord.js';
+import {
+  normaliseChannelTickets,
+  publishTicketPanel,
+  handleChannelTicket,
+} from '../src/modules/channelTickets.js';
+import { setGuildModule } from '../src/db/modules.js';
+import { runtime } from '../src/runtime.js';
+
+const guildId = '900000000000000123';
+const ownerId = '900000000000000456';
+const botId = '900000000000000789';
+const categoryId = '100000000000000005';
+const panelId = '100000000000000001';
+const logId = '100000000000000002';
+const cfg = {
+  ...normaliseChannelTickets({
+    panelChannel: panelId,
+    ticketLogChannel: logId,
+    ticketTypes: [{ id: 'support', label: 'Support', categoryId }],
+  }),
+  panelMessageId: 'panel',
+  staffRoles: ['100000000000000700'],
+};
+
+test('ticket settings limit topics, keep stable IDs, and discard forged panel message IDs', () => {
+  const result = normaliseChannelTickets(
+    {
+      ...cfg,
+      panelMessageId: 'forged',
+      ticketTypes: [
+        { id: 'support', label: ' Support ', categoryId },
+        { id: 'support', label: 'Other', categoryId },
+        { label: '' },
+      ],
+    },
+    cfg
+  );
+  assert.equal(result.panelMessageId, 'panel');
+  assert.equal(result.ticketTypes.length, 2);
+  assert.equal(result.ticketTypes[0].id, 'support');
+  assert.notEqual(result.ticketTypes[1].id, 'support');
+  assert.equal(normaliseChannelTickets({ panelChannel: logId }, cfg).panelMessageId, '');
+  assert.equal(
+    normaliseChannelTickets({ ticketTypes: Array.from({ length: 30 }, (_, i) => ({ label: `Type ${i}` })) })
+      .ticketTypes.length,
+    25
+  );
+});
+
+test('ticket panel edits an existing message with dropdown options', async () => {
+  let payload;
+  const guild = {
+    members: { me: { id: botId } },
+    channels: {
+      fetch: async (id) =>
+        id === categoryId
+          ? { type: ChannelType.GuildCategory }
+          : {
+              isTextBased: () => true,
+              permissionsFor: () => ({ has: () => true }),
+              messages: {
+                fetch: async () => ({
+                  author: { id: botId },
+                  edit: async (data) => {
+                    payload = data;
+                    return { id: 'panel' };
+                  },
+                }),
+              },
+            },
+    },
+  };
+  assert.equal(await publishTicketPanel(guild, cfg), 'panel');
+  assert.equal(payload.components[0].toJSON().components[0].options[0].value, 'support');
+  await assert.rejects(() => publishTicketPanel(guild, { ...cfg, ticketTypes: [] }), /at least one/);
+});
+
+test('private tickets route to a category, reject duplicates and unauthorized closure, and survive config reloads', async () => {
+  const sent = [];
+  const created = [];
+  const edits = [];
+  const cache = new Collection([
+    [categoryId, { id: categoryId, type: ChannelType.GuildCategory }],
+    [
+      logId,
+      {
+        isTextBased: () => true,
+        permissionsFor: () => ({ has: () => true }),
+        send: async (data) => {
+          sent.push(data);
+          return { id: 'log' };
+        },
+      },
+    ],
+  ]);
+  const channel = {
+    id: '100000000000001234',
+    toString: () => '<#100000000000001234>',
+    send: async (data) => {
+      sent.push(data);
+    },
+    permissionOverwrites: { edit: async (id, patch) => edits.push({ id, patch }) },
+    setTopic: async (topic) => {
+      channel.topic = topic;
+    },
+  };
+  const guild = {
+    id: guildId,
+    roles: { cache: new Collection([['100000000000000700', {}]]) },
+    members: {
+      me: { id: botId },
+      fetch: async () => ({ permissions: { has: () => false }, roles: { cache: new Collection() } }),
+    },
+    channels: {
+      cache,
+      fetch: async (id) => cache.get(id),
+      create: async (options) => {
+        created.push(options);
+        channel.topic = options.topic;
+        cache.set(channel.id, channel);
+        return channel;
+      },
+    },
+  };
+  runtime.client = { guilds: { cache: new Collection([[guildId, guild]]) } };
+  await setGuildModule(guildId, 'tickets', { enabled: true, config: cfg });
+  const interaction = (customId, userId = ownerId) => ({
+    guild,
+    guildId,
+    customId,
+    user: { id: userId, username: 'member' },
+    channelId: customId.endsWith('open') ? panelId : channel.id,
+    channel,
+    message: { id: 'panel' },
+    values: ['support'],
+    isStringSelectMenu: () => true,
+    isButton: () => true,
+    deferReply: async () => {},
+    editReply: async (text) => {
+      interaction.lastReply = text;
+    },
+  });
+  await handleChannelTicket(interaction('ticket-channel:open'));
+  assert.equal(created.length, 1);
+  assert.equal(created[0].parent, categoryId);
+  assert.equal(created[0].permissionOverwrites[0].deny[0], PermissionFlagsBits.ViewChannel);
+  assert.equal(created[0].permissionOverwrites[1].id, ownerId);
+  await handleChannelTicket(interaction('ticket-channel:open'));
+  assert.equal(created.length, 1);
+  assert.match(interaction.lastReply, /already have an open ticket/);
+  await handleChannelTicket(interaction('ticket-channel:close', '900000000000000999'));
+  assert.equal(edits.length, 0);
+  await handleChannelTicket(interaction('ticket-channel:close'));
+  assert.equal(edits[0].id, ownerId);
+  assert.equal(edits[0].patch.SendMessages, false);
+  assert.match(channel.topic, /:closed$/);
+  assert.equal(sent.filter((entry) => entry.embeds?.[0]?.data.title === 'Ticket opened').length, 1);
+  assert.equal(sent.filter((entry) => entry.embeds?.[0]?.data.title === 'Ticket closed').length, 2);
+  await handleChannelTicket(interaction('ticket-channel:close'));
+  assert.equal(edits.length, 1);
+  runtime.client = null;
+});

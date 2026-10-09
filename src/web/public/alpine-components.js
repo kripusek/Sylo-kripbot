@@ -97,10 +97,11 @@ document.addEventListener('alpine:init', function () {
       async toggle() {
         this.open = !this.open;
         if (this.open && !this.loaded) {
-          this.loaded = true;
           try {
             var r = await fetch('/guilds/' + this.guildId + '/emojis');
+            if (!r.ok) throw new Error('Could not load server emojis');
             this.custom = (await r.json()).custom || [];
+            this.loaded = true;
           } catch (_) {
             this.custom = [];
           }

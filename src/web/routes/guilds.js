@@ -1,3 +1,4 @@
+import { normaliseChannelTickets, publishTicketPanel } from '../../modules/channelTickets.js';
 // Per-guild control panel: module toggles, general settings, command
 // management, and the moderation panel (warnings + bans). Every route requires
 // the signed-in user to be an admin of that guild (pass-through in open mode).
@@ -242,14 +243,20 @@ router.get('/', (req, res) => res.redirect('/'));
 router.get('/:guildId', (req, res) => res.redirect(`/guilds/${req.params.guildId}/overview`));
 
 // Custom emojis for the reaction-role emoji picker.
-router.get('/:guildId/emojis', (req, res) => {
-  const custom = [...req.guild.emojis.cache.values()].map((e) => ({
-    name: e.name,
-    display: e.toString(),
-    url: e.imageURL({ size: 32 }),
-  }));
-  res.json({ custom });
-});
+router.get(
+  '/:guildId/emojis',
+  asyncHandler(async (req, res) => {
+    const emojis = await req.guild.emojis.fetch();
+    const custom = [...emojis.values()]
+      .filter((emoji) => emoji.available !== false)
+      .map((e) => ({
+        name: e.name,
+        display: e.toString(),
+        url: e.imageURL({ size: 32 }),
+      }));
+    res.json({ custom });
+  })
+);
 
 // --- Panels ----------------------------------------------------------------
 
@@ -849,7 +856,7 @@ async function moduleViewLocals(mod, req, configOverride) {
     ytLiveMessage: YT_LIVE_MSG,
     dashboardUrlSet: Boolean(appConfig.dashboardUrl),
     voiceChannels: ['server-stats', 'temp-voice'].includes(mod.id) ? guildVoiceChannels(req.guild) : [],
-    categories: mod.id === 'temp-voice' ? guildCategories(req.guild) : [],
+    categories: ['temp-voice', 'tickets'].includes(mod.id) ? guildCategories(req.guild) : [],
     statTypes: STAT_TYPES,
     countingState: mod.id === 'counting' ? await getCounting(req.guild.id) : null,
     countingPenalties:
@@ -1133,7 +1140,24 @@ router.post(
         prev
       );
     } else if (mod.id === 'tickets') {
+      const previous = (await getGuildModule(req.guild.id, 'tickets')).config;
+      const labels = [].concat(req.body.ticketLabel ?? []);
+      const ids = [].concat(req.body.ticketTypeId ?? []);
+      const descriptions = [].concat(req.body.ticketDescription ?? []);
+      const categories = [].concat(req.body.ticketCategory ?? []);
       config = {
+        ...normaliseChannelTickets(
+          {
+            ...req.body,
+            ticketTypes: labels.map((label, index) => ({
+              id: ids[index],
+              label,
+              description: descriptions[index],
+              categoryId: categories[index],
+            })),
+          },
+          previous
+        ),
         greeting: String(req.body.greeting ?? '').slice(0, 1500),
         closeMessage: String(req.body.closeMessage ?? '').slice(0, 1500),
         notifyChannel: /^\d{17,20}$/.test(req.body.notifyChannel ?? '') ? req.body.notifyChannel : '',
@@ -1496,6 +1520,11 @@ router.post(
       primeInviteCache(req.guild).catch((err) =>
         log.error('invite-tracker', 'cache prime after save failed:', err.message)
       );
+    }
+    if (mod.id === 'tickets' && req.body.action === 'publish') {
+      const panelMessageId = await publishTicketPanel(req.guild, config);
+      config = { ...config, panelMessageId };
+      await setGuildModule(req.guild.id, 'tickets', { config });
     }
     if (mod.id === 'verification') {
       ensureVerifyMessage(req.guild, config).catch((err) =>

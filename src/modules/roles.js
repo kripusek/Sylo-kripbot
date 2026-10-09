@@ -58,11 +58,27 @@ export function parseEmoji(raw, guild) {
   if (m) {
     return { key: m[2], display: s, react: `${m[1]}:${m[2]}` };
   }
-  // :shortcode: → resolve against the guild's custom emojis
+  // Discord's Copy ID, name:id, and CDN links are also useful paste formats.
+  const numeric = s.match(/^\d{17,20}$/);
+  const named = s.match(/^([a-zA-Z0-9_]+):(\d{17,20})$/);
+  const cdn = s.match(
+    /^https:\/\/(?:cdn|media)\.discordapp\.(?:com|net)\/emojis\/(\d{17,20})\.(?:png|gif|webp)(?:\?.*)?$/i
+  );
+  const emojiId = numeric?.[0] || named?.[2] || cdn?.[1];
+  if (emojiId) {
+    const emoji = guild?.emojis?.cache?.get(emojiId) ?? runtime.client?.emojis?.cache?.get(emojiId);
+    return {
+      key: emojiId,
+      display: emoji?.toString() || `<:${named?.[1] || 'emoji'}:${emojiId}>`,
+      react: emojiId,
+    };
+  }
+  // :shortcode: or a plain custom-emoji name from this server.
   const short = s.match(/^:([a-zA-Z0-9_]+):$/);
-  if (short) {
-    const e = guild.emojis.cache.find((x) => x.name === short[1]);
-    if (e) return { key: e.id, display: e.toString(), react: `${e.name}:${e.id}` };
+  const name = short?.[1] || (/^[a-zA-Z0-9_]+$/.test(s) ? s : null);
+  if (name) {
+    const emoji = guild?.emojis?.cache?.find((item) => item.name === name);
+    if (emoji) return { key: emoji.id, display: emoji.toString(), react: emoji.id };
     return null;
   }
   // Assume a unicode emoji (grapheme). Keep as-is.

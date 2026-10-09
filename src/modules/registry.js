@@ -49,8 +49,8 @@ export const MODULES = [
   },
   {
     id: 'tickets',
-    name: 'Tickets (modmail)',
-    description: 'Members DM the bot; staff read and reply from this dashboard.',
+    name: 'Tickets',
+    description: 'Private channel tickets from a dropdown panel, plus DM modmail.',
     icon: '🎫',
     requiredIntents: [],
     defaultEnabled: false,

@@ -6,6 +6,48 @@
 </p>
 
 <form method="POST" action="/guilds/<%= guild.id %>/m/tickets/config" hx-post="/guilds/<%= guild.id %>/m/tickets/config" hx-target="#module-config" hx-swap="outerHTML" class="stack u-mw-lg">
+  <h3>Discord ticket panel</h3>
+  <p class="muted small">Publish a dropdown menu. Each topic opens a private text channel in its selected category. Configure Staff roles below. Administrators can also access tickets. Closing locks the member's replies and keeps the channel; these channels are not removed by modmail retention.</p>
+  <label>Panel channel</label>
+  <select name="panelChannel"><option value="">— none —</option>
+  <% channels.forEach(function(c) { %><option value="<%= c.id %>" <%= c.id === cfg.panelChannel ? 'selected' : '' %>>#<%= c.name %></option><% }) %>
+  </select>
+  <label>Panel title</label><input name="panelTitle" maxlength="256" value="<%= cfg.panelTitle || 'Support tickets' %>" />
+  <label>Panel message</label><textarea name="panelText" maxlength="2000" rows="3"><%= cfg.panelText || 'Choose a topic below to open a private ticket.' %></textarea>
+  <label>Ticket log channel</label>
+  <select name="ticketLogChannel"><option value="">— none —</option>
+  <% channels.forEach(function(c) { %><option value="<%= c.id %>" <%= c.id === cfg.ticketLogChannel ? 'selected' : '' %>>#<%= c.name %></option><% }) %>
+  </select>
+  <h4>Ticket topics</h4>
+  <p class="muted small">Add up to 25 topics. Save and publish after changes to update the Discord menu. One open channel ticket per member.</p>
+  <div data-ticket-rows class="stack">
+  <% var ticketRows = cfg.ticketTypes?.length ? cfg.ticketTypes : [{}]; ticketRows.forEach(function(row) { %>
+    <fieldset class="stack" data-ticket-row>
+      <input type="hidden" name="ticketTypeId" value="<%= row.id || '' %>" />
+      <label>Topic name</label><input name="ticketLabel" maxlength="100" value="<%= row.label || '' %>" placeholder="Technical support" />
+      <label>Description</label><input name="ticketDescription" maxlength="100" value="<%= row.description || '' %>" />
+      <label>Destination category</label><select name="ticketCategory"><option value="">— choose a category —</option>
+      <% categories.forEach(function(c) { %><option value="<%= c.id %>" <%= c.id === row.categoryId ? 'selected' : '' %>><%= c.name %></option><% }) %>
+      </select>
+      <button type="button" onclick="this.closest('[data-ticket-row]').remove()">Remove topic</button>
+    </fieldset>
+  <% }) %>
+  </div>
+  <template data-ticket-template>
+    <fieldset class="stack" data-ticket-row>
+      <input type="hidden" name="ticketTypeId" value="" />
+      <label>Topic name</label><input name="ticketLabel" maxlength="100" placeholder="Technical support" />
+      <label>Description</label><input name="ticketDescription" maxlength="100" />
+      <label>Destination category</label><select name="ticketCategory"><option value="">— choose a category —</option>
+      <% categories.forEach(function(c) { %><option value="<%= c.id %>"><%= c.name %></option><% }) %>
+      </select>
+      <button type="button" onclick="this.closest('[data-ticket-row]').remove()">Remove topic</button>
+    </fieldset>
+  </template>
+  <div><button type="button" onclick="const form=this.closest('form'); const rows=form.querySelector('[data-ticket-rows]'); if(rows.children.length &lt; 25) rows.append(form.querySelector('[data-ticket-template]').content.cloneNode(true));">Add topic</button>
+  <button type="submit" name="action" value="publish">Save and publish panel</button></div>
+  <hr />
+  <h3>DM tickets (modmail)</h3>
   <label>Greeting sent when a ticket opens <span class="muted small">— {server} is replaced</span></label>
   <textarea name="greeting" rows="2" placeholder="Thanks for contacting the staff of {server}…"><%= cfg.greeting || '' %></textarea>
 

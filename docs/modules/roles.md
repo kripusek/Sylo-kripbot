@@ -26,3 +26,7 @@ Two features in one module:
 - Editing a reaction-role message re-posts or edits it in place.
 - Managed roles (bot roles, Nitro booster, etc.) can't be assigned and are
   dropped from the picker.
+
+## Custom Discord emojis
+
+Use the server section of the emoji picker, paste a Discord emoji mention (`<:name:id>` or `<a:name:id>`), `:name:`, its name, its numeric ID, `name:id`, or its Discord CDN URL. Server emojis are refreshed when the picker first opens; new emoji events also update the bot cache. External emojis must be accessible to the bot and may require Use External Emojis in the target channel. A typed shortcode only resolves emojis from this server. Unicode emojis continue to work.
