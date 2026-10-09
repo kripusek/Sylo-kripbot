@@ -7,7 +7,7 @@
 
 <form method="POST" action="/guilds/<%= guild.id %>/m/tickets/config" hx-post="/guilds/<%= guild.id %>/m/tickets/config" hx-target="#module-config" hx-swap="outerHTML" class="stack u-mw-lg">
   <h3>Discord ticket panel</h3>
-  <p class="muted small">Publish a dropdown menu. Each topic opens a private text channel in its selected category. Configure Staff roles below. Administrators can also access tickets. Closing locks the member's replies and keeps the channel; these channels are not removed by modmail retention.</p>
+  <p class="muted small">Publish a dropdown menu. Each topic opens a private text channel in its selected category. Configure Staff roles below. Administrators can also access tickets. Closing sends a text transcript to the Ticket log channel, then deletes the ticket channel. If archiving fails, the channel is retained. Modmail retention does not delete Discord transcripts.</p>
   <label>Panel channel</label>
   <select name="panelChannel"><option value="">— none —</option>
   <% channels.forEach(function(c) { %><option value="<%= c.id %>" <%= c.id === cfg.panelChannel ? 'selected' : '' %>>#<%= c.name %></option><% }) %>

@@ -6,6 +6,8 @@ import {
   normaliseChannelTickets,
   publishTicketPanel,
   handleChannelTicket,
+  archiveChannelTicket,
+  channelTicketTranscript,
 } from '../src/modules/channelTickets.js';
 import { setGuildModule } from '../src/db/modules.js';
 import { runtime } from '../src/runtime.js';
@@ -99,6 +101,11 @@ test('private tickets route to a category, reject duplicates and unauthorized cl
   ]);
   const channel = {
     id: '100000000000001234',
+    messages: { fetch: async () => new Collection() },
+    delete: async () => {
+      channel.deleted = true;
+      cache.delete(channel.id);
+    },
     toString: () => '<#100000000000001234>',
     send: async (data) => {
       sent.push(data);
@@ -159,8 +166,85 @@ test('private tickets route to a category, reject duplicates and unauthorized cl
   assert.equal(edits[0].patch.SendMessages, false);
   assert.match(channel.topic, /:closed$/);
   assert.equal(sent.filter((entry) => entry.embeds?.[0]?.data.title === 'Ticket opened').length, 1);
-  assert.equal(sent.filter((entry) => entry.embeds?.[0]?.data.title === 'Ticket closed').length, 2);
-  await handleChannelTicket(interaction('ticket-channel:close'));
-  assert.equal(edits.length, 1);
+  assert.equal(sent.filter((entry) => entry.embeds?.[0]?.data.title === 'Ticket closed').length, 1);
+  assert.equal(channel.deleted, true);
+  assert.ok(sent.at(-1).files[0].attachment.toString().includes(ownerId));
+
+  runtime.client = null;
+});
+
+test('ticket transcript fetches multiple history pages in chronological order', async () => {
+  const requests = [];
+  const message = (id) => ({
+    id: String(id),
+    createdTimestamp: 0,
+    content: `Text ${id}`,
+    author: { id: ownerId, tag: 'owner' },
+    attachments: new Collection(),
+    embeds: [],
+  });
+  const channel = {
+    id: 'channel',
+    name: 'ticket',
+    messages: {
+      fetch: async (options) => {
+        requests.push(options);
+        return options.before
+          ? new Collection([
+              [
+                '1',
+                {
+                  ...message(1),
+                  attachments: new Collection([
+                    ['a', { name: 'image.png', url: 'https://cdn.discordapp.com/image.png' }],
+                  ]),
+                },
+              ],
+            ])
+          : new Collection(Array.from({ length: 100 }, (_, i) => [String(i + 2), message(i + 2)]));
+      },
+    },
+  };
+  const parts = await channelTicketTranscript(channel, ownerId, 'staff');
+  const text = parts[0].toString();
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].before, '2');
+  assert.match(text, /Messages: 101/);
+  assert.ok(text.indexOf('Text 1\n') < text.indexOf('Text 101\n'));
+  assert.match(text, /image.png/);
+});
+
+test('ticket channel is deleted only after transcript delivery succeeds', async () => {
+  let deleted = false;
+  let delivered = false;
+  let fail = true;
+  const channel = {
+    id: 'ticket',
+    name: 'ticket',
+    messages: { fetch: async () => new Collection() },
+    delete: async () => {
+      assert.equal(delivered, true);
+      deleted = true;
+    },
+  };
+  const log = {
+    isTextBased: () => true,
+    send: async () => {
+      if (fail) throw new Error('Upload failed');
+      delivered = true;
+      return { id: 'archive' };
+    },
+  };
+  const guild = { id: guildId, channels: { cache: new Collection([[logId, log]]) }, members: {} };
+  runtime.client = { guilds: { cache: new Collection([[guildId, guild]]) } };
+  await assert.rejects(() => archiveChannelTicket(guild, channel, cfg, ownerId, 'staff'), /delivery failed/);
+  assert.equal(deleted, false);
+  fail = false;
+  await archiveChannelTicket(guild, channel, cfg, ownerId, 'staff');
+  assert.equal(deleted, true);
+  await assert.rejects(
+    () => archiveChannelTicket(guild, channel, { ...cfg, ticketLogChannel: 'ticket' }, ownerId, 'staff'),
+    /separate/
+  );
   runtime.client = null;
 });

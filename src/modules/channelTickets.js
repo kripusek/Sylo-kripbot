@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  AttachmentBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
   ButtonBuilder,
@@ -86,6 +87,83 @@ async function ticketLog(guild, cfg, title, fields) {
   return sendToChannel(guild.id, cfg.ticketLogChannel, {
     embeds: [new EmbedBuilder().setColor(0x4aa3df).setTitle(title).addFields(fields).setTimestamp()],
   });
+}
+
+// Fetch every page, including messages that are not in the bot cache.
+export async function channelTicketTranscript(channel, ownerId, closerId) {
+  const messages = [];
+  let before;
+  while (true) {
+    const batch = await channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) });
+    if (!batch.size) break;
+    messages.push(...batch.values());
+    const oldest = [...batch.keys()].reduce((a, b) => (BigInt(a) < BigInt(b) ? a : b));
+    if (oldest === before) throw new Error('Ticket history pagination did not advance.');
+    before = oldest;
+    if (batch.size < 100) break;
+  }
+  messages.sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0));
+  const blocks = [
+    `Ticket channel: #${channel.name || channel.id} (${channel.id})\nOwner: ${ownerId}\nClosed by: ${closerId}\nArchived: ${new Date().toISOString()}\nMessages: ${messages.length}\n\n`,
+    ...messages.map((message) => {
+      const lines = [
+        `[${new Date(message.createdTimestamp).toISOString()}] ${message.author?.tag || 'Unknown'} (${message.author?.id || 'unknown'}) | Message ${message.id}`,
+      ];
+      if (message.content) lines.push(message.content);
+      for (const embed of message.embeds || []) {
+        if (embed.title) lines.push(`[Embed] ${embed.title}`);
+        if (embed.description) lines.push(embed.description);
+        for (const field of embed.fields || []) lines.push(`${field.name}: ${field.value}`);
+        if (embed.image?.url) lines.push(`[Image] ${embed.image.url}`);
+      }
+      for (const file of message.attachments?.values() || [])
+        lines.push(`[Attachment] ${file.name || 'file'}: ${file.url}`);
+      return lines.join('\n') + '\n\n';
+    }),
+  ];
+  const parts = [];
+  let buffers = [];
+  let size = 0;
+  for (const block of blocks) {
+    const bytes = Buffer.from(block, 'utf8');
+    if (size && size + bytes.length > 7 * 1024 * 1024) {
+      parts.push(Buffer.concat(buffers));
+      buffers = [];
+      size = 0;
+    }
+    buffers.push(bytes);
+    size += bytes.length;
+  }
+  if (size) parts.push(Buffer.concat(buffers));
+  return parts;
+}
+
+export async function archiveChannelTicket(guild, channel, cfg, ownerId, closerId) {
+  if (!cfg.ticketLogChannel || cfg.ticketLogChannel === channel.id)
+    throw new Error('Choose a separate ticket log channel before closing.');
+  const parts = await channelTicketTranscript(channel, ownerId, closerId);
+  for (let index = 0; index < parts.length; index++) {
+    const sent = await sendToChannel(guild.id, cfg.ticketLogChannel, {
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0x8b95a1)
+          .setTitle('Ticket closed')
+          .addFields(
+            { name: 'Member', value: `<@${ownerId}> (${ownerId})` },
+            { name: 'Closed by', value: `<@${closerId}> (${closerId})` },
+            { name: 'Channel', value: `#${channel.name || channel.id} (${channel.id})` },
+            { name: 'Transcript', value: `Part ${index + 1}/${parts.length}` }
+          )
+          .setTimestamp(),
+      ],
+      files: [
+        new AttachmentBuilder(parts[index], { name: `ticket-${channel.id}-transcript-${index + 1}.txt` }),
+      ],
+      allowedMentions: { parse: [] },
+    });
+    if (!sent) throw new Error('Transcript delivery failed; the ticket channel was retained.');
+  }
+  await channel.delete(`Ticket archived and closed by ${closerId}`);
 }
 
 export async function handleChannelTicket(interaction) {
@@ -175,14 +253,17 @@ export async function handleChannelTicket(interaction) {
       return interaction.editReply('Unknown ticket action.');
     const channel = interaction.channel;
     const match = parseTicketTopic(channel?.topic);
-    if (!match || match[3] !== 'open')
-      return interaction.editReply('This ticket is already closed or unavailable.');
+    if (!match) return interaction.editReply('This ticket is already closed or unavailable.');
     const member = await guild.members.fetch(interaction.user.id);
     const staff =
       member.permissions.has(PermissionFlagsBits.ManageGuild) ||
       (cfg.staffRoles || []).some((role) => member.roles.cache.has(role));
     if (match[1] !== interaction.user.id && !staff)
       return interaction.editReply('Only the ticket owner or staff may close this ticket.');
+    if (!cfg.ticketLogChannel || cfg.ticketLogChannel === channel.id)
+      return interaction.editReply(
+        'Set a separate Ticket log channel in the dashboard before closing this ticket.'
+      );
     await channel.permissionOverwrites.edit(match[1], {
       SendMessages: false,
       AddReactions: false,
@@ -191,21 +272,8 @@ export async function handleChannelTicket(interaction) {
       SendMessagesInThreads: false,
     });
     await channel.setTopic(`sylo-ticket:${match[1]}:${match[2]}:closed`);
-    await channel.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0x8b95a1)
-          .setTitle('Ticket closed')
-          .setDescription(`Closed by <@${interaction.user.id}>. This channel is retained for staff review.`),
-      ],
-      allowedMentions: { parse: [] },
-    });
-    await ticketLog(guild, cfg, 'Ticket closed', [
-      { name: 'Member', value: `<@${match[1]}> (${match[1]})` },
-      { name: 'Closed by', value: `<@${interaction.user.id}> (${interaction.user.id})` },
-      { name: 'Channel', value: `${channel} (${channel.id})` },
-    ]);
-    return interaction.editReply('Ticket closed. You can open a new ticket from the menu.');
+    await archiveChannelTicket(guild, channel, cfg, match[1], interaction.user.id);
+    return interaction.editReply('Ticket archived in the log channel and deleted.');
   } catch (error) {
     await interaction.editReply(
       'The ticket action failed. Ask staff to check the bot permissions and category settings.'

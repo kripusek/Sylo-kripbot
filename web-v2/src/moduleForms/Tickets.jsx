@@ -65,8 +65,9 @@ export default function Tickets() {
         <h2>Discord ticket panel</h2>
         <p className="v2-field-hint">
           Each topic opens a private text channel in its selected category. Staff roles below and
-          administrators have access. Closing locks the member's replies and retains the channel. Modmail
-          retention does not delete channel tickets.
+          administrators have access. Closing sends a text transcript to the ticket log channel, then deletes
+          the ticket channel. Failed archiving retains the channel. Modmail retention does not delete Discord
+          transcripts.
         </p>
         <div className="v2-field">
           <label>Panel channel</label>
