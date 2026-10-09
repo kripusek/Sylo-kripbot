@@ -16,6 +16,7 @@ import { on } from './dispatch.js';
 import { runtime } from '../runtime.js';
 import { getGuildModule } from '../db/modules.js';
 import { log } from '../lib/log.js';
+import { voicePanel, refreshVoicePanel } from './tempVoicePanel.js';
 import {
   addTempChannel,
   removeTempChannel,
@@ -123,6 +124,15 @@ function ownerAllowBits(hub) {
   if (hub.ownerPerms.prioritySpeaker) bits.push(P.PrioritySpeaker);
   if (hub.ownerPerms.moveMembers) bits.push(P.MoveMembers);
   return bits;
+}
+
+function ownerPermissions(hub) {
+  const bits = ownerAllowBits(hub);
+  return Object.fromEntries(
+    Object.entries(P)
+      .filter(([, bit]) => bits.includes(bit))
+      .map(([name]) => [name, true])
+  );
 }
 
 // Copy role/member overwrites from the parent, but drop the parent's @everyone
@@ -280,6 +290,9 @@ async function handleJoin(guild, member, hub) {
     name,
     textChannelId,
   });
+  await channel
+    .send(voicePanel(channel.id, member.id))
+    .catch((err) => log.error('temp-voice', 'control panel:', err.message));
 }
 
 // --- cleanup + ownership transfer -----------------------------------
@@ -298,9 +311,8 @@ async function onLeaveTemp(guild, channelId) {
       const next = channel.members.first();
       if (next) {
         await setTempOwner(channelId, next.id);
-        await channel.permissionOverwrites
-          .edit(next.id, Object.fromEntries(ownerAllowBits(hub).map((b) => [b, true])))
-          .catch(() => {});
+        await refreshVoicePanel(channel, next.id).catch(() => {});
+        await channel.permissionOverwrites.edit(next.id, ownerPermissions(hub)).catch(() => {});
       }
     }
     return;
@@ -377,8 +389,8 @@ setTimeout(() => sweep().catch(() => {}), 30_000).unref();
 // --- command helpers (used by bot/commands/voice-*.js) ---------------
 
 export async function setLock(channel, guild, locked) {
+  await channel.permissionOverwrites.edit(guild.id, { Connect: locked ? false : null });
   await setTempLocked(channel.id, locked);
-  return channel.permissionOverwrites.edit(guild.id, { Connect: locked ? false : null }).catch(() => {});
 }
 export async function setHidden(channel, guild, hidden) {
   await setTempHidden(channel.id, hidden);
@@ -386,29 +398,28 @@ export async function setHidden(channel, guild, hidden) {
 }
 export async function banFromChannel(channel, row, userId) {
   const bans = [...new Set([...row.banList, userId])];
+  await channel.permissionOverwrites.edit(userId, { Connect: false, ViewChannel: false });
   await setTempBans(channel.id, bans);
-  await channel.permissionOverwrites.edit(userId, { Connect: false, ViewChannel: false }).catch(() => {});
   const m = channel.members.get(userId);
   if (m) await m.voice.disconnect('Voice-banned from temp channel').catch(() => {});
 }
 export async function unbanFromChannel(channel, row, userId) {
+  await channel.permissionOverwrites.delete(userId);
   await setTempBans(
     channel.id,
     row.banList.filter((b) => b !== userId)
   );
-  await channel.permissionOverwrites.delete(userId).catch(() => {});
 }
 export async function renameTemp(channel, name) {
+  await channel.setName(name.slice(0, 100));
   await setTempName(channel.id, name);
-  return channel.setName(name.slice(0, 100)).catch(() => {});
 }
 export async function transferTemp(channel, guild, row, newOwnerId) {
   const hub = await hubForChannel(guild.id, row.hub_id);
   if (row.owner_id) await channel.permissionOverwrites.delete(row.owner_id).catch(() => {});
   await setTempOwner(channel.id, newOwnerId);
+  await refreshVoicePanel(channel, newOwnerId).catch(() => {});
   if (hub) {
-    await channel.permissionOverwrites
-      .edit(newOwnerId, Object.fromEntries(ownerAllowBits(hub).map((b) => [b, true])))
-      .catch(() => {});
+    await channel.permissionOverwrites.edit(newOwnerId, ownerPermissions(hub)).catch(() => {});
   }
 }
