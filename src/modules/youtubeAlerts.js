@@ -14,11 +14,11 @@ import {
   hasSeenAny,
   isVideoSeen,
   markVideoSeen,
-  pruneYoutube,
   liveVideoId,
   livePost,
   markLive,
   markNotLive,
+  markInitialized,
 } from '../db/youtubeAlerts.js';
 import { sendToChannel, postToChannel } from './lib/send.js';
 import { settleEndedPost } from './lib/liveAlerts.js';
@@ -43,15 +43,16 @@ const UA = 'Mozilla/5.0 (compatible; Sylo-Discord-Bot/1.0; +https://github.com/F
 const PAGE_MAX_SCAN = 3_000_000;
 const grabPage = (re, html) => grab(re, html, PAGE_MAX_SCAN);
 
-export const DEFAULT_VIDEO_MESSAGE = '📺 **{name}** posted a new video: **{title}**\n{url}';
-export const DEFAULT_LIVE_MESSAGE = '🔴 **{name}** is live on YouTube: **{title}**\n{url}';
-const UC_RE = /^UC[\w-]{20,}$/;
+export const DEFAULT_VIDEO_MESSAGE = '📺 **{name}** opublikował nowy film: **{title}**\n{url}';
+export const DEFAULT_LIVE_MESSAGE = '🔴 **{name}** nadaje na żywo na YouTube: **{title}**\n{url}';
+const UC_RE = /^UC[\w-]{22}$/;
 const isId = (v) => /^\d{17,20}$/.test(v ?? '');
 
 export function normaliseYoutubeConfig(raw = {}) {
   const seen = new Set();
   return {
     alerts: (Array.isArray(raw.alerts) ? raw.alerts : [])
+      .filter((a) => a && typeof a === 'object')
       .map((a, i) => ({
         id: a.id ? String(a.id) : String(i),
         ytChannelId: UC_RE.test(a.ytChannelId ?? '') ? a.ytChannelId : '',
@@ -82,13 +83,6 @@ export async function resolveYtChannel(input) {
   if (!raw) return null;
   if (UC_RE.test(raw)) return { channelId: raw, name: '' };
 
-  const fromUrl = grab(/(?:youtube\.com\/channel\/)(UC[\w-]{20,})/i, raw);
-  if (fromUrl) return { channelId: fromUrl, name: '' };
-
-  // A handle, /c/, /user/ or bare name → fetch the page and read the channel id.
-  // The request is always built against a literal youtube.com origin — a pasted
-  // URL only contributes its path/query, so it can't retarget the fetch at an
-  // internal or unrelated host.
   let path;
   if (/^https?:\/\//i.test(raw)) {
     let parsed;
@@ -99,8 +93,15 @@ export async function resolveYtChannel(input) {
     }
     const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
     if (host !== 'youtube.com' && host !== 'm.youtube.com') return null;
-    path = `${parsed.pathname}${parsed.search}`;
+    const direct = /^\/channel\/(UC[\w-]{22})(?:\/|$)/.exec(parsed.pathname);
+    if (direct) return { channelId: direct[1], name: '' };
+    if (
+      !/^\/(?:@[^/]+|c\/[^/]+|user\/[^/]+)(?:\/(?:videos|streams|shorts|featured))?\/?$/.test(parsed.pathname)
+    )
+      return null;
+    path = parsed.pathname;
   } else {
+    if (/\s/.test(raw)) return null;
     path = `/@${encodeURIComponent(raw.replace(/^@/, ''))}`;
   }
   // Only a plain channel path — no protocol-relative "//host", no control chars.
@@ -123,21 +124,19 @@ export async function resolveYtChannel(input) {
       return null;
     }
     const html = await res.text();
+    const metadata = pageObject(html, /"channelMetadataRenderer"\s*:/g);
     const channelId =
-      grabPage(/"channelId":"(UC[\w-]{20,})"/, html) ||
-      grabPage(/<meta itemprop="(?:identifier|channelId)" content="(UC[\w-]{20,})">/, html) ||
-      grabPage(/channel\/(UC[\w-]{20,})/, html);
-    if (!channelId) {
+      metadata?.externalId ||
+      grabPage(/<meta\s+itemprop="channelId"\s+content="(UC[\w-]{22})"/, html) ||
+      grabPage(/<link\s+rel="canonical"\s+href="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/, html);
+    if (!UC_RE.test(channelId ?? '')) {
       log.warn(
         'youtube-alerts',
         `resolve ${path}: no channel id found in the response (${html.length} bytes) — YouTube may have changed its page format, or served a consent/challenge page`
       );
       return null;
     }
-    const name =
-      grabPage(/"channelMetadataRenderer":\{"title":"([^"]+)"/, html) ||
-      grabPage(/<meta property="og:title" content="([^"]+)">/, html) ||
-      '';
+    const name = metadata?.title || grabPage(/<meta property="og:title" content="([^"]+)">/, html) || '';
     return { channelId, name: decodeEntities(name).slice(0, 100) };
   } catch (err) {
     log.warn('youtube-alerts', `resolve ${path}: ${err.message}`);
@@ -156,7 +155,7 @@ export function parseFeed(xml) {
   return parseGenericFeed(xml)
     .map((e) => {
       const videoId = grab(/<yt:videoId>([^<]+)<\/yt:videoId>/, e.block) || grab(/[?&]v=([\w-]{11})/, e.link);
-      if (!videoId) return null;
+      if (!/^[\w-]{11}$/.test(videoId)) return null;
       return {
         videoId,
         title: e.title === 'Untitled' ? 'New video' : e.title,
@@ -169,18 +168,76 @@ export function parseFeed(xml) {
     .filter(Boolean);
 }
 
-async function fetchFeed(ytChannelId) {
-  const res = await fetch(FEED + ytChannelId, {
-    headers: { 'User-Agent': UA },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!res.ok) throw new Error(`YT feed ${res.status}`);
-  return parseFeed(await res.text());
+// Read a JSON object without evaluating scripts or matching unrelated recommended videos.
+function pageObject(html, pattern) {
+  const text = html.slice(0, PAGE_MAX_SCAN);
+  const match = pattern.exec(text);
+  if (!match) return null;
+  let start = match.index + match[0].length;
+  while (/\s/.test(text[start] ?? '') && start < text.length) start++;
+  if (text[start] !== '{') return null;
+  let depth = 0,
+    quoted = false,
+    escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') quoted = false;
+    } else if (c === '"') quoted = true;
+    else if (c === '{') depth++;
+    else if (c === '}' && --depth === 0) {
+      try {
+        return JSON.parse(text.slice(start, i + 1));
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
 }
 
-// --- live check ------------------------------------------------------
+async function fetchFeed(ytChannelId) {
+  // YouTube occasionally serves only one of these public feed paths.
+  let error;
+  for (const base of [FEED, 'https://www.youtube.com/xml/feeds/videos.xml?channel_id=']) {
+    try {
+      const res = await fetch(base + ytChannelId, {
+        headers: { 'User-Agent': UA },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) throw new Error(`YT feed HTTP ${res.status}`);
+      const xml = await res.text();
+      if (!/<feed(?:\s|>)/.test(xml) || !/<\/feed\s*>/.test(xml))
+        throw new Error('YT returned an invalid Atom feed');
+      return parseFeed(xml);
+    } catch (err) {
+      error = err;
+    }
+  }
+  throw error;
+}
 
-/** @returns {Promise<{ live: boolean, videoId?: string, title?: string }>} */
+/** null means unknown: a network/challenge response must never end an active stream. */
+export function parseLivePage(html, ytChannelId) {
+  const player = pageObject(html, /(?:var\s+)?ytInitialPlayerResponse\s*=\s*/g);
+  const details = player?.videoDetails;
+  const broadcast = player?.microformat?.playerMicroformatRenderer?.liveBroadcastDetails;
+  if (details?.channelId === ytChannelId && /^[\w-]{11}$/.test(details.videoId ?? '')) {
+    if (broadcast?.isLiveNow === true && player.playabilityStatus?.status === 'OK') {
+      return { live: true, videoId: details.videoId, title: String(details.title || 'Transmisja na żywo') };
+    }
+    // Upcoming and archived broadcasts are not currently live.
+    if (broadcast?.isLiveNow === false || details.isUpcoming === true || details.isLiveContent === false)
+      return { live: false };
+    return { live: null };
+  }
+  const metadata = pageObject(html, /"channelMetadataRenderer"\s*:/g);
+  if (!player && metadata?.externalId === ytChannelId) return { live: false };
+  return { live: null };
+}
+
 export async function checkLive(ytChannelId) {
   try {
     const res = await fetch(`https://www.youtube.com/channel/${ytChannelId}/live`, {
@@ -188,28 +245,17 @@ export async function checkLive(ytChannelId) {
       signal: AbortSignal.timeout(10_000),
       redirect: 'follow',
     });
-    // Not-ok is a real fetch problem (blocked/rate-limited/etc.) — worth a
-    // log, unlike "not currently live", which is the normal, frequent
-    // outcome of this poll and would just be noise.
-    if (!res.ok) {
-      log.warn('youtube-alerts', `live check ${ytChannelId}: HTTP ${res.status}`);
-      return { live: false };
-    }
-    const html = await res.text();
-    const isLive = /"isLive":true/.test(html) || /"isLiveNow":true/.test(html);
-    if (!isLive) return { live: false };
-    const videoId =
-      grabPage(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([\w-]{11})">/, html) ||
-      grabPage(/"videoId":"([\w-]{11})"/, html);
-    const title = decodeEntities(
-      grabPage(/"title":\s*{\s*"runs":\s*\[\s*{\s*"text":\s*"([^"]+)"/, html) ||
-        grabPage(/<meta name="title" content="([^"]+)">/, html) ||
-        'Live now'
-    );
-    return videoId ? { live: true, videoId, title } : { live: false };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const state = parseLivePage(await res.text(), ytChannelId);
+    if (state.live === null)
+      log.warn(
+        'youtube-alerts',
+        `live check ${ytChannelId}: unrecognised player/channel response; preserving previous state`
+      );
+    return state;
   } catch (err) {
     log.warn('youtube-alerts', `live check ${ytChannelId}: ${err.message}`);
-    return { live: false };
+    return { live: null };
   }
 }
 
@@ -225,7 +271,7 @@ export function fillMessage(tpl, dflt, { name, title, url }) {
 function payload(alert, { name, title, url, thumb }, kind) {
   const embed = new EmbedBuilder()
     .setColor(COLOR)
-    .setAuthor({ name: kind === 'live' ? `${name} is live on YouTube` : `${name} · new video` })
+    .setAuthor({ name: kind === 'live' ? `${name} nadaje na żywo na YouTube` : `${name} · nowy film` })
     .setTitle(title.slice(0, 256))
     .setURL(url)
     .setTimestamp(Date.now());
@@ -238,100 +284,145 @@ function payload(alert, { name, title, url, thumb }, kind) {
   ).trim();
 
   return {
-    content: `${alert.roleId ? `<@&${alert.roleId}> ` : ''}${content}`.trim() || undefined,
+    content: `${alert.roleId ? `<@&${alert.roleId}> ` : ''}${content}`.trim().slice(0, 2000) || undefined,
     embeds: [embed],
-    allowedMentions: { roles: alert.roleId ? [alert.roleId] : [] },
+    allowedMentions: { parse: [], roles: alert.roleId ? [alert.roleId] : [] },
   };
 }
 
 // --- poll loop -----------------------------------------------------
 
+let polling = false;
 async function tick() {
-  if (!runtime.client?.isReady()) return;
-  await pruneYoutube();
+  if (polling) return;
+  polling = true;
+  try {
+    if (!runtime.client?.isReady()) return;
+    const requests = new Map();
 
-  for (const guild of runtime.client.guilds.cache.values()) {
-    if (!(await isModuleEnabled(guild.id, 'youtube-alerts'))) continue;
-    const cfg = normaliseYoutubeConfig((await getGuildModule(guild.id, 'youtube-alerts')).config);
-    for (const alert of cfg.alerts) {
-      try {
-        await runAlert(guild.id, alert);
-      } catch (err) {
-        log.error('youtube-alerts', `${alert.ytChannelId}:`, err.message);
+    for (const guild of runtime.client.guilds.cache.values()) {
+      if (!(await isModuleEnabled(guild.id, 'youtube-alerts'))) continue;
+      const cfg = normaliseYoutubeConfig((await getGuildModule(guild.id, 'youtube-alerts')).config);
+      for (const alert of cfg.alerts) {
+        try {
+          await runAlert(guild.id, alert, requests);
+        } catch (err) {
+          log.error('youtube-alerts', `${alert.ytChannelId}:`, err.message);
+        }
       }
     }
+  } finally {
+    polling = false;
   }
 }
 
-export async function runAlert(guildId, alert) {
-  const c = alert.ytChannelId;
+function once(requests, key, load) {
+  if (!requests.has(key)) requests.set(key, load());
+  return requests.get(key);
+}
+
+export async function runAlert(guildId, alert, requests = new Map()) {
+  const yt = alert.ytChannelId;
+  const c = `${yt}:${alert.discordChannelId}`;
+  const errors = [];
+  const state = alert.onLive ? await once(requests, `live:${yt}`, () => checkLive(yt)) : null;
 
   if (alert.onVideo) {
-    const entries = await fetchFeed(c);
-    if (!(await hasSeenAny(guildId, c))) {
-      // First poll for this channel — seed everything without alerting.
-      for (const e of entries) await markVideoSeen(guildId, c, e.videoId);
-    } else {
-      // Alert oldest-first for anything new.
-      for (const e of [...entries].reverse()) {
-        if (await isVideoSeen(guildId, c, e.videoId)) continue;
-        const name = alert.name || e.author || 'A channel';
-        const delivered = await sendToChannel(
-          guildId,
-          alert.discordChannelId,
-          payload(alert, { name, title: e.title, url: e.url, thumb: e.thumb }, 'video')
+    try {
+      const entries = await once(requests, `feed:${yt}`, () => fetchFeed(yt));
+      if (!(await hasSeenAny(guildId, c))) {
+        // First poll for this channel — seed everything without alerting.
+        const legacy = await hasSeenAny(guildId, yt);
+        for (const e of entries) {
+          if (!legacy || (await isVideoSeen(guildId, yt, e.videoId)))
+            await markVideoSeen(guildId, c, e.videoId);
+        }
+        await markInitialized(guildId, c);
+        log.info(
+          'youtube-alerts',
+          `${yt} → ${alert.discordChannelId}: initial feed recorded; historical uploads will not be announced`
         );
-        if (!delivered)
-          throw new Error(
-            `Could not send video alert to Discord channel ${alert.discordChannelId}; will retry on the next poll`
-          );
-        await markVideoSeen(guildId, c, e.videoId);
       }
+      {
+        // Alert oldest-first for anything new.
+        for (const e of [...entries].reverse()) {
+          if (await isVideoSeen(guildId, c, e.videoId)) continue;
+          if (state?.live === true && e.videoId === state.videoId) continue;
+          const name = alert.name || e.author || 'Kanał YouTube';
+          const delivered = await sendToChannel(
+            guildId,
+            alert.discordChannelId,
+            payload(alert, { name, title: e.title, url: e.url, thumb: e.thumb }, 'video')
+          );
+          if (!delivered)
+            throw new Error(
+              `Could not send video alert to Discord channel ${alert.discordChannelId}; will retry on the next poll`
+            );
+          await markVideoSeen(guildId, c, e.videoId);
+        }
+      }
+    } catch (err) {
+      errors.push(err);
     }
   }
 
   if (alert.onLive) {
-    const state = await checkLive(c);
-    const known = await liveVideoId(guildId, c);
-    if (state.live && state.videoId !== known) {
-      const name = alert.name || 'A channel';
-      const url = `https://www.youtube.com/watch?v=${state.videoId}`;
-      const posted = await postToChannel(
-        guildId,
-        alert.discordChannelId,
-        payload(
-          alert,
-          {
-            name,
-            title: state.title || 'Live now',
-            url,
-            thumb: `https://i.ytimg.com/vi/${state.videoId}/hqdefault.jpg`,
-          },
-          'live'
-        )
-      );
-      if (!posted)
-        throw new Error(
-          `Could not send live alert to Discord channel ${alert.discordChannelId}; will retry on the next poll`
+    try {
+      let known = await liveVideoId(guildId, c);
+      if (!known) {
+        const legacy = await livePost(guildId, yt);
+        if (legacy?.channelId === alert.discordChannelId) {
+          await markLive(guildId, c, legacy.videoId, legacy);
+          known = legacy.videoId;
+          await markNotLive(guildId, yt);
+        }
+      }
+      if (state.live && state.videoId !== known) {
+        const name = alert.name || 'Kanał YouTube';
+        const url = `https://www.youtube.com/watch?v=${state.videoId}`;
+        const posted = await postToChannel(
+          guildId,
+          alert.discordChannelId,
+          payload(
+            alert,
+            {
+              name,
+              title: state.title || 'Transmisja na żywo',
+              url,
+              thumb: `https://i.ytimg.com/vi/${state.videoId}/hqdefault.jpg`,
+            },
+            'live'
+          )
         );
-      await markVideoSeen(guildId, c, state.videoId);
-      await markLive(guildId, c, state.videoId, posted);
-    } else if (!state.live && known) {
-      const post = await livePost(guildId, c);
-      await markNotLive(guildId, c);
-      await settleEndedPost({
-        guildId,
-        onEnd: alert.onEnd,
-        post,
-        name: alert.name || 'A channel',
-        url: post?.videoId ? `https://www.youtube.com/watch?v=${post.videoId}` : undefined,
-      });
+        if (!posted)
+          throw new Error(
+            `Could not send live alert to Discord channel ${alert.discordChannelId}; will retry on the next poll`
+          );
+        await markVideoSeen(guildId, c, state.videoId);
+        await markLive(guildId, c, state.videoId, posted);
+      } else if (state.live === false && known) {
+        const post = await livePost(guildId, c);
+        await markNotLive(guildId, c);
+        await settleEndedPost({
+          guildId,
+          onEnd: alert.onEnd,
+          post,
+          name: alert.name || 'Kanał YouTube',
+          url: post?.videoId ? `https://www.youtube.com/watch?v=${post.videoId}` : undefined,
+        });
+      }
+    } catch (err) {
+      errors.push(err);
     }
   }
+  if (errors.length) throw new Error(errors.map((err) => err.message).join('; '));
 }
 
 const timer = setInterval(() => {
   tick().catch((err) => log.error('youtube-alerts', 'tick failed:', err.message));
 }, POLL_MS);
 timer.unref();
-setTimeout(() => tick().catch(() => {}), 40_000).unref();
+setTimeout(
+  () => tick().catch((err) => log.error('youtube-alerts', 'startup check failed:', err.message)),
+  40_000
+).unref();

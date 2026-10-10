@@ -23,7 +23,7 @@ function toFormRow(a = {}) {
     key: newKey(),
     ytChannelId: a.ytChannelId || '',
     name: a.name || '',
-    input: a.ytChannelId ? `@${a.name || a.ytChannelId}` : '',
+    input: a.ytChannelId ? `https://www.youtube.com/channel/${a.ytChannelId}` : '',
     discordChannelId: a.discordChannelId || '',
     roleId: a.roleId || '',
     notify: notifyOf(a),

@@ -1,36 +1,33 @@
-// Dedup state for YouTube alerts, over posted_keys:
-//   scope 'yt-video'  key '<ytChannel>:<videoId>'  — every announced video
-//   scope 'yt-live'   key '<ytChannel>'  value '<videoId>'  — one row while live
-import {
-  seen,
-  seenValue,
-  seenRow,
-  anySeenMatching,
-  markSeen,
-  forget,
-  pruneScopeOlderThan,
-} from './postedKeys.js';
+// Legacy history uses a YouTube channel key. New history uses
+// '<ytChannel>:<discordChannel>' with a separate video scope, so destinations
+// cannot consume each other's notifications during migration. Keep dedup
+// history: old uploads remain in feeds even for long-inactive channels.
+import { seen, seenValue, seenRow, anySeenMatching, markSeen, forget } from './postedKeys.js';
 import { encodeLiveValue, decodeLiveValue } from '../lib/liveValue.js';
 
 const VIDEO = 'yt-video';
 const LIVE = 'yt-live';
-const KEEP_MS = 45 * 24 * 60 * 60 * 1000;
+const INITIALIZED = 'yt-initialized';
 
+const videoScope = (channel) => (channel.includes(':') ? 'yt-video-destination' : VIDEO);
 const videoKey = (ytChannel, videoId) => `${ytChannel}:${videoId}`;
 
 export async function hasSeenAny(guildId, ytChannel) {
   // YouTube channel ids are [A-Za-z0-9_-], so the ':' separator makes an
   // index-usable literal prefix.
-  return anySeenMatching(guildId, VIDEO, `${ytChannel}:*`);
+  return (
+    (await seen(guildId, INITIALIZED, ytChannel)) ||
+    anySeenMatching(guildId, videoScope(ytChannel), `${ytChannel}:*`)
+  );
 }
 export async function isVideoSeen(guildId, ytChannel, videoId) {
-  return seen(guildId, VIDEO, videoKey(ytChannel, videoId));
+  return seen(guildId, videoScope(ytChannel), videoKey(ytChannel, videoId));
 }
 export async function markVideoSeen(guildId, ytChannel, videoId) {
-  await markSeen(guildId, VIDEO, videoKey(ytChannel, videoId));
+  await markSeen(guildId, videoScope(ytChannel), videoKey(ytChannel, videoId));
 }
-export async function pruneYoutube() {
-  await pruneScopeOlderThan(VIDEO, KEEP_MS);
+export async function markInitialized(guildId, ytChannel) {
+  await markSeen(guildId, INITIALIZED, ytChannel);
 }
 export async function liveVideoId(guildId, ytChannel) {
   const v = await seenValue(guildId, LIVE, ytChannel);

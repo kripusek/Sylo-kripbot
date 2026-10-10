@@ -7,6 +7,8 @@ import {
   fillMessage,
   resolveYtChannel,
   checkLive,
+  parseLivePage,
+  runAlert,
 } from '../src/modules/youtubeAlerts.js';
 import { log } from '../src/lib/log.js';
 
@@ -89,19 +91,22 @@ test('resolveYtChannel: a 200 with no recognisable channel id logs a warning', a
   );
 });
 
-test('checkLive: an HTTP error logs a warning and reports not live', async () => {
+test('checkLive: an HTTP error logs a warning and preserves unknown state', async () => {
   await withMockedFetch({ ok: false, status: 503 }, async (warnings) => {
-    assert.deepEqual(await checkLive(UC), { live: false });
+    assert.deepEqual(await checkLive(UC), { live: null });
     assert.equal(warnings.length, 1);
     assert.match(warnings[0].join(' '), /HTTP 503/);
   });
 });
 
 test('checkLive: legitimately not live is silent (no warning) — the common case', async () => {
-  await withMockedFetch({ ok: true, text: async () => '<html>not live</html>' }, async (warnings) => {
-    assert.deepEqual(await checkLive(UC), { live: false });
-    assert.equal(warnings.length, 0);
-  });
+  await withMockedFetch(
+    { ok: true, text: async () => `<script>{"channelMetadataRenderer":{"externalId":"${UC}"}}</script>` },
+    async (warnings) => {
+      assert.deepEqual(await checkLive(UC), { live: false });
+      assert.equal(warnings.length, 0);
+    }
+  );
 });
 
 // issue #178's actual root cause: YouTube's channel/live pages now run ~2 MB,
@@ -112,7 +117,7 @@ test('checkLive: legitimately not live is silent (no warning) — the common cas
 const PAST_OLD_CAP = 'x'.repeat(350_000); // > the old 300 KB grab() default
 
 test('resolveYtChannel: a channel id past the old 300 KB scan cap is still found', async () => {
-  const html = `<html>${PAST_OLD_CAP}<script>"channelId":"${UC}"</script></html>`;
+  const html = `<html>${PAST_OLD_CAP}<script>{"channelMetadataRenderer":{"externalId":"${UC}"}}</script></html>`;
   await withMockedFetch({ ok: true, text: async () => html }, async (warnings) => {
     assert.deepEqual(await resolveYtChannel('@somechannel'), { channelId: UC, name: '' });
     assert.equal(warnings.length, 0);
@@ -120,9 +125,9 @@ test('resolveYtChannel: a channel id past the old 300 KB scan cap is still found
 });
 
 test('checkLive: a videoId past the old 300 KB scan cap is still found', async () => {
-  const html = `<html>"isLive":true${PAST_OLD_CAP}<script>"videoId":"abcdefghijk"</script></html>`;
+  const html = `<html>${PAST_OLD_CAP}${playerPage()}</html>`;
   await withMockedFetch({ ok: true, text: async () => html }, async (warnings) => {
-    assert.deepEqual(await checkLive(UC), { live: true, videoId: 'abcdefghijk', title: 'Live now' });
+    assert.deepEqual(await checkLive(UC), { live: true, videoId: 'abcdefghijk', title: 'Actual live title' });
     assert.equal(warnings.length, 0);
   });
 });
@@ -194,12 +199,244 @@ test('failed video delivery is retried and only successful delivery is marked se
   const alert = { ytChannelId: UC, discordChannelId: channelId, onVideo: true, onLive: false };
   try {
     await assert.rejects(runAlert(guildId, alert), /will retry/);
-    assert.equal(await isVideoSeen(guildId, UC, videoId), false);
+    assert.equal(await isVideoSeen(guildId, `${UC}:${channelId}`, videoId), false);
     fail = false;
     await runAlert(guildId, alert);
-    assert.equal(await isVideoSeen(guildId, UC, videoId), true);
+    assert.equal(await isVideoSeen(guildId, `${UC}:${channelId}`, videoId), true);
     await runAlert(guildId, alert);
     assert.equal(attempts, 2);
+  } finally {
+    globalThis.fetch = oldFetch;
+    runtime.client = oldClient;
+  }
+});
+
+function playerPage({
+  channelId = UC,
+  videoId = 'abcdefghijk',
+  live = true,
+  title = 'Actual live title',
+  status = 'OK',
+} = {}) {
+  return `<script>var ytInitialPlayerResponse = ${JSON.stringify({
+    videoDetails: { channelId, videoId, title, isLiveContent: true },
+    microformat: { playerMicroformatRenderer: { liveBroadcastDetails: { isLiveNow: live } } },
+    playabilityStatus: { status },
+  })};</script>`;
+}
+
+test('live parser ignores recommended livestreams and identifies the actual player owner', () => {
+  const recommendation = '"isLive":true,"videoId":"recommend01","title":{"runs":[{"text":"Wrong title"}]}';
+  assert.deepEqual(parseLivePage(recommendation + playerPage({ live: false }), UC), { live: false });
+  assert.deepEqual(parseLivePage(recommendation + playerPage({ channelId: 'UC' + 'z'.repeat(22) }), UC), {
+    live: null,
+  });
+  assert.deepEqual(parseLivePage(recommendation + playerPage({ title: 'Title "quoted" \u263a' }), UC), {
+    live: true,
+    videoId: 'abcdefghijk',
+    title: 'Title "quoted" \u263a',
+  });
+  assert.deepEqual(parseLivePage('<html>Consent required</html>', UC), { live: null });
+  assert.deepEqual(parseLivePage(playerPage({ status: 'UNPLAYABLE' }), UC), { live: null });
+});
+
+test('resolver uses channel metadata rather than a recommended channel', async () => {
+  await withMockedFetch(
+    {
+      ok: true,
+      text: async () =>
+        `<script>{"channelId":"UC${'z'.repeat(22)}","channelMetadataRenderer":{"externalId":"${UC}","title":"My \\"channel\\""}}</script>`,
+    },
+    async () => {
+      assert.deepEqual(await resolveYtChannel('@real'), { channelId: UC, name: 'My "channel"' });
+    }
+  );
+});
+
+test('empty initial feed is remembered, new uploads reach both destinations, and feed fallback works', async () => {
+  const { runtime } = await import('../src/runtime.js');
+  const guildId = '876543210987654321';
+  const channels = ['123456789012345679', '123456789012345680'];
+  const oldFetch = globalThis.fetch,
+    oldClient = runtime.client;
+  const posts = [];
+  let xml = '<feed></feed>',
+    requests = 0;
+  globalThis.fetch = async (url) => {
+    requests++;
+    if (!url.includes('/xml/feeds/')) return { ok: false, status: 404 };
+    return { ok: true, text: async () => xml };
+  };
+  runtime.client = {
+    guilds: {
+      cache: new Map([
+        [
+          guildId,
+          {
+            members: {},
+            channels: {
+              cache: new Map(
+                channels.map((id) => [
+                  id,
+                  {
+                    isTextBased: () => true,
+                    send: async (p) => {
+                      posts.push([id, p]);
+                      return { id: 'message' };
+                    },
+                  },
+                ])
+              ),
+            },
+          },
+        ],
+      ]),
+    },
+  };
+  const alerts = channels.map((discordChannelId) => ({
+    ytChannelId: UC,
+    discordChannelId,
+    onVideo: true,
+    onLive: false,
+  }));
+  try {
+    let cache = new Map();
+    for (const a of alerts) await runAlert(guildId, a, cache);
+    assert.equal(posts.length, 0);
+    assert.equal(requests, 2);
+    xml = '<feed><entry><yt:videoId>newupload01</yt:videoId><title>New</title></entry></feed>';
+    cache = new Map();
+    for (const a of alerts) await runAlert(guildId, a, cache);
+    assert.deepEqual(
+      posts.map(([id]) => id),
+      channels
+    );
+    for (const a of alerts) await runAlert(guildId, a);
+    assert.equal(posts.length, 2);
+  } finally {
+    globalThis.fetch = oldFetch;
+    runtime.client = oldClient;
+  }
+});
+
+test('failed live checks preserve the announced message and do not repost after recovery', async () => {
+  const { runtime } = await import('../src/runtime.js');
+  const { liveVideoId } = await import('../src/db/youtubeAlerts.js');
+  const guildId = '765432109876543210';
+  const channelId = '123456789012345681';
+  const oldFetch = globalThis.fetch,
+    oldClient = runtime.client;
+  let fail = false,
+    posts = 0,
+    deletes = 0;
+  globalThis.fetch = async () =>
+    fail ? { ok: false, status: 503 } : { ok: true, text: async () => playerPage() };
+  runtime.client = {
+    guilds: {
+      cache: new Map([
+        [
+          guildId,
+          {
+            members: {},
+            channels: {
+              cache: new Map([
+                [
+                  channelId,
+                  {
+                    isTextBased: () => true,
+                    send: async () => {
+                      posts++;
+                      return { id: '123456789012345682' };
+                    },
+                    messages: {
+                      delete: async () => {
+                        deletes++;
+                      },
+                    },
+                  },
+                ],
+              ]),
+            },
+          },
+        ],
+      ]),
+    },
+  };
+  const alert = {
+    ytChannelId: UC,
+    discordChannelId: channelId,
+    onVideo: false,
+    onLive: true,
+    onEnd: 'delete',
+  };
+  try {
+    await runAlert(guildId, alert);
+    fail = true;
+    await runAlert(guildId, alert);
+    assert.equal(await liveVideoId(guildId, `${UC}:${channelId}`), 'abcdefghijk');
+    fail = false;
+    await runAlert(guildId, alert);
+    assert.equal(posts, 1);
+    assert.equal(deletes, 0);
+  } finally {
+    globalThis.fetch = oldFetch;
+    runtime.client = oldClient;
+  }
+});
+
+test('a feed failure does not stop live delivery, and live entries are not also announced as uploads', async () => {
+  const { runtime } = await import('../src/runtime.js');
+  const { markInitialized } = await import('../src/db/youtubeAlerts.js');
+  const guildId = '654321098765432109',
+    channelId = '123456789012345683';
+  const oldFetch = globalThis.fetch,
+    oldClient = runtime.client;
+  let feedFails = true,
+    posts = 0;
+  globalThis.fetch = async (url) => {
+    if (url.endsWith('/live')) return { ok: true, text: async () => playerPage() };
+    return feedFails
+      ? { ok: false, status: 503 }
+      : {
+          ok: true,
+          text: async () =>
+            '<feed><entry><yt:videoId>abcdefghijk</yt:videoId><title>Live</title></entry></feed>',
+        };
+  };
+  runtime.client = {
+    guilds: {
+      cache: new Map([
+        [
+          guildId,
+          {
+            members: {},
+            channels: {
+              cache: new Map([
+                [
+                  channelId,
+                  {
+                    isTextBased: () => true,
+                    send: async () => {
+                      posts++;
+                      return { id: '123456789012345684' };
+                    },
+                  },
+                ],
+              ]),
+            },
+          },
+        ],
+      ]),
+    },
+  };
+  const alert = { ytChannelId: UC, discordChannelId: channelId, onVideo: true, onLive: true };
+  try {
+    await markInitialized(guildId, `${UC}:${channelId}`);
+    await assert.rejects(runAlert(guildId, alert), /HTTP 503/);
+    assert.equal(posts, 1);
+    feedFails = false;
+    await runAlert(guildId, alert);
+    assert.equal(posts, 1);
   } finally {
     globalThis.fetch = oldFetch;
     runtime.client = oldClient;

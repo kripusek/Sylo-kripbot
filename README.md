@@ -598,3 +598,11 @@ you publish your own.
 ## License
 
 MIT © Ferdinand99
+
+### YouTube notification troubleshooting
+
+The first successful feed check records existing uploads without announcing them. An empty feed also initializes tracking, so the channel's first future upload is announced. Active live streams may be announced immediately. Checks run every three minutes, but YouTube can delay updating its feed.
+
+Upload and live announcement history is independent for each Discord destination. Failed Discord deliveries are retried, and transient YouTube errors preserve the active stream announcement. The module tries both public Atom feed paths and reads live status from the matching video's player data. Upcoming/archived streams and recommendations do not count as a live broadcast. A public-page format change or YouTube IP restrictions can still prevent live detection; look for `youtube-alerts` warnings/errors in the bot console.
+
+For delivery, grant the bot **View Channel**, **Send Messages**, and **Embed Links** in the destination. Updating/deleting announcements requires access to the original destination as well. Existing custom message templates are preserved; placeholders are `{name}`, `{title}`, and `{url}`.

@@ -1224,12 +1224,15 @@ router.post(
       if (!input && !prevId) continue;
       let resolved = UC_RE.test(prevId) && !input ? { channelId: prevId, name: prevName } : null;
       if (!resolved) resolved = (await resolveYtChannel(input || prevId)) || null;
-      if (!resolved && UC_RE.test(prevId)) resolved = { channelId: prevId, name: prevName };
-      if (!resolved) continue;
+      if (!resolved)
+        return res.status(400).json({
+          error:
+            'Nie udało się rozpoznać kanału YouTube. Wklej poprawny link do kanału lub identyfikator UC. Ustawienia nie zostały zmienione.',
+        });
       const notify = a.notify || 'both';
       alerts.push({
         ytChannelId: resolved.channelId,
-        name: resolved.name || prevName || '',
+        name: resolved.name || (resolved.channelId === prevId ? prevName : '') || '',
         discordChannelId: a.discordChannelId ?? '',
         roleId: a.roleId ?? '',
         onVideo: notify === 'both' || notify === 'video',

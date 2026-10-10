@@ -9,6 +9,8 @@
   Checks run about every 3 minutes. Message placeholders: <code>{name}</code> <code>{title}</code> <code>{url}</code>.
 </p>
 
+<p class="muted small">Przy pierwszym sprawdzeniu bot zapamiętuje istniejące filmy bez wysyłania powiadomień. Później ogłasza nowe publikacje. Aktywna transmisja może zostać ogłoszona od razu. YouTube może opóźniać aktualizację feedu; błędy połączenia i wysyłki znajdziesz w konsoli jako <code>youtube-alerts</code>.</p>
+
 <form method="POST" action="/guilds/<%= guild.id %>/m/youtube-alerts/config" hx-post="/guilds/<%= guild.id %>/m/youtube-alerts/config" hx-target="#module-config" hx-swap="outerHTML" class="stack u-mw-xl">
   <div id="yt-rows">
     <% (alerts.length ? alerts : [{ ytChannelId: '', name: '', discordChannelId: '', roleId: '', onVideo: true, onLive: false, videoMessage: '', liveMessage: '' }]).forEach(function (a) { %>

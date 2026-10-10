@@ -1406,13 +1406,25 @@ router.post(
             ? { channelId: prevId[i], name: prevName[i] || '' }
             : null;
         if (!resolved) resolved = (await resolveYtChannel(input || prevId[i])) || null;
-        if (!resolved && /^UC[\w-]{20,}$/.test(prevId[i] ?? ''))
-          resolved = { channelId: prevId[i], name: prevName[i] || '' };
-        if (!resolved) continue;
+        if (!resolved)
+          return res
+            .status(400)
+            .set(
+              'HX-Trigger',
+              headerJson({
+                toast: {
+                  msg: 'Nie udało się rozpoznać kanału YouTube. Wklej poprawny link lub identyfikator UC. Ustawienia nie zostały zmienione.',
+                  kind: 'bad',
+                },
+              })
+            )
+            .send(
+              'Nie udało się rozpoznać kanału YouTube. Wklej poprawny link do kanału lub jego identyfikator UC. Ustawienia nie zostały zmienione.'
+            );
         const n = notify[i] || 'both';
         alerts.push({
           ytChannelId: resolved.channelId,
-          name: resolved.name || prevName[i] || '',
+          name: resolved.name || (resolved.channelId === prevId[i] ? prevName[i] : '') || '',
           discordChannelId: chans[i] ?? '',
           roleId: rolez[i] ?? '',
           onVideo: n === 'both' || n === 'video',
