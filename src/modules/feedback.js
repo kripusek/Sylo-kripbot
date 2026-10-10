@@ -55,9 +55,9 @@ export async function publishFeedbackPanel(guild, cfg) {
   const payload = {
     embeds: [
       new EmbedBuilder().setColor(0x4aa3df).setTitle(cfg.title).setDescription(cfg.message).addFields({
-        name: 'Privacy',
+        name: 'Prywatność',
         value:
-          'Choose identified or anonymous feedback below. Anonymous submissions do not include your Discord username or user ID in the staff message.',
+          'Wybierz poniżej opinię podpisaną lub anonimową. Anonimowa opinia nie zawiera Twojego nicku ani ID w wiadomości dla administracji.',
       }),
     ],
     components: [
@@ -95,10 +95,10 @@ export function feedbackPicker(members, userId, requestedPage = 0, mode = 'ident
   const pages = Math.ceil(members.length / 25);
   const page = Math.min(Math.max(0, requestedPage), Math.max(0, pages - 1));
   if (!members.length)
-    return { content: 'No members currently have the selected roles. Please contact staff.', components: [] };
+    return { content: 'Nikt obecnie nie ma wybranych ról. Skontaktuj się z administracją.', components: [] };
   const menu = new StringSelectMenuBuilder()
     .setCustomId(`feedback:person:${userId}:${mode}`)
-    .setPlaceholder('Choose the person your feedback concerns')
+    .setPlaceholder('Wybierz osobę, której dotyczy Twoja opinia')
     .addOptions(
       members.slice(page * 25, page * 25 + 25).map((member) => ({
         label: String(member.displayName || member.user.username).slice(0, 100),
@@ -112,18 +112,18 @@ export function feedbackPicker(members, userId, requestedPage = 0, mode = 'ident
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`feedback:page:${userId}:${page - 1}:${mode}`)
-          .setLabel('Previous')
+          .setLabel('Poprzednia')
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(page === 0),
         new ButtonBuilder()
           .setCustomId(`feedback:page:${userId}:${page + 1}:${mode}`)
-          .setLabel('Next')
+          .setLabel('Następna')
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(page === pages - 1)
       )
     );
   return {
-    content: `Choose the person your feedback concerns${pages > 1 ? ` (page ${page + 1}/${pages})` : ''}:`,
+    content: `Wybierz osobę, której dotyczy Twoja opinia${pages > 1 ? ` (strona ${page + 1}/${pages})` : ''}:`,
     components,
   };
 }
@@ -135,25 +135,25 @@ function feedbackModal(cfg, targetId = '') {
     )
     .setTitle(
       targetId
-        ? `Complaint or rating (${cfg.anonymous ? 'anonymous' : 'identified'})`
+        ? `Skarga lub ocena (${cfg.anonymous ? 'anonimowa' : 'podpisana'})`
         : cfg.anonymous
-          ? 'Anonymous feedback'
-          : 'Feedback (staff can see your identity)'
+          ? 'Anonimowa opinia'
+          : 'Opinia podpisana'
     )
     .addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId(targetId ? 'rating' : 'subject')
-          .setLabel(targetId ? 'Rating from 0 to 5' : 'Subject')
+          .setLabel(targetId ? 'Ocena od 0 do 5' : 'Temat')
           .setStyle(TextInputStyle.Short)
           .setRequired(true)
           .setMaxLength(targetId ? 1 : 100)
-          .setPlaceholder(targetId ? 'e.g. 5' : 'Subject of your feedback')
+          .setPlaceholder(targetId ? 'np. 5' : 'Temat Twojej opinii')
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId('body')
-          .setLabel('Your complaint or feedback')
+          .setLabel('Twoja skarga lub opinia')
           .setStyle(TextInputStyle.Paragraph)
           .setRequired(true)
           .setMaxLength(2000)
@@ -168,7 +168,7 @@ const COOLDOWN_MS = 60000;
 export async function handleFeedback(interaction) {
   if (!interaction.guildId || !(await isModuleEnabled(interaction.guildId, 'feedback')))
     return interaction.reply({
-      content: 'Feedback is disabled in this server.',
+      content: 'Skargi i opinie są wyłączone na tym serwerze.',
       flags: MessageFlags.Ephemeral,
     });
   const cfg = normaliseFeedbackConfig((await getGuildModule(interaction.guildId, 'feedback')).config);
@@ -178,12 +178,12 @@ export async function handleFeedback(interaction) {
     cfg.anonymous = mode === 'anonymous';
     if (!interaction.isButton() || interaction.channelId !== cfg.panelChannel)
       return interaction.reply({
-        content: 'Please use the current feedback panel.',
+        content: 'Użyj aktualnego panelu skarg i opinii.',
         flags: MessageFlags.Ephemeral,
       });
     if (!cfg.reviewChannel || cfg.reviewChannel === cfg.panelChannel)
       return interaction.reply({
-        content: 'The staff review channel is not configured.',
+        content: 'Kanał opinii dla administracji nie jest skonfigurowany.',
         flags: MessageFlags.Ephemeral,
       });
     if (cfg.subjectRoles.length) {
@@ -201,7 +201,7 @@ export async function handleFeedback(interaction) {
         );
       } catch {
         return interaction.editReply(
-          'Could not load members. Staff should check that Server Members Intent is enabled for the bot.'
+          'Nie udało się wczytać użytkowników. Administracja powinna sprawdzić, czy bot ma włączony Server Members Intent.'
         );
       }
     }
@@ -213,7 +213,7 @@ export async function handleFeedback(interaction) {
     const mode = person?.[2] || page?.[3] || (cfg.anonymous ? 'anonymous' : 'identified');
     cfg.anonymous = mode === 'anonymous';
     if ((person || page)[1] !== interaction.user.id)
-      return interaction.reply({ content: 'Open your own feedback form.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'Otwórz własny formularz opinii.', flags: MessageFlags.Ephemeral });
     if (page)
       return interaction.update(
         feedbackPicker(
@@ -227,7 +227,7 @@ export async function handleFeedback(interaction) {
     const target = interaction.guild.members.cache.get(interaction.values[0]);
     if (!target || target.user.bot || !cfg.subjectRoles.some((role) => target.roles.cache.has(role)))
       return interaction.reply({
-        content: 'This person is no longer available. Please open the form again.',
+        content: 'Ta osoba nie jest już dostępna. Otwórz formularz ponownie.',
         flags: MessageFlags.Ephemeral,
       });
     return interaction.showModal(feedbackModal(cfg, target.id));
@@ -237,48 +237,52 @@ export async function handleFeedback(interaction) {
   cfg.anonymous = submitted[1] === 'anonymous';
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   if (!cfg.reviewChannel || cfg.reviewChannel === cfg.panelChannel)
-    return interaction.editReply('The staff review channel is unavailable. Please contact an administrator.');
+    return interaction.editReply('Kanał opinii jest niedostępny. Skontaktuj się z administracją.');
   const targetId = submitted[2];
   if (cfg.subjectRoles.length && !targetId)
-    return interaction.editReply('Please open the form again and choose a person.');
+    return interaction.editReply('Otwórz formularz ponownie i wybierz osobę.');
   let target = null;
   if (targetId) {
     target = await interaction.guild.members.fetch(targetId).catch(() => null);
     if (!target || target.user.bot || !cfg.subjectRoles.some((role) => target.roles.cache.has(role)))
-      return interaction.editReply('The selected person is no longer available. Please open the form again.');
+      return interaction.editReply('Wybrana osoba nie jest już dostępna. Otwórz formularz ponownie.');
   }
   const key = `${interaction.guildId}:${interaction.user.id}`;
   if (pending.has(key) || (cooldowns.get(key) || 0) > Date.now())
-    return interaction.editReply('Please wait one minute before sending another submission.');
+    return interaction.editReply('Poczekaj minutę przed wysłaniem kolejnego zgłoszenia.');
   const rating = target ? interaction.fields.getTextInputValue('rating').trim() : null;
   if (target && !/^[0-5]$/.test(rating))
-    return interaction.editReply('Enter a whole-number rating from 0 to 5.');
+    return interaction.editReply('Wpisz ocenę jako liczbę całkowitą od 0 do 5.');
   const subject = target
-    ? 'Staff complaint or rating'
+    ? 'Skarga lub ocena administracji'
     : interaction.fields.getTextInputValue('subject').trim().slice(0, 100);
   const body = interaction.fields.getTextInputValue('body').trim().slice(0, 2000);
-  if (!subject || !body) return interaction.editReply('Please enter a subject and your feedback.');
+  if (!subject || !body) return interaction.editReply('Wpisz temat i treść opinii.');
   pending.add(key);
   try {
     const embed = new EmbedBuilder().setColor(0x4aa3df).setTitle(subject).setDescription(body).setTimestamp();
     if (target)
       embed.addFields(
-        { name: 'Feedback about', value: `${target.user.tag} (${target.id})` },
-        { name: 'Rating', value: `${rating}/5`, inline: true }
+        { name: 'Opinia o', value: `${target.user.tag} (${target.id})` },
+        { name: 'Ocena', value: `${rating}/5`, inline: true }
       );
-    if (cfg.anonymous) embed.setFooter({ text: 'Anonymous submission' });
-    else embed.addFields({ name: 'Submitted by', value: `${interaction.user.tag} (${interaction.user.id})` });
+    if (cfg.anonymous) embed.setFooter({ text: 'Anonimowe zgłoszenie' });
+    else
+      embed.addFields({
+        name: 'Autor zgłoszenia',
+        value: `${interaction.user.tag} (${interaction.user.id})`,
+      });
     const delivered = await sendToChannel(interaction.guildId, cfg.reviewChannel, {
       embeds: [embed],
       allowedMentions: { parse: [] },
     });
     if (!delivered)
       return interaction.editReply(
-        'Could not deliver your submission. Please contact staff or try again later.'
+        'Nie udało się dostarczyć zgłoszenia. Skontaktuj się z administracją lub spróbuj później.'
       );
     for (const [id, expires] of cooldowns) if (expires <= Date.now()) cooldowns.delete(id);
     cooldowns.set(key, Date.now() + COOLDOWN_MS);
-    return interaction.editReply('Your feedback was sent to staff. Thank you.');
+    return interaction.editReply('Twoja opinia została wysłana do administracji. Dziękujemy.');
   } finally {
     pending.delete(key);
   }

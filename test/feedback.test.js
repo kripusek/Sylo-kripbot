@@ -61,24 +61,24 @@ test('feedback forms identify their privacy mode, route modal submissions, hide 
   });
   await handleFeedback(interaction('feedback:open'));
   assert.match(modal.custom_id, /:identified$/);
-  assert.match(modal.title, /identity/);
+  assert.match(modal.title, /podpisana/);
   await execute(interaction('feedback:submit:identified'));
   assert.equal(sent.length, 1);
   assert.match(sent[0].embeds[0].toJSON().fields[0].value, /900000000000000456/);
   await handleFeedback(interaction('feedback:submit:identified'));
   assert.equal(sent.length, 1);
-  assert.match(replies.at(-1), /one minute/);
+  assert.match(replies.at(-1), /Poczekaj minutę/);
   await handleFeedback(interaction('feedback:open:anonymous'));
   assert.match(modal.custom_id, /:anonymous$/);
   await handleFeedback(interaction('feedback:open:identified'));
   assert.match(modal.custom_id, /:identified$/);
   await handleFeedback(interaction('feedback:submit:anonymous', '900000000000000789'));
   assert.equal(sent.length, 2);
-  assert.equal(sent[1].embeds[0].toJSON().footer.text, 'Anonymous submission');
+  assert.equal(sent[1].embeds[0].toJSON().footer.text, 'Anonimowe zgłoszenie');
   assert.doesNotMatch(JSON.stringify(sent[1]), /900000000000000789|member#0001/);
   await setGuildModule(guildId, 'feedback', { enabled: false });
   await handleFeedback(interaction('feedback:open'));
-  assert.match(replies.at(-1), /disabled/);
+  assert.match(replies.at(-1), /wyłączone/);
   runtime.client = null;
 });
 
@@ -115,7 +115,7 @@ test('role-filtered feedback lists eligible people, paginates and records a vali
     1
   );
   assert.equal(page.components[0].toJSON().components[0].options.length, 1);
-  assert.match(page.content, /page 2\/2/);
+  assert.match(page.content, /strona 2\/2/);
   const config = { ...cfg, subjectRoles: [role] };
   await setGuildModule(guildId, 'feedback', { enabled: true, config });
   const sent = [];
@@ -170,7 +170,7 @@ test('role-filtered feedback lists eligible people, paginates and records a vali
   assert.match(modal.custom_id, new RegExp(`${targetId}$`));
   interaction.customId = modal.custom_id;
   await handleFeedback(interaction);
-  assert.match(reply, /from 0 to 5/);
+  assert.match(reply, /od 0 do 5/);
   assert.equal(sent.length, 0);
   interaction.fields.getTextInputValue = (key) => (key === 'rating' ? '0' : 'A useful opinion.');
   await handleFeedback(interaction);
@@ -181,7 +181,7 @@ test('role-filtered feedback lists eligible people, paginates and records a vali
   const anonymousPage = feedbackPicker([target], interaction.user.id, 0, 'anonymous');
   assert.match(anonymousPage.components[0].toJSON().components[0].custom_id, /:anonymous$/);
   const fields = sent[0].embeds[0].toJSON().fields;
-  assert.equal(fields.find((field) => field.name === 'Rating').value, '0/5');
-  assert.match(fields.find((field) => field.name === 'Feedback about').value, /admin/);
+  assert.equal(fields.find((field) => field.name === 'Ocena').value, '0/5');
+  assert.match(fields.find((field) => field.name === 'Opinia o').value, /admin/);
   runtime.client = null;
 });
