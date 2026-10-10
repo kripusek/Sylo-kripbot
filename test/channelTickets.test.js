@@ -26,6 +26,7 @@ const cfg = {
   }),
   panelMessageId: 'panel',
   staffRoles: ['100000000000000700'],
+  pingRoles: ['100000000000000701', '100000000000000701', guildId, 'missing'],
 };
 
 test('ticket settings limit topics, keep stable IDs, and discard forged panel message IDs', () => {
@@ -117,7 +118,12 @@ test('private tickets route to a category, reject duplicates and unauthorized cl
   };
   const guild = {
     id: guildId,
-    roles: { cache: new Collection([['100000000000000700', {}]]) },
+    roles: {
+      cache: new Collection([
+        ['100000000000000700', {}],
+        ['100000000000000701', {}],
+      ]),
+    },
     members: {
       me: { id: botId },
       fetch: async () => ({ permissions: { has: () => false }, roles: { cache: new Collection() } }),
@@ -154,6 +160,12 @@ test('private tickets route to a category, reject duplicates and unauthorized cl
   await handleChannelTicket(interaction('ticket-channel:open'));
   assert.equal(created.length, 1);
   assert.equal(created[0].parent, categoryId);
+  const opening = sent.find((entry) => entry.content?.includes(`<@${ownerId}>`));
+  assert.equal(opening.content, `<@${ownerId}> <@&100000000000000701>`);
+  assert.deepEqual(opening.allowedMentions.roles, ['100000000000000701']);
+  assert.deepEqual(opening.allowedMentions.parse, []);
+  assert.ok(created[0].permissionOverwrites.some((entry) => entry.id === '100000000000000701'));
+  assert.deepEqual(normaliseChannelTickets(cfg).pingRoles, ['100000000000000701', guildId]);
   assert.equal(created[0].permissionOverwrites[0].deny[0], PermissionFlagsBits.ViewChannel);
   assert.equal(created[0].permissionOverwrites[1].id, ownerId);
   await handleChannelTicket(interaction('ticket-channel:open'));

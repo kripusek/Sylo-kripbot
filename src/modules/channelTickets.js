@@ -44,6 +44,7 @@ export function normaliseChannelTickets(input = {}, previous = {}) {
     panelText: String(input.panelText || 'Choose a topic below to open a private ticket.').slice(0, 2000),
     ticketLogChannel: id(input.ticketLogChannel),
     ticketTypes: types,
+    pingRoles: [...new Set([].concat(input.pingRoles ?? []).filter((role) => id(role)))].slice(0, 20),
   };
 }
 
@@ -182,8 +183,7 @@ export async function handleChannelTicket(interaction) {
   locks.add(lock);
   try {
     if (opening) {
-      if (!interaction.isStringSelectMenu())
-        return interaction.editReply('Wybierz temat zgłoszenia from the menu.');
+      if (!interaction.isStringSelectMenu()) return interaction.editReply('Wybierz temat zgłoszenia z menu.');
       if (interaction.channelId !== cfg.panelChannel || interaction.message.id !== cfg.panelMessageId)
         return interaction.editReply('This panel is outdated. Please use the current ticket panel.');
       const type = cfg.ticketTypes?.find((item) => item.id === interaction.values[0]);
@@ -203,7 +203,10 @@ export async function handleChannelTicket(interaction) {
         PermissionFlagsBits.AttachFiles,
         PermissionFlagsBits.EmbedLinks,
       ];
-      const staffRoles = [...new Set(cfg.staffRoles || [])].filter(
+      const pingRoles = [...new Set([].concat(cfg.pingRoles || []))]
+        .filter((role) => role !== guild.id && guild.roles.cache.has(role))
+        .slice(0, 20);
+      const staffRoles = [...new Set([...(cfg.staffRoles || []), ...pingRoles])].filter(
         (role) => role !== guild.id && guild.roles.cache.has(role)
       );
       const channel = await guild.channels.create({
@@ -221,8 +224,8 @@ export async function handleChannelTicket(interaction) {
       });
       try {
         await channel.send({
-          content: `<@${interaction.user.id}>`,
-          allowedMentions: { users: [interaction.user.id] },
+          content: [`<@${interaction.user.id}>`, ...pingRoles.map((role) => `<@&${role}>`)].join(' '),
+          allowedMentions: { parse: [], users: [interaction.user.id], roles: pingRoles },
           embeds: [
             new EmbedBuilder()
               .setColor(0x4aa3df)

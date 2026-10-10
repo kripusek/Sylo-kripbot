@@ -69,6 +69,10 @@
     <% }) %>
   </select>
 
+  <label>Roles to ping when a ticket opens</label>
+  <%- include('../../partials/chip-picker', { field: 'pingRoles', kind: 'role', items: roles, selected: cfg.pingRoles || [] }) %>
+  <p class="muted small">Selected roles are mentioned in the new ticket and can read and reply there. Leave empty to disable role pings. Roles must be mentionable, or the bot needs Mention Everyone permission.</p>
+
   <label class="check">
     <input type="checkbox" name="showMessageInAlert" <%= cfg.showMessageInAlert ? 'checked' : '' %> />
     Include the ticket's opening message in the staff notification
