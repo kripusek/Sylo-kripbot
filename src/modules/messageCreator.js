@@ -86,7 +86,7 @@ function buildComponents(spec) {
       if (!opts.length) continue;
       const menu = new StringSelectMenuBuilder()
         .setCustomId('msgroles')
-        .setPlaceholder(trimOr(row.placeholder, 150) ?? 'Select roles')
+        .setPlaceholder(trimOr(row.placeholder, 150) ?? 'Wybierz role')
         .setMinValues(Math.max(0, Math.min(Number(row.min) || 0, opts.length)))
         .setMaxValues(Math.max(1, Math.min(Number(row.max) || opts.length, opts.length)))
         .addOptions(opts);

@@ -14,29 +14,29 @@ import { setLock, renameTemp, banFromChannel, unbanFromChannel, transferTemp } f
 
 const actions = [
   [
-    ['lock', 'Lock'],
-    ['unlock', 'Unlock'],
-    ['limit', 'User limit'],
+    ['lock', 'Zablokuj'],
+    ['unlock', 'Odblokuj'],
+    ['limit', 'Limit osób'],
   ],
-  [['rename', 'Rename']],
+  [['rename', 'Zmień nazwę']],
   [
-    ['kick', 'Kick member'],
-    ['ban', 'Ban member'],
-    ['unban', 'Unban member'],
+    ['kick', 'Wyrzuć użytkownika'],
+    ['ban', 'Zablokuj użytkownika'],
+    ['unban', 'Odblokuj użytkownika'],
   ],
-  [['transfer', 'Transfer owner']],
+  [['transfer', 'Przekaż właściciela']],
 ];
 export function voicePanel(channelId, ownerId) {
   return {
     allowedMentions: { parse: [] },
     embeds: [
       {
-        title: 'Voice channel panel',
-        description: 'Manage your voice channel:',
+        title: 'Panel kanału głosowego',
+        description: 'Zarządzaj swoim kanałem głosowym:',
         color: 0x5b7cfa,
         fields: [
-          { name: 'Owner', value: `<@${ownerId}>`, inline: true },
-          { name: 'Voice channel', value: `<#${channelId}>`, inline: true },
+          { name: 'Właściciel', value: `<@${ownerId}>`, inline: true },
+          { name: 'Kanał głosowy', value: `<#${channelId}>`, inline: true },
         ],
       },
     ],
@@ -69,24 +69,25 @@ export async function handleVoicePanel(interaction) {
       .setCustomId('value')
       .setStyle(TextInputStyle.Short)
       .setRequired(true)
-      .setLabel(action === 'rename' ? 'Channel name' : 'User limit (0–99; 0 = unlimited)')
+      .setLabel(action === 'rename' ? 'Nazwa kanału' : 'Limit osób (0–99; 0 = bez limitu)')
       .setMaxLength(action === 'rename' ? 100 : 2)
       .setValue(action === 'rename' ? ctx.channel.name : String(ctx.channel.userLimit ?? 0));
     return interaction.showModal(
       new ModalBuilder()
         .setCustomId(`voice-panel:${channelId}:${action}:submit:${interaction.user.id}`)
-        .setTitle(action === 'rename' ? 'Rename channel' : 'Set user limit')
+        .setTitle(action === 'rename' ? 'Zmień nazwę kanału' : 'Ustaw limit osób')
         .addComponents(new ActionRowBuilder().addComponents(input))
     );
   }
   if (!stage && ['kick', 'ban', 'unban', 'transfer'].includes(action)) {
     return interaction.reply({
-      content: 'Select a member:',
+      content: 'Wybierz użytkownika:',
       flags: MessageFlags.Ephemeral,
       components: [
         new ActionRowBuilder().addComponents(
           new UserSelectMenuBuilder()
             .setCustomId(`voice-panel:${channelId}:${action}:select:${interaction.user.id}`)
+            .setPlaceholder('Wybierz użytkownika')
             .setMinValues(1)
             .setMaxValues(1)
         ),

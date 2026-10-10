@@ -113,7 +113,7 @@ export function buildRoleComponents(guild, rm) {
     });
     const menu = new StringSelectMenuBuilder()
       .setCustomId(`rrsel:${rm.id}`)
-      .setPlaceholder((rm.placeholder || 'Pick your roles').slice(0, 150))
+      .setPlaceholder((rm.placeholder || 'Wybierz swoje role').slice(0, 150))
       .setMinValues(rm.exclusive ? 0 : clamp(rm.selMin, 0, options.length))
       .setMaxValues(rm.exclusive ? 1 : clamp(rm.selMax || options.length, 1, options.length))
       .addOptions(options);

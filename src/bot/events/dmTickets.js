@@ -63,7 +63,7 @@ async function handleDM(message) {
   stash(message.author.id, payload);
   const menu = new StringSelectMenuBuilder()
     .setCustomId(SELECT_ID)
-    .setPlaceholder('Which server is this about?')
+    .setPlaceholder('Którego serwera dotyczy zgłoszenie?')
     .addOptions(
       (openGuilds.length ? openGuilds : guilds)
         .slice(0, 25)

@@ -185,7 +185,7 @@ async function handleVerifyButton(interaction) {
       content: 'One quick check — open the link below to finish verifying. It expires in 15 minutes.',
       components: [
         new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Complete verification').setURL(url)
+          new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel('Dokończ weryfikację').setURL(url)
         ),
       ],
     });

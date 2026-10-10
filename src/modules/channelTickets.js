@@ -61,7 +61,7 @@ export async function publishTicketPanel(guild, cfg) {
   if (!channel?.isTextBased()) throw new Error('The panel channel is unavailable.');
   const menu = new StringSelectMenuBuilder()
     .setCustomId('ticket-channel:open')
-    .setPlaceholder('Choose a ticket topic')
+    .setPlaceholder('Wybierz temat zgłoszenia')
     .addOptions(
       cfg.ticketTypes.map((type) => ({
         label: type.label,
@@ -183,7 +183,7 @@ export async function handleChannelTicket(interaction) {
   try {
     if (opening) {
       if (!interaction.isStringSelectMenu())
-        return interaction.editReply('Choose a ticket topic from the menu.');
+        return interaction.editReply('Wybierz temat zgłoszenia from the menu.');
       if (interaction.channelId !== cfg.panelChannel || interaction.message.id !== cfg.panelMessageId)
         return interaction.editReply('This panel is outdated. Please use the current ticket panel.');
       const type = cfg.ticketTypes?.find((item) => item.id === interaction.values[0]);
@@ -227,14 +227,14 @@ export async function handleChannelTicket(interaction) {
             new EmbedBuilder()
               .setColor(0x4aa3df)
               .setTitle(type.label)
-              .setDescription('Describe your issue here. Staff will reply in this channel.'),
+              .setDescription('Opisz tutaj swoją sprawę. Administracja odpowie na tym kanale.'),
           ],
           components: [
             new ActionRowBuilder().addComponents(
               new ButtonBuilder()
                 .setCustomId('ticket-channel:close')
                 .setStyle(ButtonStyle.Danger)
-                .setLabel('Close ticket')
+                .setLabel('Zamknij zgłoszenie')
             ),
           ],
         });

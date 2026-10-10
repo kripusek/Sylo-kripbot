@@ -28,11 +28,11 @@ const OVERVIEW_DESCRIPTION =
 // it (buildCategoryEmbed() below also truncates defensively, so a
 // miscounted group degrades instead of crashing the command).
 export const GROUPS = [
-  { name: 'General', commands: ['help', 'about', 'version', 'ping', 'stats'] },
-  { name: 'Leveling', commands: ['rank', 'leaderboard'] },
-  { name: 'Community', commands: ['afk', 'birthday'] },
+  { name: 'Ogólne', commands: ['help', 'about', 'version', 'ping', 'stats'] },
+  { name: 'Poziomy', commands: ['rank', 'leaderboard'] },
+  { name: 'Społeczność', commands: ['afk', 'birthday'] },
   {
-    name: 'Moderation',
+    name: 'Moderacja',
     commands: [
       'kick',
       'ban',
@@ -48,10 +48,10 @@ export const GROUPS = [
       'modlog',
     ],
   },
-  { name: 'Case log', commands: ['case', 'history'] },
-  { name: 'Invites', commands: ['inviter', 'invites', 'invites-leaderboard'] },
+  { name: 'Historia kar', commands: ['case', 'history'] },
+  { name: 'Zaproszenia', commands: ['inviter', 'invites', 'invites-leaderboard'] },
   {
-    name: 'Voice channels',
+    name: 'Kanały głosowe',
     commands: [
       'voice-claim',
       'voice-transfer',
@@ -68,8 +68,8 @@ export const GROUPS = [
       'voice-clean',
     ],
   },
-  { name: 'Engagement', commands: ['giveaway', 'poll', 'poll-end', 'freegames'] },
-  { name: 'Privacy', commands: ['mydata', 'forget'] },
+  { name: 'Aktywność', commands: ['giveaway', 'poll', 'poll-end', 'freegames'] },
+  { name: 'Prywatność', commands: ['mydata', 'forget'] },
 ];
 
 const FIELD_LIMIT = 1024;
@@ -98,7 +98,7 @@ function categories(all) {
   if (other.length) {
     list.push({
       key: 'other',
-      name: 'Other',
+      name: 'Pozostałe',
       lines: other.map((c) => `\`/${c.data.name}\` — ${c.data.description}`),
     });
   }
@@ -128,9 +128,9 @@ function buildCategoryEmbed(cat) {
 function buildSelect(cats, selected) {
   const menu = new StringSelectMenuBuilder()
     .setCustomId('help-category')
-    .setPlaceholder('Choose a category…')
+    .setPlaceholder('Wybierz kategorię…')
     .addOptions(
-      { label: 'Overview', value: 'overview', default: selected === 'overview' },
+      { label: 'Przegląd', value: 'overview', default: selected === 'overview' },
       ...cats.map((c) => ({ label: c.name, value: c.key, default: selected === c.key }))
     );
   return new ActionRowBuilder().addComponents(menu);
@@ -144,7 +144,7 @@ function buildComponents(cats, selected, disabled = false) {
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setStyle(ButtonStyle.Link)
-          .setLabel('Open dashboard')
+          .setLabel('Otwórz panel')
           .setURL(config.dashboardUrl)
           .setDisabled(disabled)
       )
