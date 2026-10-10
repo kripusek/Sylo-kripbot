@@ -5,6 +5,7 @@ import { EmbedBuilder } from 'discord.js';
 import { getGuildModule } from '../../db/modules.js';
 import { guildEmbedColor } from '../../db/guildSettings.js';
 import { sendToChannel } from '../../modules/lib/send.js';
+import { LOG_EVENTS, logChannel } from '../../modules/logging.js';
 
 /** Modules a test message makes sense for (they post to one configured channel). */
 export const TESTABLE = new Set([
@@ -42,7 +43,10 @@ export async function sendModuleTest(guild, moduleId) {
         .setDescription('🎂 Happy birthday, birthday person! 🎉');
       break;
     case 'logging':
-      channelId = cfg.channel;
+      channelId =
+        LOG_EVENTS.filter(([key]) => cfg.events?.[key])
+          .map(([key]) => logChannel(cfg, key))
+          .find(Boolean) || cfg.channel;
       embed = new EmbedBuilder()
         .setColor(color)
         .setTitle('Server logging — test')
