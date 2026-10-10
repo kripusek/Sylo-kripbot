@@ -1392,6 +1392,7 @@ router.post(
       const prevId = [].concat(req.body.yt_resolvedId ?? []);
       const prevName = [].concat(req.body.yt_resolvedName ?? []);
       const chans = [].concat(req.body.yt_channel ?? []);
+      const rowKeys = [].concat(req.body.yt_rowKey ?? []);
       const rolez = [].concat(req.body.yt_role ?? []);
       const notify = [].concat(req.body.yt_notify ?? []); // 'both' | 'video' | 'live'
       const ytEnd = [].concat(req.body.yt_onEnd ?? []);
@@ -1426,7 +1427,10 @@ router.post(
         alerts.push({
           ytChannelId: resolved.channelId,
           name: resolved.name || (resolved.channelId === prevId[i] ? prevName[i] : '') || '',
-          discordChannelId: chans[i] ?? '',
+          discordChannelIds:
+            rowKeys[i] != null
+              ? [].concat(req.body['yt_channels_' + rowKeys[i]] ?? [])
+              : [].concat(chans[i] || []),
           roleId: rolez[i] ?? '',
           onVideo: n === 'both' || n === 'video',
           onLive: n === 'both' || n === 'live',

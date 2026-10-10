@@ -1234,7 +1234,9 @@ router.post(
       alerts.push({
         ytChannelId: resolved.channelId,
         name: resolved.name || (resolved.channelId === prevId ? prevName : '') || '',
-        discordChannelId: a.discordChannelId ?? '',
+        discordChannelIds: Array.isArray(a.discordChannelIds)
+          ? a.discordChannelIds
+          : [].concat(a.discordChannelId || []),
         roleId: a.roleId ?? '',
         onVideo: notify === 'both' || notify === 'video',
         onLive: notify === 'both' || notify === 'live',

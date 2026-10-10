@@ -58,6 +58,11 @@ export function normaliseYoutubeConfig(raw = {}) {
         ytChannelId: UC_RE.test(a.ytChannelId ?? '') ? a.ytChannelId : '',
         name: String(a.name ?? '').slice(0, 100),
         discordChannelId: isId(a.discordChannelId) ? a.discordChannelId : '',
+        discordChannelIds: [
+          ...new Set(
+            (Array.isArray(a.discordChannelIds) ? a.discordChannelIds : [a.discordChannelId]).filter(isId)
+          ),
+        ].slice(0, 50),
         roleId: isId(a.roleId) ? a.roleId : '',
         onVideo: a.onVideo !== false,
         onLive: Boolean(a.onLive),
@@ -66,10 +71,15 @@ export function normaliseYoutubeConfig(raw = {}) {
         liveMessage: String(a.liveMessage ?? '').slice(0, 1500),
       }))
       .filter((a) => {
-        if (!a.ytChannelId || !a.discordChannelId) return false;
-        if (seen.has(a.ytChannelId + a.discordChannelId)) return false;
-        seen.add(a.ytChannelId + a.discordChannelId);
-        return true;
+        if (!a.ytChannelId) return false;
+        a.discordChannelIds = a.discordChannelIds.filter((id) => {
+          const key = `${a.ytChannelId}:${id}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        a.discordChannelId = a.discordChannelIds[0] || '';
+        return a.discordChannelIds.length > 0;
       })
       .slice(0, 50),
   };
@@ -80,14 +90,18 @@ export function youtubeAlertsValidationError(alerts) {
   if (alerts.length > 50) return 'Możesz dodać maksymalnie 50 powiadomień YouTube.';
   const seen = new Set();
   for (const [index, alert] of alerts.entries()) {
-    if (!isId(alert.discordChannelId))
+    const ids = Array.isArray(alert.discordChannelIds) ? alert.discordChannelIds : [alert.discordChannelId];
+    if (!ids.length || ids.some((id) => !isId(id)))
       return `Powiadomienie ${index + 1}: wybierz kanał Discorda, na który bot ma wysyłać ogłoszenia.`;
+    if (ids.length > 50) return `Powiadomienie ${index + 1}: możesz wybrać maksymalnie 50 kanałów Discorda.`;
     if (!UC_RE.test(alert.ytChannelId ?? ''))
       return `Powiadomienie ${index + 1}: nieprawidłowy identyfikator kanału YouTube.`;
-    const key = `${alert.ytChannelId}:${alert.discordChannelId}`;
-    if (seen.has(key))
-      return `Powiadomienie ${index + 1}: ten kanał YouTube ma już powiadomienie na wybranym kanale Discorda. Zmień kanał docelowy lub edytuj istniejący wpis.`;
-    seen.add(key);
+    for (const id of new Set(ids)) {
+      const key = `${alert.ytChannelId}:${id}`;
+      if (seen.has(key))
+        return `Powiadomienie ${index + 1}: ten kanał YouTube ma już powiadomienie na wybranym kanale Discorda. Zmień kanał docelowy lub edytuj istniejący wpis.`;
+      seen.add(key);
+    }
   }
   return null;
 }
@@ -339,6 +353,21 @@ function once(requests, key, load) {
 }
 
 export async function runAlert(guildId, alert, requests = new Map()) {
+  const destinations = [
+    ...new Set(Array.isArray(alert.discordChannelIds) ? alert.discordChannelIds : [alert.discordChannelId]),
+  ].filter(isId);
+  const errors = [];
+  for (const discordChannelId of destinations) {
+    try {
+      await runDestination(guildId, { ...alert, discordChannelId }, requests);
+    } catch (err) {
+      errors.push(err.message);
+    }
+  }
+  if (errors.length) throw new Error(errors.join('; '));
+}
+
+async function runDestination(guildId, alert, requests) {
   const yt = alert.ytChannelId;
   const c = `${yt}:${alert.discordChannelId}`;
   const errors = [];

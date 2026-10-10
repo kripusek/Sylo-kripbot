@@ -36,7 +36,8 @@ test('V1 saves five YouTube rows and refuses incomplete/duplicate additions with
     const page = await fetch(`${app.base}/guilds/${GID}/m/youtube-alerts`);
     const html = await page.text();
     for (const a of rows) assert.ok(html.includes(a.ytChannelId));
-    assert.match(html, /select name="yt_channel" required/);
+    assert.match(html, /chipPicker/);
+    assert.match(html, /yt_channels_0/);
     for (const additional of [
       { ...rows[0], ytChannelId: 'UC' + 'z'.repeat(22), discordChannelId: '' },
       rows[0],
@@ -74,6 +75,58 @@ test('V2 saves more than three YouTube rows and reports missing Discord destinat
     assert.equal(failed.status, 400);
     assert.match((await failed.json()).error, /Powiadomienie 6: wybierz kanał Discorda/);
     assert.equal((await getGuildModule(GID, 'youtube-alerts')).config.alerts.length, 5);
+  } finally {
+    app.close();
+  }
+});
+
+test('V1 multiple destinations stay attached to the right YouTube row and survive reload', async () => {
+  const app = await startWebApp();
+  const body = new URLSearchParams();
+  for (const [i, a] of rows.slice(0, 2).entries()) {
+    body.append('yt_input', a.ytChannelId);
+    body.append('yt_rowKey', `key${i}`);
+    body.append('yt_notify', 'both');
+    for (const id of i === 0 ? [CH.general, CH.bots] : [CH.announce]) body.append(`yt_channels_key${i}`, id);
+  }
+  try {
+    const res = await post(app.base, `/guilds/${GID}/m/youtube-alerts/config`, body.toString());
+    assert.equal(res.status, 302);
+    const cfg = (await getGuildModule(GID, 'youtube-alerts')).config;
+    assert.deepEqual(
+      cfg.alerts.map((a) => a.discordChannelIds),
+      [[CH.general, CH.bots], [CH.announce]]
+    );
+    const page = await fetch(`${app.base}/guilds/${GID}/m/youtube-alerts`);
+    assert.equal(page.status, 200);
+    const html = await page.text();
+    assert.match(html, /yt_channels_1/);
+    assert.ok(html.includes(CH.bots));
+    const invalid = new URLSearchParams(body);
+    invalid.delete('yt_channels_key1');
+    const failure = await post(app.base, `/guilds/${GID}/m/youtube-alerts/config`, invalid.toString());
+    assert.equal(failure.status, 400);
+    assert.deepEqual((await getGuildModule(GID, 'youtube-alerts')).config, cfg);
+  } finally {
+    app.close();
+  }
+});
+
+test('V2 stores one YouTube subscription with multiple destinations', async () => {
+  const app = await startWebApp();
+  try {
+    const res = await fetch(`${app.base}/api/v2/guilds/${GID}/modules/youtube-alerts/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        alerts: [{ input: rows[0].ytChannelId, discordChannelIds: [CH.general, CH.bots], notify: 'both' }],
+      }),
+    });
+    assert.equal(res.status, 200);
+    const cfg = (await res.json()).config;
+    assert.equal(cfg.alerts.length, 1);
+    assert.deepEqual(cfg.alerts[0].discordChannelIds, [CH.general, CH.bots]);
+    assert.equal(cfg.alerts[0].discordChannelId, CH.general);
   } finally {
     app.close();
   }

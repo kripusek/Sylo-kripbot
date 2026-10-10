@@ -442,3 +442,65 @@ test('a feed failure does not stop live delivery, and live entries are not also 
     runtime.client = oldClient;
   }
 });
+
+test('multi-destination upload delivery retries only the failed channel and shares its feed fetch', async () => {
+  const { runtime } = await import('../src/runtime.js');
+  const { markInitialized } = await import('../src/db/youtubeAlerts.js');
+  const guildId = '543210987654321098',
+    channelIds = ['123456789012345685', '123456789012345686'];
+  const oldFetch = globalThis.fetch,
+    oldClient = runtime.client;
+  let failFirst = true,
+    requests = 0;
+  const attempts = [0, 0];
+  globalThis.fetch = async () => {
+    requests++;
+    return {
+      ok: true,
+      text: async () =>
+        '<feed><entry><yt:videoId>multivideo1</yt:videoId><title>Multi</title></entry></feed>',
+    };
+  };
+  runtime.client = {
+    guilds: {
+      cache: new Map([
+        [
+          guildId,
+          {
+            members: {},
+            channels: {
+              cache: new Map(
+                channelIds.map((id, i) => [
+                  id,
+                  {
+                    isTextBased: () => true,
+                    send: async () => {
+                      attempts[i]++;
+                      if (i === 0 && failFirst) throw new Error('Missing permissions');
+                      return { id: 'message' };
+                    },
+                  },
+                ])
+              ),
+            },
+          },
+        ],
+      ]),
+    },
+  };
+  const alert = { ytChannelId: UC, discordChannelIds: channelIds, onVideo: true, onLive: false };
+  try {
+    for (const id of channelIds) await markInitialized(guildId, `${UC}:${id}`);
+    await assert.rejects(runAlert(guildId, alert), /will retry/);
+    assert.deepEqual(attempts, [1, 1]);
+    assert.equal(requests, 1);
+    failFirst = false;
+    await runAlert(guildId, alert);
+    assert.deepEqual(attempts, [2, 1]);
+    await runAlert(guildId, alert);
+    assert.deepEqual(attempts, [2, 1]);
+  } finally {
+    globalThis.fetch = oldFetch;
+    runtime.client = oldClient;
+  }
+});

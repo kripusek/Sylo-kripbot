@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getModuleConfig, saveModuleConfig, ApiError } from '../api.js';
 import { useApiData } from '../useApiData.js';
+import ChipPicker from '../components/ChipPicker.jsx';
 
 function newKey() {
   return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
@@ -24,7 +25,7 @@ function toFormRow(a = {}) {
     ytChannelId: a.ytChannelId || '',
     name: a.name || '',
     input: a.ytChannelId ? `https://www.youtube.com/channel/${a.ytChannelId}` : '',
-    discordChannelId: a.discordChannelId || '',
+    discordChannelIds: a.discordChannelIds || (a.discordChannelId ? [a.discordChannelId] : []),
     roleId: a.roleId || '',
     notify: notifyOf(a),
     onEnd: a.onEnd || 'delete',
@@ -67,7 +68,10 @@ export default function YoutubeAlerts() {
   const addRow = () =>
     setForm((f) => ({
       ...f,
-      alerts: [...f.alerts, { ...toFormRow(), discordChannelId: f.alerts.at(-1)?.discordChannelId || '' }],
+      alerts: [
+        ...f.alerts,
+        { ...toFormRow(), discordChannelIds: [...(f.alerts.at(-1)?.discordChannelIds || [])] },
+      ],
     }));
   const removeRow = (key) => setForm((f) => ({ ...f, alerts: f.alerts.filter((a) => a.key !== key) }));
 
@@ -81,7 +85,7 @@ export default function YoutubeAlerts() {
           input: a.input,
           ytChannelId: a.ytChannelId,
           name: a.name,
-          discordChannelId: a.discordChannelId,
+          discordChannelIds: a.discordChannelIds,
           roleId: a.roleId,
           notify: a.notify,
           onEnd: a.onEnd,
@@ -135,18 +139,12 @@ export default function YoutubeAlerts() {
               </div>
               <div className="v2-field">
                 <label>Announce in</label>
-                <select
-                  required
-                  value={a.discordChannelId}
-                  onChange={(e) => updateRow(a.key, { discordChannelId: e.target.value })}
-                >
-                  <option value="">— select a channel —</option>
-                  {data.channels.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      #{c.name}
-                    </option>
-                  ))}
-                </select>
+                <ChipPicker
+                  items={data.channels}
+                  kind="channel"
+                  value={a.discordChannelIds}
+                  onChange={(discordChannelIds) => updateRow(a.key, { discordChannelIds })}
+                />
               </div>
             </div>
 
