@@ -36,8 +36,11 @@ test('V1 saves five YouTube rows and refuses incomplete/duplicate additions with
     const page = await fetch(`${app.base}/guilds/${GID}/m/youtube-alerts`);
     const html = await page.text();
     for (const a of rows) assert.ok(html.includes(a.ytChannelId));
-    assert.match(html, /chipPicker/);
+    assert.match(html, /channel-multi-picker/);
     assert.match(html, /yt_channels_0/);
+    assert.match(html, /type="checkbox" name="yt_channels_0"/);
+    assert.ok(html.includes('data-channel-search'));
+    assert.match(html, new RegExp(`value="${CH.general}" checked`));
     for (const additional of [
       { ...rows[0], ytChannelId: 'UC' + 'z'.repeat(22), discordChannelId: '' },
       rows[0],

@@ -26,7 +26,7 @@
           </div>
           <div class="stack u-grow">
             <label class="small">Announce in</label>
-            <%- include('../../partials/chip-picker', { field: 'yt_channels_' + index, kind: 'channel', items: channels, selected: a.discordChannelIds || (a.discordChannelId ? [a.discordChannelId] : []) }) %>
+            <%- include('../../partials/channel-multi-picker', { field: 'yt_channels_' + index, kind: 'channel', items: channels, selected: a.discordChannelIds || (a.discordChannelId ? [a.discordChannelId] : []) }) %>
           </div>
         </div>
         <div class="star-age">
@@ -76,7 +76,7 @@
       <div class="stack u-grow"><label class="small">YouTube channel <span class="muted">— URL or @handle</span></label>
         <input type="text" name="yt_input" required placeholder="@MrBeast or a channel URL" /></div>
       <div class="stack u-grow"><label class="small">Announce in</label>
-        <%- include('../../partials/chip-picker', { field: 'yt_channels_new', kind: 'channel', items: channels, selected: [] }) %></div>
+        <%- include('../../partials/channel-multi-picker', { field: 'yt_channels_new', kind: 'channel', items: channels, selected: [] }) %></div>
     </div>
     <div class="star-age">
       <div class="stack u-grow"><label class="small">Notify on</label>
@@ -102,15 +102,14 @@
 <script>
   document.getElementById('yt-add')?.addEventListener('click', function () {
     const rows = document.getElementById('yt-rows');
-    const previous = [...rows.querySelectorAll('.tw-row:last-child .role-picker input[type="hidden"]')].map((input) => input.value);
+    const previous = [...rows.querySelectorAll('.tw-row:last-child .channel-multi-picker input[type="checkbox"]:checked')].map((input) => input.value);
     const fragment = document.getElementById('yt-template').content.cloneNode(true);
     const key = 'new_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     fragment.querySelector('[name="yt_rowKey"]').value = key;
-    const picker = fragment.querySelector('.role-picker');
-    const config = JSON.parse(picker.getAttribute('x-data').slice('chipPicker('.length, -1));
-    config.field = 'yt_channels_' + key;
-    config.selected = previous;
-    picker.setAttribute('x-data', 'chipPicker(' + JSON.stringify(config) + ')');
+    fragment.querySelectorAll('.channel-multi-picker input[type="checkbox"]').forEach((input) => {
+      input.name = 'yt_channels_' + key;
+      input.checked = previous.includes(input.value);
+    });
     rows.appendChild(fragment);
     rows.lastElementChild.querySelector('input[name="yt_input"]').focus();
   });

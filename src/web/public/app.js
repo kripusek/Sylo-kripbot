@@ -36,6 +36,16 @@
     };
   }
 
+  // Server-rendered YouTube channel choices also work before Alpine initializes.
+  document.addEventListener('input', (event) => {
+    if (!event.target.matches('[data-channel-search]')) return;
+    const picker = event.target.closest('.channel-multi-picker');
+    const query = event.target.value.trim().toLocaleLowerCase();
+    picker.querySelectorAll('[data-channel-option]').forEach((option) => {
+      option.hidden = !option.dataset.search.includes(query);
+    });
+  });
+
   // --- Confirm-on-submit / confirm-on-click ---------------------------------
   // Forms and links opt in with data-confirm="…". Registered in the *capture*
   // phase so the prompt resolves before hx-boost's own handler on the element

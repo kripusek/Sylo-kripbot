@@ -87,3 +87,36 @@ test('all former Ctrl-click fields render searchable pickers and persist multipl
     app.close();
   }
 });
+
+test('native YouTube channel search filters options without changing selections', () => {
+  const listeners = {};
+  runInNewContext(readFileSync(new URL('../src/web/public/app.js', import.meta.url), 'utf8'), {
+    document: {
+      querySelector: () => null,
+      addEventListener: (name, handler) => {
+        listeners[name] = handler;
+      },
+    },
+    window: {},
+  });
+  const options = [
+    { dataset: { search: `ogólny ${CH.general}` }, checked: true, hidden: false },
+    { dataset: { search: `boty ${CH.bots}` }, checked: false, hidden: false },
+  ];
+  const target = {
+    matches: () => true,
+    value: ' BOTY ',
+    closest: () => ({ querySelectorAll: () => options }),
+  };
+  listeners.input({ target });
+  assert.equal(options[0].hidden, true);
+  assert.equal(options[1].hidden, false);
+  assert.equal(options[0].checked, true);
+  target.value = CH.general;
+  listeners.input({ target });
+  assert.equal(options[0].hidden, false);
+  assert.equal(options[1].hidden, true);
+  target.value = '';
+  listeners.input({ target });
+  assert.ok(options.every((option) => !option.hidden));
+});

@@ -1,0 +1,17 @@
+<% var picked = new Set((selected || []).map(String)); %>
+<div class="channel-multi-picker">
+  <details class="card stack">
+    <summary>Wybierz kanały Discorda</summary>
+    <p class="muted small">Zaznacz wszystkie kanały, na które mają trafiać powiadomienia.</p>
+    <input type="search" data-channel-search placeholder="Szukaj po nazwie lub ID…" aria-label="Wyszukaj kanał Discorda" autocomplete="off" />
+    <div class="stack" style="max-height: 240px; overflow-y: auto; padding: 4px;">
+      <% (items || []).forEach(function (channel) { %>
+        <label class="checkline small" data-channel-option data-search="<%= (channel.name + ' ' + channel.id).toLocaleLowerCase() %>">
+          <input type="checkbox" name="<%= field %>" value="<%= channel.id %>" <%= picked.has(String(channel.id)) ? 'checked' : '' %> />
+          #<%= channel.name %>
+        </label>
+      <% }) %>
+      <% if (!(items || []).length) { %><p class="muted small">Brak dostępnych kanałów tekstowych. Sprawdź dostęp bota do kanałów na serwerze.</p><% } %>
+    </div>
+  </details>
+</div>

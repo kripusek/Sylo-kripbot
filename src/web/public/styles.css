@@ -1157,3 +1157,8 @@ label.checkline input { width: auto; }
 .language-switch a { flex:1; padding:6px 12px; text-align:center; text-decoration:none; color:inherit; border-radius:5px; font-size:13px; font-weight:600; }
 .language-switch a[aria-current="true"] { background:#5b7cfa; color:#fff; }
 .language-switch a:focus-visible { outline:2px solid #5b7cfa; outline-offset:2px; }
+
+/* Native YouTube destination picker: options remain usable without Alpine. */
+.channel-multi-picker summary { cursor: pointer; }
+.channel-multi-picker [data-channel-option][hidden] { display: none !important; }
+.channel-multi-picker input[type="search"] { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text); }
