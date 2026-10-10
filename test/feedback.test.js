@@ -46,8 +46,8 @@ test('feedback forms identify their privacy mode, route modal submissions, hide 
     channelId: cfg.panelChannel,
     customId,
     user: { id: userId, tag: 'member#0001' },
-    isButton: () => customId === 'feedback:open',
-    isMessageComponent: () => customId === 'feedback:open',
+    isButton: () => customId.startsWith('feedback:open'),
+    isMessageComponent: () => customId.startsWith('feedback:open'),
     isModalSubmit: () => customId.startsWith('feedback:submit'),
     fields: {
       getTextInputValue: (key) => (key === 'subject' ? 'Staff complaint' : 'Please review this issue.'),
@@ -68,10 +68,10 @@ test('feedback forms identify their privacy mode, route modal submissions, hide 
   await handleFeedback(interaction('feedback:submit:identified'));
   assert.equal(sent.length, 1);
   assert.match(replies.at(-1), /one minute/);
-  await setGuildModule(guildId, 'feedback', { config: { ...cfg, anonymous: true } });
-  await handleFeedback(interaction('feedback:submit:identified', '900000000000000789'));
-  assert.equal(sent.length, 1);
-  assert.match(replies.at(-1), /privacy setting changed/);
+  await handleFeedback(interaction('feedback:open:anonymous'));
+  assert.match(modal.custom_id, /:anonymous$/);
+  await handleFeedback(interaction('feedback:open:identified'));
+  assert.match(modal.custom_id, /:identified$/);
   await handleFeedback(interaction('feedback:submit:anonymous', '900000000000000789'));
   assert.equal(sent.length, 2);
   assert.equal(sent[1].embeds[0].toJSON().footer.text, 'Anonymous submission');
@@ -175,6 +175,11 @@ test('role-filtered feedback lists eligible people, paginates and records a vali
   interaction.fields.getTextInputValue = (key) => (key === 'rating' ? '0' : 'A useful opinion.');
   await handleFeedback(interaction);
   assert.equal(sent.length, 1);
+  interaction.customId = `feedback:person:${interaction.user.id}:anonymous`;
+  await handleFeedback(interaction);
+  assert.match(modal.custom_id, /:anonymous:/);
+  const anonymousPage = feedbackPicker([target], interaction.user.id, 0, 'anonymous');
+  assert.match(anonymousPage.components[0].toJSON().components[0].custom_id, /:anonymous$/);
   const fields = sent[0].embeds[0].toJSON().fields;
   assert.equal(fields.find((field) => field.name === 'Rating').value, '0/5');
   assert.match(fields.find((field) => field.name === 'Feedback about').value, /admin/);

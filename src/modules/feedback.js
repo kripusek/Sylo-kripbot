@@ -32,6 +32,10 @@ export function normaliseFeedbackConfig(input = {}, previous = {}) {
       String(input.buttonLabel || 'Write feedback')
         .trim()
         .slice(0, 80) || 'Write feedback',
+    anonymousButtonLabel:
+      String(input.anonymousButtonLabel || 'Write anonymous feedback')
+        .trim()
+        .slice(0, 80) || 'Write anonymous feedback',
     subjectRoles: [...new Set([].concat(input.subjectRoles ?? []).filter((role) => snowflake(role)))],
     anonymous: input.anonymous === true || input.anonymous === 'on',
   };
@@ -50,23 +54,22 @@ export async function publishFeedbackPanel(guild, cfg) {
   }
   const payload = {
     embeds: [
-      new EmbedBuilder()
-        .setColor(0x4aa3df)
-        .setTitle(cfg.title)
-        .setDescription(cfg.message)
-        .addFields({
-          name: 'Privacy',
-          value: cfg.anonymous
-            ? 'Your identity will not be included in the submission sent to staff.'
-            : 'Staff will see your Discord username and user ID. Submissions are sent to the configured review channel.',
-        }),
+      new EmbedBuilder().setColor(0x4aa3df).setTitle(cfg.title).setDescription(cfg.message).addFields({
+        name: 'Privacy',
+        value:
+          'Choose identified or anonymous feedback below. Anonymous submissions do not include your Discord username or user ID in the staff message.',
+      }),
     ],
     components: [
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId('feedback:open')
+          .setCustomId('feedback:open:identified')
           .setLabel(cfg.buttonLabel)
-          .setStyle(ButtonStyle.Primary)
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('feedback:open:anonymous')
+          .setLabel(cfg.anonymousButtonLabel || 'Write anonymous feedback')
+          .setStyle(ButtonStyle.Secondary)
       ),
     ],
     allowedMentions: { parse: [] },
@@ -88,13 +91,13 @@ export function feedbackCandidates(guild, roles) {
     );
 }
 
-export function feedbackPicker(members, userId, requestedPage = 0) {
+export function feedbackPicker(members, userId, requestedPage = 0, mode = 'identified') {
   const pages = Math.ceil(members.length / 25);
   const page = Math.min(Math.max(0, requestedPage), Math.max(0, pages - 1));
   if (!members.length)
     return { content: 'No members currently have the selected roles. Please contact staff.', components: [] };
   const menu = new StringSelectMenuBuilder()
-    .setCustomId(`feedback:person:${userId}`)
+    .setCustomId(`feedback:person:${userId}:${mode}`)
     .setPlaceholder('Choose the person your feedback concerns')
     .addOptions(
       members.slice(page * 25, page * 25 + 25).map((member) => ({
@@ -108,12 +111,12 @@ export function feedbackPicker(members, userId, requestedPage = 0) {
     components.push(
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId(`feedback:page:${userId}:${page - 1}`)
+          .setCustomId(`feedback:page:${userId}:${page - 1}:${mode}`)
           .setLabel('Previous')
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(page === 0),
         new ButtonBuilder()
-          .setCustomId(`feedback:page:${userId}:${page + 1}`)
+          .setCustomId(`feedback:page:${userId}:${page + 1}:${mode}`)
           .setLabel('Next')
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(page === pages - 1)
@@ -169,7 +172,10 @@ export async function handleFeedback(interaction) {
       flags: MessageFlags.Ephemeral,
     });
   const cfg = normaliseFeedbackConfig((await getGuildModule(interaction.guildId, 'feedback')).config);
-  if (interaction.customId === 'feedback:open') {
+  const opened = /^feedback:open(?::(anonymous|identified))?$/.exec(interaction.customId);
+  if (opened) {
+    const mode = opened[1] || (cfg.anonymous ? 'anonymous' : 'identified');
+    cfg.anonymous = mode === 'anonymous';
     if (!interaction.isButton() || interaction.channelId !== cfg.panelChannel)
       return interaction.reply({
         content: 'Please use the current feedback panel.',
@@ -186,7 +192,12 @@ export async function handleFeedback(interaction) {
         if (interaction.guild.members.cache.size < interaction.guild.memberCount)
           await interaction.guild.members.fetch();
         return interaction.editReply(
-          feedbackPicker(feedbackCandidates(interaction.guild, cfg.subjectRoles), interaction.user.id)
+          feedbackPicker(
+            feedbackCandidates(interaction.guild, cfg.subjectRoles),
+            interaction.user.id,
+            0,
+            mode
+          )
         );
       } catch {
         return interaction.editReply(
@@ -196,9 +207,11 @@ export async function handleFeedback(interaction) {
     }
     return interaction.showModal(feedbackModal(cfg));
   }
-  const person = /^feedback:person:(\d{17,20})$/.exec(interaction.customId);
-  const page = /^feedback:page:(\d{17,20}):(-?\d+)$/.exec(interaction.customId);
+  const person = /^feedback:person:(\d{17,20})(?::(anonymous|identified))?$/.exec(interaction.customId);
+  const page = /^feedback:page:(\d{17,20}):(-?\d+)(?::(anonymous|identified))?$/.exec(interaction.customId);
   if (person || page) {
+    const mode = person?.[2] || page?.[3] || (cfg.anonymous ? 'anonymous' : 'identified');
+    cfg.anonymous = mode === 'anonymous';
     if ((person || page)[1] !== interaction.user.id)
       return interaction.reply({ content: 'Open your own feedback form.', flags: MessageFlags.Ephemeral });
     if (page)
@@ -206,7 +219,8 @@ export async function handleFeedback(interaction) {
         feedbackPicker(
           feedbackCandidates(interaction.guild, cfg.subjectRoles),
           interaction.user.id,
-          Number(page[2])
+          Number(page[2]),
+          mode
         )
       );
     if (!interaction.isStringSelectMenu()) return;
@@ -220,11 +234,7 @@ export async function handleFeedback(interaction) {
   }
   const submitted = /^feedback:submit:(anonymous|identified)(?::(\d{17,20}))?$/.exec(interaction.customId);
   if (!interaction.isModalSubmit() || !submitted) return;
-  if ((submitted[1] === 'anonymous') !== cfg.anonymous)
-    return interaction.reply({
-      content: 'The privacy setting changed. Please open the form again before submitting.',
-      flags: MessageFlags.Ephemeral,
-    });
+  cfg.anonymous = submitted[1] === 'anonymous';
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   if (!cfg.reviewChannel || cfg.reviewChannel === cfg.panelChannel)
     return interaction.editReply('The staff review channel is unavailable. Please contact an administrator.');
