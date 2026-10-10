@@ -9,9 +9,11 @@
 //     ignoreRoles: string[],
 //     responders: [ {
 //       trigger, match: 'contains'|'exact'|'startswith'|'wholeword',
-//       response, embed: bool, embedColor, deleteTrigger: bool
+//       response, responseType: 'text'|'random-image', imageUrls: string[],
+//       embed: bool, embedColor, deleteTrigger: bool
 //     } ]
 //   }
+import { EmbedBuilder } from 'discord.js';
 import { on } from './dispatch.js';
 import { buildCustomReply } from './customCommands.js';
 
@@ -25,23 +27,59 @@ const clampInt = (v, min, max, dflt) => {
 const idList = (v) => [...new Set((Array.isArray(v) ? v : [v]).filter((x) => /^\d{17,20}$/.test(x)))];
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const imageLines = (value) =>
+  (Array.isArray(value) ? value : String(value ?? '').split(/\r?\n/))
+    .map((url) => String(url).trim())
+    .filter(Boolean);
+const validImageUrl = (value) => {
+  if (value.length > 2048) return false;
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+};
+
+/** Validate before saving so an incomplete image rule cannot silently disappear. */
+export function autoresponderValidationError(responders) {
+  for (const [i, rule] of (Array.isArray(responders) ? responders : []).entries()) {
+    if (!rule || rule.responseType !== 'random-image') continue;
+    const urls = imageLines(rule.imageUrls);
+    if (!String(rule.trigger ?? '').trim() && !urls.length && !String(rule.response ?? '').trim()) continue;
+    if (!String(rule.trigger ?? '').trim()) return `Odpowiedź ${i + 1}: wpisz słowo wyzwalające.`;
+    if (!urls.length) return `Odpowiedź ${i + 1}: dodaj co najmniej jeden link do obrazka.`;
+    if (urls.length > 25) return `Odpowiedź ${i + 1}: możesz dodać maksymalnie 25 obrazków.`;
+    if (urls.some((url) => !validImageUrl(url)))
+      return `Odpowiedź ${i + 1}: wpisz poprawne linki HTTP lub HTTPS, każdy w osobnym wierszu.`;
+  }
+  return null;
+}
+
 export function normaliseAutoresponder(raw = {}) {
   return {
     cooldownSeconds: clampInt(raw.cooldownSeconds, 0, 300, 2),
     ignoreChannels: idList(raw.ignoreChannels),
     ignoreRoles: idList(raw.ignoreRoles),
     responders: (Array.isArray(raw.responders) ? raw.responders : [])
+      .filter((r) => r && typeof r === 'object')
       .map((r) => ({
         trigger: String(r.trigger ?? '')
           .trim()
           .slice(0, 200),
         match: AR_MATCH_MODES.includes(r.match) ? r.match : 'contains',
         response: String(r.response ?? '').slice(0, 2000),
+        responseType: r.responseType === 'random-image' ? 'random-image' : 'text',
+        imageUrls: [...new Set(imageLines(r.imageUrls).filter(validImageUrl))].slice(0, 25),
         embed: Boolean(r.embed),
         embedColor: /^#?[0-9a-fA-F]{6}$/.test(r.embedColor ?? '') ? r.embedColor.replace('#', '') : '5b7cfa',
         deleteTrigger: Boolean(r.deleteTrigger),
       }))
-      .filter((r) => r.trigger !== '' && r.response.trim() !== '')
+      .filter(
+        (r) =>
+          r.trigger !== '' &&
+          (r.responseType === 'random-image' ? r.imageUrls.length > 0 : r.response.trim() !== '')
+      )
       .slice(0, 100),
   };
 }
@@ -64,6 +102,23 @@ export function matchesTrigger(content, trigger, mode) {
   }
 }
 
+/** Build one reply; image mode randomly chooses a single configured image. */
+export function buildAutoresponderReply(rule, context, random = Math.random) {
+  const payload = buildCustomReply(
+    { response: rule.response, embed: rule.embed, embedTitle: '', embedColor: rule.embedColor },
+    context
+  );
+  if (rule.responseType === 'random-image' && rule.imageUrls.length) {
+    const url = rule.imageUrls[Math.floor(random() * rule.imageUrls.length)];
+    const image =
+      payload.embeds?.[0] || new EmbedBuilder().setColor(parseInt(rule.embedColor || '5b7cfa', 16));
+    image.setImage(url);
+    payload.embeds = [image];
+    if (!rule.response.trim()) delete payload.content;
+  }
+  return payload;
+}
+
 // Per-channel cooldown so one busy trigger can't flood a channel.
 const lastFire = new Map(); // `${guildId}:${channelId}` -> ts
 
@@ -83,22 +138,21 @@ on('autoresponder', 'messageCreate', async (message, rawConfig, guildId) => {
   if (!hit) return;
 
   const me = message.guild.members.me;
-  if (!message.channel.permissionsFor(me)?.has(['SendMessages', 'ViewChannel'])) return;
+  const required = ['SendMessages', 'ViewChannel'];
+  if (hit.embed || hit.responseType === 'random-image') required.push('EmbedLinks');
+  if (!message.channel.permissionsFor(me)?.has(required)) return;
   lastFire.set(key, now);
 
   if (hit.deleteTrigger && message.deletable) {
     await message.delete().catch(() => {});
   }
 
-  const payload = buildCustomReply(
-    { response: hit.response, embed: hit.embed, embedTitle: '', embedColor: hit.embedColor },
-    {
-      userId: message.author.id,
-      username: message.author.username,
-      guildName: message.guild.name,
-      channelId: message.channelId,
-      args: '',
-    }
-  );
+  const payload = buildAutoresponderReply(hit, {
+    userId: message.author.id,
+    username: message.author.username,
+    guildName: message.guild.name,
+    channelId: message.channelId,
+    args: '',
+  });
   await message.channel.send(payload).catch(() => {});
 });

@@ -1,67 +1,83 @@
 <% var cfg = moduleConfig || {}; var list = Array.isArray(cfg.responders) ? cfg.responders : []; %>
 <%
-  var matchLabels = { contains: 'contains', exact: 'is exactly', startswith: 'starts with', wholeword: 'whole word' };
+  var matchLabels = { contains: 'zawiera', exact: 'dokładnie ta wiadomość', startswith: 'zaczyna się od', wholeword: 'całe słowo' };
   var igC = Array.isArray(cfg.ignoreChannels) ? cfg.ignoreChannels : [];
   var igR = Array.isArray(cfg.ignoreRoles) ? cfg.ignoreRoles : [];
 %>
 
 <p class="muted small">
-  Replies automatically when a message matches a trigger — no prefix. First matching responder wins.
-  Placeholders: <%- arPlaceholders.map(function (p) { return '<code>' + p + '</code>'; }).join(' ') %>.
-  Deleting the trigger needs the <strong>Manage Messages</strong> permission.
+  Bot odpowiada na wybrane słowo bez komendy. Działa pierwsza pasująca reguła.
+  Zmienne: <%- arPlaceholders.map(function (p) { return '<code>' + p + '</code>'; }).join(' ') %>.
+  Obrazki wymagają uprawnienia <strong>Osadzanie linków</strong>, a usuwanie wiadomości — <strong>Zarządzanie wiadomościami</strong>.
 </p>
+<p class="muted small">Przykłady: <code>cp</code> → tekst <code>serowa pizza</code>; <code>f</code> → losowy obrazek z trzech podanych linków. Wybierz „dokładnie ta wiadomość”, aby bot nie reagował na litery wewnątrz innych słów.</p>
 
 <form method="POST" action="/guilds/<%= guild.id %>/m/autoresponder/config" hx-post="/guilds/<%= guild.id %>/m/autoresponder/config" hx-target="#module-config" hx-swap="outerHTML" class="stack u-mw-2xl">
-  <label>Per-channel cooldown (seconds)</label>
+  <label>Przerwa między odpowiedziami na kanale (sekundy)</label>
   <input class="u-w-field-sm" type="number" name="cooldownSeconds" min="0" max="300" value="<%= cfg.cooldownSeconds != null ? cfg.cooldownSeconds : 2 %>" />
 
-  <label class="u-mt-2">Responders</label>
+  <label class="u-mt-2">Automatyczne odpowiedzi</label>
   <div id="ar-rows">
-    <% (list.length ? list : [{ trigger: '', match: 'contains', response: '', embed: false, deleteTrigger: false }]).forEach(function (r) { %>
+    <% (list.length ? list : [{ trigger: '', match: 'exact', response: '', embed: false, deleteTrigger: false }]).forEach(function (r) { %>
       <div class="sticky-row">
         <div class="row-form">
-          <input class="u-w-field" type="text" name="ar_trigger" placeholder="trigger phrase" value="<%= r.trigger || '' %>" />
+          <input class="u-w-field" type="text" name="ar_trigger" placeholder="Słowo, np. cp lub f" value="<%= r.trigger || '' %>" />
           <select class="u-w-field-sm" name="ar_match">
             <% arMatchModes.forEach(function (m) { %>
               <option value="<%= m %>" <%= m === (r.match || 'contains') ? 'selected' : '' %>><%= matchLabels[m] || m %></option>
             <% }) %>
           </select>
           <select class="u-w-field-sm" name="ar_embed">
-            <option value="text" <%= r.embed ? '' : 'selected' %>>Text</option>
+            <option value="text" <%= r.embed ? '' : 'selected' %>>Tekst</option>
             <option value="embed" <%= r.embed ? 'selected' : '' %>>Embed</option>
           </select>
           <select class="u-w-field-sm" name="ar_delete">
-            <option value="keep" <%= r.deleteTrigger ? '' : 'selected' %>>Keep trigger</option>
-            <option value="delete" <%= r.deleteTrigger ? 'selected' : '' %>>Delete trigger</option>
+            <option value="keep" <%= r.deleteTrigger ? '' : 'selected' %>>Zachowaj wiadomość</option>
+            <option value="delete" <%= r.deleteTrigger ? 'selected' : '' %>>Usuń wiadomość</option>
           </select>
-          <button type="button" class="link-btn" onclick="this.closest('.sticky-row').remove()">remove</button>
+          <button type="button" class="link-btn" onclick="this.closest('.sticky-row').remove()">Usuń</button>
         </div>
-        <textarea name="ar_response" rows="2" placeholder="Reply…"><%= r.response || '' %></textarea>
+        <label class="small">Rodzaj odpowiedzi</label>
+        <select name="ar_response_type">
+          <option value="text" <%= r.responseType === 'random-image' ? '' : 'selected' %>>Stały tekst</option>
+          <option value="random-image" <%= r.responseType === 'random-image' ? 'selected' : '' %>>Losowy obrazek</option>
+        </select>
+        <label class="small">Treść odpowiedzi (przy obrazkach: opcjonalny podpis)</label>
+        <textarea name="ar_response" rows="2" placeholder="Np. serowa pizza"><%= r.response || '' %></textarea>
+        <label class="small">Linki do obrazków — każdy w osobnym wierszu (maks. 25)</label>
+        <textarea name="ar_images" rows="3" placeholder="https://example.com/obrazek1.png&#10;https://example.com/obrazek2.png&#10;https://example.com/obrazek3.png"><%= Array.isArray(r.imageUrls) ? r.imageUrls.join('\n') : '' %></textarea>
+        <p class="muted small">W trybie „Losowy obrazek” bot wysyła jeden wylosowany obrazek. Podaj bezpośrednie linki do plików, a nie strony z obrazkami.</p>
       </div>
     <% }) %>
   </div>
-  <div><button type="button" class="secondary" id="ar-add">+ Add responder</button></div>
+  <div><button type="button" class="secondary" id="ar-add">+ Dodaj odpowiedź</button></div>
 
-  <label class="u-mt-3">Ignore channels</label>
+  <label class="u-mt-3">Ignorowane kanały</label>
   <%- include('../../partials/chip-picker', { field: 'ignoreChannels', kind: 'channel', items: channels, selected: igC }) %>
-  <label class="u-mt-2">Ignore roles</label>
+  <label class="u-mt-2">Ignorowane role</label>
   <%- include('../../partials/chip-picker', { field: 'ignoreRoles', kind: 'role', items: roles, selected: igR }) %>
 
-  <div class="u-mt-3"><button type="submit">Save</button></div>
+  <div class="u-mt-3"><button type="submit">Zapisz</button></div>
 </form>
 
 <template id="ar-template">
   <div class="sticky-row">
     <div class="row-form">
-      <input class="u-w-field" type="text" name="ar_trigger" placeholder="trigger phrase" />
+      <input class="u-w-field" type="text" name="ar_trigger" placeholder="Słowo, np. cp lub f" />
       <select class="u-w-field-sm" name="ar_match">
-        <% arMatchModes.forEach(function (m) { %><option value="<%= m %>"><%= matchLabels[m] || m %></option><% }) %>
+        <% arMatchModes.forEach(function (m) { %><option value="<%= m %>" <%= m === "exact" ? "selected" : "" %>><%= matchLabels[m] || m %></option><% }) %>
       </select>
-      <select class="u-w-field-sm" name="ar_embed"><option value="text" selected>Text</option><option value="embed">Embed</option></select>
-      <select class="u-w-field-sm" name="ar_delete"><option value="keep" selected>Keep trigger</option><option value="delete">Delete trigger</option></select>
-      <button type="button" class="link-btn" onclick="this.closest('.sticky-row').remove()">remove</button>
+      <select class="u-w-field-sm" name="ar_embed"><option value="text" selected>Tekst</option><option value="embed">Embed</option></select>
+      <select class="u-w-field-sm" name="ar_delete"><option value="keep" selected>Zachowaj wiadomość</option><option value="delete">Usuń wiadomość</option></select>
+      <button type="button" class="link-btn" onclick="this.closest('.sticky-row').remove()">Usuń</button>
     </div>
-    <textarea name="ar_response" rows="2" placeholder="Reply…"></textarea>
+    <label class="small">Rodzaj odpowiedzi</label>
+    <select name="ar_response_type"><option value="text">Stały tekst</option><option value="random-image">Losowy obrazek</option></select>
+    <label class="small">Treść odpowiedzi (przy obrazkach: opcjonalny podpis)</label>
+    <textarea name="ar_response" rows="2" placeholder="Np. serowa pizza"></textarea>
+    <label class="small">Linki do obrazków — każdy w osobnym wierszu (maks. 25)</label>
+    <textarea name="ar_images" rows="3" placeholder="https://example.com/obrazek1.png&#10;https://example.com/obrazek2.png&#10;https://example.com/obrazek3.png"></textarea>
+    <p class="muted small">W trybie „Losowy obrazek” bot wysyła jeden wylosowany obrazek. Podaj bezpośrednie linki do plików.</p>
   </div>
 </template>
 <script>

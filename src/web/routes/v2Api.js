@@ -105,7 +105,12 @@ import { normaliseBirthdaysConfig } from '../../modules/birthdays.js';
 import { normaliseAppealsConfig } from '../../modules/appeals.js';
 import { normaliseThresholds, THRESHOLD_ACTIONS } from '../../modules/moderation.js';
 import { normaliseServerStats, STAT_TYPES } from '../../modules/serverStats.js';
-import { normaliseAutoresponder, AR_MATCH_MODES, AR_PLACEHOLDERS } from '../../modules/autoresponder.js';
+import {
+  normaliseAutoresponder,
+  autoresponderValidationError,
+  AR_MATCH_MODES,
+  AR_PLACEHOLDERS,
+} from '../../modules/autoresponder.js';
 import { normaliseInviteTrackerConfig } from '../../modules/inviteTracker.js';
 import { topInviters, inviterCount, setBonus } from '../../db/inviteTracker.js';
 import { normaliseTwitchConfig, DEFAULT_MESSAGE as TWITCH_DEFAULT_MSG } from '../../modules/twitchAlerts.js';
@@ -956,6 +961,8 @@ router.get(
 router.post(
   '/guilds/:guildId/modules/autoresponder/config',
   asyncHandler(async (req, res) => {
+    const error = autoresponderValidationError(req.body.responders);
+    if (error) return res.status(400).json({ error });
     // embedColor isn't exposed on this form — same as V1, which never sends
     // it either, so normaliseAutoresponder's default applies on every save.
     const config = normaliseAutoresponder({

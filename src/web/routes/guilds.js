@@ -62,7 +62,12 @@ import { normaliseStickyConfig } from '../../modules/sticky.js';
 import { getCounting, setCount, resetCount } from '../../db/counting.js';
 import { listCountingPenalties, clearCountingPenalty } from '../../db/countingPenalties.js';
 import { normaliseCustomCommands, CC_PLACEHOLDERS } from '../../modules/customCommands.js';
-import { normaliseAutoresponder, AR_MATCH_MODES, AR_PLACEHOLDERS } from '../../modules/autoresponder.js';
+import {
+  normaliseAutoresponder,
+  autoresponderValidationError,
+  AR_MATCH_MODES,
+  AR_PLACEHOLDERS,
+} from '../../modules/autoresponder.js';
 import { normaliseAutoThreads } from '../../modules/autoThreads.js';
 import { normaliseAutoReact, AUTO_REACT_MODES, AUTO_REACT_ROLE_ACTIONS } from '../../modules/autoReact.js';
 import {
@@ -1293,17 +1298,28 @@ router.post(
       const responses = [].concat(req.body.ar_response ?? []);
       const asEmbed = [].concat(req.body.ar_embed ?? []);
       const del = [].concat(req.body.ar_delete ?? []);
+      const types = [].concat(req.body.ar_response_type ?? []);
+      const images = [].concat(req.body.ar_images ?? []);
+      const responders = triggers.map((trigger, i) => ({
+        trigger,
+        match: matches[i],
+        response: responses[i] ?? '',
+        responseType: types[i],
+        imageUrls: images[i] ?? '',
+        embed: asEmbed[i] === 'embed',
+        deleteTrigger: del[i] === 'delete',
+      }));
+      const error = autoresponderValidationError(responders);
+      if (error)
+        return res
+          .status(400)
+          .set('HX-Trigger', headerJson({ toast: { msg: error, kind: 'bad' } }))
+          .send(error);
       config = normaliseAutoresponder({
         cooldownSeconds: req.body.cooldownSeconds,
         ignoreChannels: [].concat(req.body.ignoreChannels ?? []),
         ignoreRoles: [].concat(req.body.ignoreRoles ?? []),
-        responders: triggers.map((trigger, i) => ({
-          trigger,
-          match: matches[i],
-          response: responses[i] ?? '',
-          embed: asEmbed[i] === 'embed',
-          deleteTrigger: del[i] === 'delete',
-        })),
+        responders,
       });
     } else if (mod.id === 'auto-threads') {
       config = normaliseAutoThreads(req.body);

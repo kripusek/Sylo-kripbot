@@ -19,8 +19,10 @@ function toFormRow(r = {}) {
   return {
     key: newKey(),
     trigger: r.trigger || '',
-    match: r.match || 'contains',
+    match: r.match || 'exact',
     response: r.response || '',
+    responseType: r.responseType || 'text',
+    imageUrls: (r.imageUrls || []).join('\n'),
     embed: Boolean(r.embed),
     deleteTrigger: Boolean(r.deleteTrigger),
   };
@@ -81,6 +83,8 @@ export default function Autoresponder() {
           trigger: r.trigger,
           match: r.match,
           response: r.response,
+          responseType: r.responseType,
+          imageUrls: r.imageUrls,
           embed: r.embed,
           deleteTrigger: r.deleteTrigger,
         })),
@@ -158,7 +162,29 @@ export default function Autoresponder() {
             </div>
 
             <div className="v2-field">
-              <label>Reply</label>
+              <label>Rodzaj odpowiedzi</label>
+              <select
+                value={r.responseType}
+                onChange={(e) => updateRow(r.key, { responseType: e.target.value })}
+              >
+                <option value="text">Stały tekst</option>
+                <option value="random-image">Losowy obrazek</option>
+              </select>
+            </div>
+            {r.responseType === 'random-image' && (
+              <div className="v2-field">
+                <label>Linki do obrazków — każdy w osobnym wierszu (maks. 25)</label>
+                <textarea
+                  rows={3}
+                  value={r.imageUrls}
+                  onChange={(e) => updateRow(r.key, { imageUrls: e.target.value })}
+                  placeholder="https://example.com/obrazek.png"
+                />
+                <p className="v2-field-hint">Bot losuje jeden obrazek. Podaj bezpośrednie linki do plików.</p>
+              </div>
+            )}
+            <div className="v2-field">
+              <label>Treść odpowiedzi (przy obrazkach: opcjonalny podpis)</label>
               <textarea
                 rows={2}
                 maxLength={2000}

@@ -610,3 +610,7 @@ For delivery, grant the bot **View Channel**, **Send Messages**, and **Embed Lin
 ### Progi warnów
 
 Domyślnie `/warn add` i warny z panelu stosują zasadę: **3 warny = ban na 30 dni**, **5 warnów = ban permanentny**. Moduł moderacji musi być włączony. Własne zapisane progi pozostają konfigurowalne w panelu; czas bana podaje się w minutach (43200 = 30 dni, 0 = permanentny). Warny nie znikają po odbanowaniu. Czwarty warn podczas trwającego bana nie przedłuża terminu. Piąty warn anuluje automatyczne odbanowanie. Terminy są zapisane w bazie i sprawdzane co 30 sekund; po restarcie bot obsłuży zaległe odbanowania, a błędy Discorda ponowi. Bot potrzebuje uprawnienia Ban Members i odpowiedniej pozycji roli.
+
+### Automatyczne odpowiedzi: tekst i losowe obrazki
+
+Włącz moduł **Autoresponder** i dodaj regułę bez prefiksu. Przykład: słowo `cp`, dopasowanie „dokładnie ta wiadomość”, rodzaj „Stały tekst”, treść `serowa pizza`. Dla `f` wybierz „Losowy obrazek” i wklej trzy bezpośrednie linki do obrazków, każdy w osobnym wierszu. Przy każdej odpowiedzi bot losuje jeden obrazek z listy (maksymalnie 25); tekst może być opcjonalnym podpisem. Reguły działają bez rozróżniania wielkości liter, zachowują ignorowane role/kanały i przerwę między odpowiedziami. Bot potrzebuje Message Content Intent oraz uprawnień View Channel, Send Messages i Embed Links dla obrazków.
