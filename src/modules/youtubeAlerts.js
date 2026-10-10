@@ -263,7 +263,7 @@ async function tick() {
   }
 }
 
-async function runAlert(guildId, alert) {
+export async function runAlert(guildId, alert) {
   const c = alert.ytChannelId;
 
   if (alert.onVideo) {
@@ -275,13 +275,17 @@ async function runAlert(guildId, alert) {
       // Alert oldest-first for anything new.
       for (const e of [...entries].reverse()) {
         if (await isVideoSeen(guildId, c, e.videoId)) continue;
-        await markVideoSeen(guildId, c, e.videoId);
         const name = alert.name || e.author || 'A channel';
-        await sendToChannel(
+        const delivered = await sendToChannel(
           guildId,
           alert.discordChannelId,
           payload(alert, { name, title: e.title, url: e.url, thumb: e.thumb }, 'video')
         );
+        if (!delivered)
+          throw new Error(
+            `Could not send video alert to Discord channel ${alert.discordChannelId}; will retry on the next poll`
+          );
+        await markVideoSeen(guildId, c, e.videoId);
       }
     }
   }
@@ -290,7 +294,6 @@ async function runAlert(guildId, alert) {
     const state = await checkLive(c);
     const known = await liveVideoId(guildId, c);
     if (state.live && state.videoId !== known) {
-      await markVideoSeen(guildId, c, state.videoId); // don't also fire a "new video" for the same stream
       const name = alert.name || 'A channel';
       const url = `https://www.youtube.com/watch?v=${state.videoId}`;
       const posted = await postToChannel(
@@ -307,6 +310,11 @@ async function runAlert(guildId, alert) {
           'live'
         )
       );
+      if (!posted)
+        throw new Error(
+          `Could not send live alert to Discord channel ${alert.discordChannelId}; will retry on the next poll`
+        );
+      await markVideoSeen(guildId, c, state.videoId);
       await markLive(guildId, c, state.videoId, posted);
     } else if (!state.live && known) {
       const post = await livePost(guildId, c);

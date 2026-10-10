@@ -160,3 +160,48 @@ test('fillMessage: substitutes and falls back to the default', () => {
   );
   assert.equal(fillMessage('', 'the default', {}), 'the default');
 });
+
+test('failed video delivery is retried and only successful delivery is marked seen', async () => {
+  const { runAlert } = await import('../src/modules/youtubeAlerts.js');
+  const { markVideoSeen, isVideoSeen } = await import('../src/db/youtubeAlerts.js');
+  const { runtime } = await import('../src/runtime.js');
+  const guildId = '987654321098765432';
+  const channelId = '123456789012345678';
+  const videoId = 'abcdefghijk';
+  await markVideoSeen(guildId, UC, 'oldvideo123');
+  const oldFetch = globalThis.fetch;
+  const oldClient = runtime.client;
+  globalThis.fetch = async () => ({
+    ok: true,
+    text: async () =>
+      `<feed><entry><yt:videoId>${videoId}</yt:videoId><title>New upload</title><link href="https://www.youtube.com/watch?v=${videoId}"/><published>2026-10-10T20:00:00Z</published></entry></feed>`,
+  });
+  let fail = true;
+  let attempts = 0;
+  const channel = {
+    isTextBased: () => true,
+    send: async () => {
+      attempts++;
+      if (fail) throw new Error('Missing permissions');
+      return { id: 'message' };
+    },
+  };
+  runtime.client = {
+    guilds: {
+      cache: new Map([[guildId, { members: {}, channels: { cache: new Map([[channelId, channel]]) } }]]),
+    },
+  };
+  const alert = { ytChannelId: UC, discordChannelId: channelId, onVideo: true, onLive: false };
+  try {
+    await assert.rejects(runAlert(guildId, alert), /will retry/);
+    assert.equal(await isVideoSeen(guildId, UC, videoId), false);
+    fail = false;
+    await runAlert(guildId, alert);
+    assert.equal(await isVideoSeen(guildId, UC, videoId), true);
+    await runAlert(guildId, alert);
+    assert.equal(attempts, 2);
+  } finally {
+    globalThis.fetch = oldFetch;
+    runtime.client = oldClient;
+  }
+});
