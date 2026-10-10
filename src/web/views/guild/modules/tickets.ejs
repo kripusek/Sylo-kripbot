@@ -47,6 +47,29 @@
   <div><button type="button" onclick="const form=this.closest('form'); const rows=form.querySelector('[data-ticket-rows]'); if(rows.children.length &lt; 25) rows.append(form.querySelector('[data-ticket-template]').content.cloneNode(true));">Add topic</button>
   <button type="submit" name="action" value="publish">Save and publish panel</button></div>
   <hr />
+  <h3>Formularz nowego ticketa</h3>
+  <label>Tytuł formularza</label><input name="formTitle" maxlength="45" value="<%= cfg.formTitle || 'Otwórz ticket' %>" />
+  <p class="muted small">Dodaj od 1 do 5 pól. Odpowiedź z pierwszego pola będzie tytułem zgłoszenia; pozostałe trafią do jego treści.</p>
+  <div data-form-fields>
+  <% (cfg.formFields?.length ? cfg.formFields : [{label:'Tytuł',style:'short',required:true},{label:'Opis',style:'paragraph',required:true}]).forEach(function(field) { %>
+    <fieldset class="stack" data-form-field>
+      <label>Nazwa pola</label><input name="formFieldLabel" maxlength="45" required value="<%= field.label %>" />
+      <label>Podpowiedź</label><input name="formFieldPlaceholder" maxlength="100" value="<%= field.placeholder || '' %>" />
+      <label>Rodzaj tekstu</label><select name="formFieldStyle"><option value="short" <%= field.style === 'short' ? 'selected' : '' %>>Krótki tekst</option><option value="paragraph" <%= field.style !== 'short' ? 'selected' : '' %>>Długi tekst</option></select>
+      <label>Wymagane</label><select name="formFieldRequired"><option value="yes" <%= field.required !== false ? 'selected' : '' %>>Tak</option><option value="no" <%= field.required === false ? 'selected' : '' %>>Nie</option></select>
+      <button type="button" onclick="if(this.closest('[data-form-fields]').children.length > 1) this.closest('[data-form-field]').remove()">Usuń pole</button>
+    </fieldset>
+  <% }) %>
+  </div>
+  <template data-form-field-template><fieldset class="stack" data-form-field>
+    <label>Nazwa pola</label><input name="formFieldLabel" maxlength="45" required />
+    <label>Podpowiedź</label><input name="formFieldPlaceholder" maxlength="100" />
+    <label>Rodzaj tekstu</label><select name="formFieldStyle"><option value="short">Krótki tekst</option><option value="paragraph" selected>Długi tekst</option></select>
+    <label>Wymagane</label><select name="formFieldRequired"><option value="yes">Tak</option><option value="no">Nie</option></select>
+    <button type="button" onclick="if(this.closest('[data-form-fields]').children.length > 1) this.closest('[data-form-field]').remove()">Usuń pole</button>
+  </fieldset></template>
+  <button type="button" onclick="const form=this.closest('form'); const rows=form.querySelector('[data-form-fields]'); if(rows.children.length &lt; 5) rows.append(form.querySelector('[data-form-field-template]').content.cloneNode(true));">Dodaj pole</button>
+  <hr />
   <h3>DM tickets (modmail)</h3>
   <label>Greeting sent when a ticket opens <span class="muted small">— {server} is replaced</span></label>
   <textarea name="greeting" rows="2" placeholder="Thanks for contacting the staff of {server}…"><%= cfg.greeting || '' %></textarea>

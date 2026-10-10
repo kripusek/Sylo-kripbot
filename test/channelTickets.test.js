@@ -169,7 +169,7 @@ test('private tickets route to a category, reject duplicates and unauthorized cl
   assert.deepEqual(opening.allowedMentions.roles, ['100000000000000701']);
   assert.deepEqual(opening.allowedMentions.parse, []);
   assert.equal(opening.embeds[0].toJSON().title, 'Prośba o pomoc');
-  assert.equal(opening.embeds[0].toJSON().description, 'Opis problemu');
+  assert.match(opening.embeds[0].toJSON().description, /Opis problemu/);
   assert.equal(opening.components[0].toJSON().components[1].custom_id, 'ticket-channel:call');
   assert.ok(created[0].permissionOverwrites.some((entry) => entry.id === '100000000000000701'));
   assert.deepEqual(normaliseChannelTickets(cfg).pingRoles, ['100000000000000701', guildId]);
@@ -302,4 +302,29 @@ test('ticket button opens a private picker, then a Polish title/description moda
   await handleChannelTicket(i);
   assert.equal(modal, null);
   assert.match(response.content, /własny formularz/);
+});
+
+test('ticket form editor normalizes labels, field count, styles and optional fields', async () => {
+  const { ticketFormFields } = await import('../src/modules/channelTickets.js');
+  const config = normaliseChannelTickets({
+    formTitle: 'Kontakt',
+    formFields: [
+      { label: 'Temat sprawy', placeholder: 'Krótko opisz temat', style: 'short', required: true },
+      { label: 'Dodatkowe informacje', style: 'paragraph', required: false },
+    ],
+  });
+  assert.equal(config.formTitle, 'Kontakt');
+  assert.equal(config.formFields[0].placeholder, 'Krótko opisz temat');
+  assert.equal(config.formFields[1].required, false);
+  assert.equal(
+    ticketFormFields({ formFields: Array.from({ length: 8 }, () => ({ label: 'Pytanie' })) }).length,
+    5
+  );
+  assert.equal(ticketFormFields({ formFields: [] }).length, 2);
+  assert.equal(
+    ticketFormFields({
+      formFields: [{ label: 'A'.repeat(100), placeholder: 'B'.repeat(200), style: 'bad' }],
+    })[0].label.length,
+    45
+  );
 });

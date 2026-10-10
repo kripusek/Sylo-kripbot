@@ -1155,6 +1155,14 @@ router.post(
         ...normaliseChannelTickets(
           {
             ...req.body,
+            formFields: []
+              .concat(req.body.formFieldLabel ?? [])
+              .map((label, index) => ({
+                label,
+                placeholder: [].concat(req.body.formFieldPlaceholder ?? [])[index],
+                style: [].concat(req.body.formFieldStyle ?? [])[index],
+                required: [].concat(req.body.formFieldRequired ?? [])[index] !== 'no',
+              })),
             ticketTypes: labels.map((label, index) => ({
               id: ids[index],
               label,

@@ -18,6 +18,26 @@ import { getGuildModule, isModuleEnabled } from '../db/modules.js';
 import { sendToChannel } from './lib/send.js';
 
 const id = (value) => (/^\d{17,20}$/.test(value ?? '') ? value : '');
+export const DEFAULT_TICKET_FIELDS = [
+  { label: 'Tytuł', placeholder: '', style: 'short', required: true },
+  { label: 'Opis', placeholder: '', style: 'paragraph', required: true },
+];
+export function ticketFormFields(config = {}) {
+  const raw = Array.isArray(config.formFields) ? config.formFields : DEFAULT_TICKET_FIELDS;
+  const fields = raw
+    .slice(0, 5)
+    .map((field) => ({
+      label: String(field.label || '')
+        .trim()
+        .slice(0, 45),
+      placeholder: String(field.placeholder || '').slice(0, 100),
+      style: field.style === 'short' ? 'short' : 'paragraph',
+      required: field.required !== false && field.required !== 'no',
+    }))
+    .filter((field) => field.label);
+  return fields.length ? fields : DEFAULT_TICKET_FIELDS.map((field) => ({ ...field }));
+}
+const formFieldId = (index) => ['title', 'description'][index] || `field_${index}`;
 export function normaliseChannelTickets(input = {}, previous = {}) {
   const seen = new Set();
   const types = (Array.isArray(input.ticketTypes) ? input.ticketTypes : []).slice(0, 25).flatMap((row) => {
@@ -47,6 +67,11 @@ export function normaliseChannelTickets(input = {}, previous = {}) {
     panelText: String(input.panelText || 'Choose a topic below to open a private ticket.').slice(0, 2000),
     ticketLogChannel: id(input.ticketLogChannel),
     ticketTypes: types,
+    formTitle:
+      String(input.formTitle || 'Otwórz ticket')
+        .trim()
+        .slice(0, 45) || 'Otwórz ticket',
+    formFields: ticketFormFields(input),
     pingRoles: [...new Set([].concat(input.pingRoles ?? []).filter((role) => id(role)))].slice(0, 20),
   };
 }
@@ -228,24 +253,18 @@ export async function handleChannelTicket(interaction) {
     return interaction.showModal(
       new ModalBuilder()
         .setCustomId(`ticket-channel:submit:${interaction.user.id}:${type.id}`)
-        .setTitle('Otwórz ticket')
+        .setTitle(current.formTitle || 'Otwórz ticket')
         .addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('title')
-              .setLabel('Tytuł')
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
-              .setMaxLength(100)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('description')
-              .setLabel('Opis')
-              .setStyle(TextInputStyle.Paragraph)
-              .setRequired(true)
-              .setMaxLength(2000)
-          )
+          ...ticketFormFields(current).map((field, index) => {
+            const input = new TextInputBuilder()
+              .setCustomId(formFieldId(index))
+              .setLabel(field.label)
+              .setStyle(field.style === 'short' ? TextInputStyle.Short : TextInputStyle.Paragraph)
+              .setRequired(field.required)
+              .setMaxLength(index === 0 ? 100 : 1000);
+            if (field.placeholder) input.setPlaceholder(field.placeholder);
+            return new ActionRowBuilder().addComponents(input);
+          })
         )
     );
   }
@@ -276,13 +295,30 @@ export async function handleChannelTicket(interaction) {
       const type = cfg.ticketTypes?.find(
         (item) => item.id === (submission ? submission[2] : interaction.values[0])
       );
-      const title = submission
-        ? interaction.fields.getTextInputValue('title').trim().slice(0, 100)
-        : type?.label;
-      const description = submission
-        ? interaction.fields.getTextInputValue('description').trim().slice(0, 2000)
-        : 'Opisz tutaj swoją sprawę. Administracja odpowie na tym kanale.';
-      if (!title || !description) return interaction.editReply('Wpisz tytuł i opis zgłoszenia.');
+      const answers = submission
+        ? ticketFormFields(cfg).map((field, index) => {
+            let value = '';
+            try {
+              value = interaction.fields.getTextInputValue(formFieldId(index)).trim();
+            } catch {
+              /* A form changed while open. */
+            }
+            return { ...field, value: value.slice(0, index === 0 ? 100 : 1000) };
+          })
+        : [];
+      if (answers.some((field) => field.required && !field.value))
+        return interaction.editReply(
+          'Uzupełnij wymagane pola. Jeśli formularz się zmienił, otwórz go ponownie.'
+        );
+      const title = answers[0]?.value || type?.label;
+      const description =
+        answers.length > 1
+          ? answers
+              .slice(1)
+              .map((field) => `**${field.label}**\n${field.value || '—'}`)
+              .join('\n\n')
+              .slice(0, 4096)
+          : 'Zgłoszenie dla administracji.';
       if (!type) return interaction.editReply('This ticket type is no longer available.');
       const existing = guild.channels.cache.find((channel) => {
         const match = parseTicketTopic(channel.topic);
