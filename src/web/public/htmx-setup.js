@@ -79,6 +79,13 @@
   });
 
   document.addEventListener('htmx:responseError', function (evt) {
+    // A server-provided validation toast already explains this failed save.
+    var trigger = evt.detail?.xhr?.getResponseHeader('HX-Trigger');
+    try {
+      if (trigger && JSON.parse(trigger).toast) return;
+    } catch {
+      /* generic error below */
+    }
     var status = evt.detail && evt.detail.xhr ? evt.detail.xhr.status : 0;
     if (window.syloToast) {
       window.syloToast('Request failed (' + status + ') — reload the page and try again.', 'bad');

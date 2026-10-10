@@ -112,6 +112,7 @@ import { normaliseTwitchConfig, DEFAULT_MESSAGE as TWITCH_DEFAULT_MSG } from '..
 import { normaliseKickConfig, DEFAULT_MESSAGE as KICK_DEFAULT_MSG } from '../../modules/kickAlerts.js';
 import {
   normaliseYoutubeConfig,
+  youtubeAlertsValidationError,
   resolveYtChannel,
   DEFAULT_VIDEO_MESSAGE as YT_DEFAULT_VIDEO_MSG,
   DEFAULT_LIVE_MESSAGE as YT_DEFAULT_LIVE_MSG,
@@ -1242,6 +1243,8 @@ router.post(
         liveMessage: a.liveMessage ?? '',
       });
     }
+    const validationError = youtubeAlertsValidationError(alerts);
+    if (validationError) return res.status(400).json({ error: validationError });
     const config = normaliseYoutubeConfig({ alerts });
     await setGuildModule(req.guild.id, 'youtube-alerts', { config });
     await recordAudit(req.guild.id, {

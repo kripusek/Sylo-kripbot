@@ -20,12 +20,12 @@
         <div class="star-age">
           <div class="stack u-grow">
             <label class="small">YouTube channel <span class="muted">— URL or @handle</span></label>
-            <input type="text" name="yt_input" value="<%= a.ytChannelId ? ('https://www.youtube.com/channel/' + a.ytChannelId) : '' %>" placeholder="@MrBeast or a channel URL" />
+            <input type="text" name="yt_input" required value="<%= a.ytChannelId ? ('https://www.youtube.com/channel/' + a.ytChannelId) : '' %>" placeholder="@MrBeast or a channel URL" />
             <% if (a.ytChannelId) { %><span class="muted small mono">resolved: <%= a.ytChannelId %></span><% } %>
           </div>
           <div class="stack u-grow">
             <label class="small">Announce in</label>
-            <select name="yt_channel">
+            <select name="yt_channel" required>
               <option value="">— select a channel —</option>
               <% channels.forEach(function (c) { %>
                 <option value="<%= c.id %>" <%= c.id === a.discordChannelId ? 'selected' : '' %>>#<%= c.name %></option>
@@ -77,9 +77,9 @@
     <input type="hidden" name="yt_resolvedName" value="" />
     <div class="star-age">
       <div class="stack u-grow"><label class="small">YouTube channel <span class="muted">— URL or @handle</span></label>
-        <input type="text" name="yt_input" placeholder="@MrBeast or a channel URL" /></div>
+        <input type="text" name="yt_input" required placeholder="@MrBeast or a channel URL" /></div>
       <div class="stack u-grow"><label class="small">Announce in</label>
-        <select name="yt_channel"><option value="">— select a channel —</option>
+        <select name="yt_channel" required><option value="">— select a channel —</option>
           <% channels.forEach(function (c) { %><option value="<%= c.id %>">#<%= c.name %></option><% }) %></select></div>
     </div>
     <div class="star-age">
@@ -105,6 +105,11 @@
 </template>
 <script>
   document.getElementById('yt-add')?.addEventListener('click', function () {
-    document.getElementById('yt-rows').appendChild(document.getElementById('yt-template').content.cloneNode(true));
+    const rows = document.getElementById('yt-rows');
+    const previous = rows.querySelector('.tw-row:last-child select[name="yt_channel"]');
+    const fragment = document.getElementById('yt-template').content.cloneNode(true);
+    if (previous) fragment.querySelector('select[name="yt_channel"]').value = previous.value;
+    rows.appendChild(fragment);
+    rows.lastElementChild.querySelector('input[name="yt_input"]').focus();
   });
 </script>

@@ -87,6 +87,7 @@ import { normaliseRssConfig, DEFAULT_TEMPLATE as RSS_DEFAULT_TEMPLATE } from '..
 import { clearScope } from '../../db/postedKeys.js';
 import {
   normaliseYoutubeConfig,
+  youtubeAlertsValidationError,
   resolveYtChannel,
   DEFAULT_VIDEO_MESSAGE as YT_VIDEO_MSG,
   DEFAULT_LIVE_MESSAGE as YT_LIVE_MSG,
@@ -1434,6 +1435,12 @@ router.post(
           liveMessage: lMsg[i] ?? '',
         });
       }
+      const validationError = youtubeAlertsValidationError(alerts);
+      if (validationError)
+        return res
+          .status(400)
+          .set('HX-Trigger', headerJson({ toast: { msg: validationError, kind: 'bad' } }))
+          .send(validationError);
       config = normaliseYoutubeConfig({ alerts });
     } else if (mod.id === 'twitch-alerts') {
       const logins = [].concat(req.body.tw_login ?? []);

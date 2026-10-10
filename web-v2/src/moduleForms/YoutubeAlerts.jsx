@@ -64,7 +64,11 @@ export default function YoutubeAlerts() {
 
   const updateRow = (key, patch) =>
     setForm((f) => ({ ...f, alerts: f.alerts.map((a) => (a.key === key ? { ...a, ...patch } : a)) }));
-  const addRow = () => setForm((f) => ({ ...f, alerts: [...f.alerts, toFormRow()] }));
+  const addRow = () =>
+    setForm((f) => ({
+      ...f,
+      alerts: [...f.alerts, { ...toFormRow(), discordChannelId: f.alerts.at(-1)?.discordChannelId || '' }],
+    }));
   const removeRow = (key) => setForm((f) => ({ ...f, alerts: f.alerts.filter((a) => a.key !== key) }));
 
   async function onSave(e) {
@@ -122,6 +126,7 @@ export default function YoutubeAlerts() {
                 </label>
                 <input
                   type="text"
+                  required
                   placeholder="@MrBeast or a channel URL"
                   value={a.input}
                   onChange={(e) => updateRow(a.key, { input: e.target.value })}
@@ -131,6 +136,7 @@ export default function YoutubeAlerts() {
               <div className="v2-field">
                 <label>Announce in</label>
                 <select
+                  required
                   value={a.discordChannelId}
                   onChange={(e) => updateRow(a.key, { discordChannelId: e.target.value })}
                 >

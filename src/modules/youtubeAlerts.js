@@ -75,6 +75,23 @@ export function normaliseYoutubeConfig(raw = {}) {
   };
 }
 
+/** Validate dashboard input before normalization can discard incomplete/duplicate rows. */
+export function youtubeAlertsValidationError(alerts) {
+  if (alerts.length > 50) return 'Możesz dodać maksymalnie 50 powiadomień YouTube.';
+  const seen = new Set();
+  for (const [index, alert] of alerts.entries()) {
+    if (!isId(alert.discordChannelId))
+      return `Powiadomienie ${index + 1}: wybierz kanał Discorda, na który bot ma wysyłać ogłoszenia.`;
+    if (!UC_RE.test(alert.ytChannelId ?? ''))
+      return `Powiadomienie ${index + 1}: nieprawidłowy identyfikator kanału YouTube.`;
+    const key = `${alert.ytChannelId}:${alert.discordChannelId}`;
+    if (seen.has(key))
+      return `Powiadomienie ${index + 1}: ten kanał YouTube ma już powiadomienie na wybranym kanale Discorda. Zmień kanał docelowy lub edytuj istniejący wpis.`;
+    seen.add(key);
+  }
+  return null;
+}
+
 // --- resolve a URL / @handle / UC id to a channel id + name --------------
 
 /** @returns {Promise<{ channelId: string, name: string } | null>} */
