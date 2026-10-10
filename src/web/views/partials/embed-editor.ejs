@@ -28,7 +28,7 @@
 <div class="wc-stage" x-data="embedEditor(<%= JSON.stringify(_ee) %>)">
   <% if (_ee.content) { %>
     <div class="wc-ed poll-content" contenteditable="plaintext-only"
-         data-ph="<%= _p.content || 'Message above the embed — optional' %>"
+         data-ph="<%= uiText(_p.content || 'Message above the embed — optional') %>"
          x-init="$el.textContent = e.content" @input="e.content = $el.textContent"></div>
   <% } %>
 
@@ -48,16 +48,16 @@
           <button type="button" class="wc-icon" :class="{ has: e.authorIcon }"
                   :style="{ backgroundImage: e.authorIcon ? ('url(' + JSON.stringify(e.authorIcon) + ')') : '' }"
                   @click="pickImg('authorIcon')"></button>
-          <div class="wc-ed" contenteditable="plaintext-only" data-ph="<%= _p.author || 'Header' %>"
+          <div class="wc-ed" contenteditable="plaintext-only" data-ph="<%= uiText(_p.author || 'Header') %>"
                x-init="$el.textContent = e.authorName" @input="e.authorName = $el.textContent"></div>
         </div>
       <% } %>
 
-      <div class="wc-ed wc-title" contenteditable="plaintext-only" data-ph="<%= _p.title || 'Title' %>"
+      <div class="wc-ed wc-title" contenteditable="plaintext-only" data-ph="<%= uiText(_p.title || 'Title') %>"
            x-init="$el.textContent = e.title" @input="e.title = $el.textContent"></div>
 
       <% if (_ee.description) { %>
-        <div class="wc-ed wc-desc" contenteditable="plaintext-only" data-ph="<%= _p.description || 'Description' %>"
+        <div class="wc-ed wc-desc" contenteditable="plaintext-only" data-ph="<%= uiText(_p.description || 'Description') %>"
              x-init="$el.textContent = e.description" @input="e.description = $el.textContent"></div>
       <% } %>
 
@@ -89,7 +89,7 @@
                   :style="{ backgroundImage: e.footerIcon ? ('url(' + JSON.stringify(e.footerIcon) + ')') : '' }"
                   @click="pickImg('footerIcon')"></button>
         <% } %>
-        <div class="wc-ed" contenteditable="plaintext-only" data-ph="<%= _p.footer || 'Footer' %>"
+        <div class="wc-ed" contenteditable="plaintext-only" data-ph="<%= uiText(_p.footer || 'Footer') %>"
              x-init="$el.textContent = e.footer" @input="e.footer = $el.textContent"></div>
       </div>
     </div>

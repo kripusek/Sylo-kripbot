@@ -851,7 +851,10 @@ label.checkline input { width: auto; }
 .role-chip-x { background: transparent; border: 0; color: var(--muted); font-size: 15px; line-height: 1;
   padding: 0 0 0 2px; cursor: pointer; }
 .role-chip-x:hover { color: var(--bad); }
-.role-picker-add { max-width: 280px; }
+.role-picker-add { width: 100%; }
+.role-picker input[type="search"] { width: 100%; }
+.role-chip { max-width: 100%; }
+.role-chip > span[x-text] { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* MEE6-style toggle rows (plugin sub-features) */
 .mee-row { position: relative; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r); margin: 10px 0; }

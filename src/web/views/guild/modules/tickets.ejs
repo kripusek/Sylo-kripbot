@@ -7,13 +7,13 @@
 
 <form method="POST" action="/guilds/<%= guild.id %>/m/tickets/config" hx-post="/guilds/<%= guild.id %>/m/tickets/config" hx-target="#module-config" hx-swap="outerHTML" class="stack u-mw-lg">
   <h3>Discord ticket panel</h3>
-  <p class="muted small">Publish a dropdown menu. Each topic opens a private text channel in its selected category. Configure Staff roles below. Administrators can also access tickets. Closing sends a text transcript to the Ticket log channel, then deletes the ticket channel. If archiving fails, the channel is retained. Modmail retention does not delete Discord transcripts.</p>
+  <p class="muted small">Publish an Open ticket button. It opens a topic menu visible only to the member who clicked. Each topic opens a private text channel in its selected category. Configure Staff roles below. Administrators can also access tickets. Closing sends a text transcript to the Ticket log channel, then deletes the ticket channel. If archiving fails, the channel is retained. Modmail retention does not delete Discord transcripts.</p>
   <label>Panel channel</label>
   <select name="panelChannel"><option value="">— none —</option>
   <% channels.forEach(function(c) { %><option value="<%= c.id %>" <%= c.id === cfg.panelChannel ? 'selected' : '' %>>#<%= c.name %></option><% }) %>
   </select>
-  <label>Panel title</label><input name="panelTitle" maxlength="256" value="<%= cfg.panelTitle || 'Support tickets' %>" />
-  <label>Panel message</label><textarea name="panelText" maxlength="2000" rows="3"><%= cfg.panelText || 'Choose a topic below to open a private ticket.' %></textarea>
+  <label>Panel title</label><input name="panelTitle" maxlength="256" value="<%= cfg.panelTitle || 'Tickety pomocy' %>" />
+  <label>Panel message</label><textarea name="panelText" maxlength="2000" rows="3"><%= cfg.panelText || 'Kliknij przycisk, aby wybrać temat i otworzyć prywatny ticket.' %></textarea>
   <label>Ticket log channel</label>
   <select name="ticketLogChannel"><option value="">— none —</option>
   <% channels.forEach(function(c) { %><option value="<%= c.id %>" <%= c.id === cfg.ticketLogChannel ? 'selected' : '' %>>#<%= c.name %></option><% }) %>
@@ -47,28 +47,28 @@
   <div><button type="button" onclick="const form=this.closest('form'); const rows=form.querySelector('[data-ticket-rows]'); if(rows.children.length &lt; 25) rows.append(form.querySelector('[data-ticket-template]').content.cloneNode(true));">Add topic</button>
   <button type="submit" name="action" value="publish">Save and publish panel</button></div>
   <hr />
-  <h3>Formularz nowego ticketa</h3>
-  <label>Tytuł formularza</label><input name="formTitle" maxlength="45" value="<%= cfg.formTitle || 'Otwórz ticket' %>" />
-  <p class="muted small">Dodaj od 1 do 5 pól. Odpowiedź z pierwszego pola będzie tytułem zgłoszenia; pozostałe trafią do jego treści.</p>
+  <h3>New ticket form</h3>
+  <label>Form title</label><input name="formTitle" maxlength="45" value="<%= cfg.formTitle || 'Otwórz ticket' %>" />
+  <p class="muted small">Add 1–5 fields. The first answer becomes the ticket title; the remaining answers become its body.</p>
   <div data-form-fields>
   <% (cfg.formFields?.length ? cfg.formFields : [{label:'Tytuł',style:'short',required:true},{label:'Opis',style:'paragraph',required:true}]).forEach(function(field) { %>
     <fieldset class="stack" data-form-field>
-      <label>Nazwa pola</label><input name="formFieldLabel" maxlength="45" required value="<%= field.label %>" />
-      <label>Podpowiedź</label><input name="formFieldPlaceholder" maxlength="100" value="<%= field.placeholder || '' %>" />
-      <label>Rodzaj tekstu</label><select name="formFieldStyle"><option value="short" <%= field.style === 'short' ? 'selected' : '' %>>Krótki tekst</option><option value="paragraph" <%= field.style !== 'short' ? 'selected' : '' %>>Długi tekst</option></select>
-      <label>Wymagane</label><select name="formFieldRequired"><option value="yes" <%= field.required !== false ? 'selected' : '' %>>Tak</option><option value="no" <%= field.required === false ? 'selected' : '' %>>Nie</option></select>
-      <button type="button" onclick="if(this.closest('[data-form-fields]').children.length > 1) this.closest('[data-form-field]').remove()">Usuń pole</button>
+      <label>Field label</label><input name="formFieldLabel" maxlength="45" required value="<%= field.label %>" />
+      <label>Placeholder</label><input name="formFieldPlaceholder" maxlength="100" value="<%= field.placeholder || '' %>" />
+      <label>Text style</label><select name="formFieldStyle"><option value="short" <%= field.style === 'short' ? 'selected' : '' %>>Short text</option><option value="paragraph" <%= field.style !== 'short' ? 'selected' : '' %>>Long text</option></select>
+      <label>Required</label><select name="formFieldRequired"><option value="yes" <%= field.required !== false ? 'selected' : '' %>>Yes</option><option value="no" <%= field.required === false ? 'selected' : '' %>>No</option></select>
+      <button type="button" onclick="if(this.closest('[data-form-fields]').children.length > 1) this.closest('[data-form-field]').remove()">Remove field</button>
     </fieldset>
   <% }) %>
   </div>
   <template data-form-field-template><fieldset class="stack" data-form-field>
-    <label>Nazwa pola</label><input name="formFieldLabel" maxlength="45" required />
-    <label>Podpowiedź</label><input name="formFieldPlaceholder" maxlength="100" />
-    <label>Rodzaj tekstu</label><select name="formFieldStyle"><option value="short">Krótki tekst</option><option value="paragraph" selected>Długi tekst</option></select>
-    <label>Wymagane</label><select name="formFieldRequired"><option value="yes">Tak</option><option value="no">Nie</option></select>
-    <button type="button" onclick="if(this.closest('[data-form-fields]').children.length > 1) this.closest('[data-form-field]').remove()">Usuń pole</button>
+    <label>Field label</label><input name="formFieldLabel" maxlength="45" required />
+    <label>Placeholder</label><input name="formFieldPlaceholder" maxlength="100" />
+    <label>Text style</label><select name="formFieldStyle"><option value="short">Short text</option><option value="paragraph" selected>Long text</option></select>
+    <label>Required</label><select name="formFieldRequired"><option value="yes">Yes</option><option value="no">No</option></select>
+    <button type="button" onclick="if(this.closest('[data-form-fields]').children.length > 1) this.closest('[data-form-field]').remove()">Remove field</button>
   </fieldset></template>
-  <button type="button" onclick="const form=this.closest('form'); const rows=form.querySelector('[data-form-fields]'); if(rows.children.length &lt; 5) rows.append(form.querySelector('[data-form-field-template]').content.cloneNode(true));">Dodaj pole</button>
+  <button type="button" onclick="const form=this.closest('form'); const rows=form.querySelector('[data-form-fields]'); if(rows.children.length &lt; 5) rows.append(form.querySelector('[data-form-field-template]').content.cloneNode(true));">Add field</button>
   <hr />
   <h3>DM tickets (modmail)</h3>
   <label>Greeting sent when a ticket opens <span class="muted small">— {server} is replaced</span></label>
@@ -86,11 +86,7 @@
   </select>
 
   <label>Staff roles <span class="muted small">— may read/reply to tickets even without Manage Server</span></label>
-  <select name="staffRoles" multiple size="6">
-    <% roles.forEach(function (r) { %>
-      <option value="<%= r.id %>" <%= staff.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
-    <% }) %>
-  </select>
+  <%- include('../../partials/chip-picker', { field: 'staffRoles', kind: 'role', items: roles, selected: staff }) %>
 
   <label>Roles to ping when a ticket opens</label>
   <%- include('../../partials/chip-picker', { field: 'pingRoles', kind: 'role', items: roles, selected: cfg.pingRoles || [] }) %>

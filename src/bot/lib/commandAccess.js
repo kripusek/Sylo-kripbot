@@ -1,4 +1,5 @@
 import { PermissionFlagsBits as P } from 'discord.js';
+import { localizeCommandDefinition } from './commandLocalization.js';
 
 // These commands may be delegated to server roles through the dashboard.
 export const moderationPermissions = Object.freeze({
@@ -18,7 +19,7 @@ export const moderationPermissions = Object.freeze({
 });
 
 export function commandDefinitionForRegistration(command) {
-  const data = command.data.toJSON();
+  const data = localizeCommandDefinition(command.data.toJSON());
   // Discord's native permission gate cannot express our per-server role grants.
   // The interaction router enforces permissions before executing these commands.
   if (Object.hasOwn(moderationPermissions, data.name)) data.default_member_permissions = null;

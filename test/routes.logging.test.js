@@ -19,7 +19,7 @@ test('V1 logging saves per-event channels, validates IDs and renders selected va
     assert.equal(config.eventChannels.messageCreate, CH.bots);
     assert.equal(config.eventChannels.memberBan, '');
     assert.equal(config.events.messageCreate, true);
-    const page = await fetch(`${app.base}/guilds/${GID}/m/logging`);
+    const page = await fetch(`${app.base}/guilds/${GID}/m/logging?lang=en`);
     assert.equal(page.status, 200);
     const html = await page.text();
     assert.match(html, /Message sent/);

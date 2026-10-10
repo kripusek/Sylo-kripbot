@@ -43,6 +43,22 @@ export const translatedPatterns = [
   [/^(\d+) rules?$/, '$1 reguł'],
   [/^(\d+) active$/, '$1 aktywnych'],
   [/^(\d+) max$/, 'maks. $1'],
+  [/^(\d+) selected$/, 'Wybrano: $1'],
+  [/^of (\d+)$/, 'z $1'],
+  [/^of (\d+), first (\d+)$/, 'z $1, pierwsze $2'],
+  [/^Joins versus leaves per day$/, 'Dołączenia i wyjścia dziennie'],
+  [/^Joins versus leaves per hour$/, 'Dołączenia i wyjścia na godzinę'],
+  [
+    /^Every (\d+) minutes$/,
+    (_all, n) =>
+      `Co ${n} ${Number(n) === 1 ? 'minutę' : /[2-4]$/.test(n) && !/1[2-4]$/.test(n) ? 'minuty' : 'minut'}`,
+  ],
+  [
+    /^Every (\d+) hours$/,
+    (_all, n) =>
+      `Co ${n} ${Number(n) === 1 ? 'godzinę' : /[2-4]$/.test(n) && !/1[2-4]$/.test(n) ? 'godziny' : 'godzin'}`,
+  ],
+  [/^Every (\d+) days$/, 'Co $1 dni'],
   [/^keep (\d+)m$/, 'zachowaj $1 min'],
   [/^(\d+) unconfigured$/, '$1 nieskonfigurowanych'],
   [
@@ -86,7 +102,7 @@ function decode(text) {
 }
 const skipped = new Set(['script', 'style', 'textarea', 'code', 'pre']);
 const uiExpression =
-  /^(?:i\.label|cat\.title|mod\.(?:name|description)|activeModule\.(?:name|description)|group\.title|card\.(?:name|description)|line\.label|it\.label|label|hint|pair\[1\]|m\[1\]|PRESET_LABEL\[p\] \|\| p|msg|message|error|title|pill\.label)$/;
+  /^(?:i\.label|cat\.title|mod\.(?:name|description)|activeModule\.(?:name|description)|group\.title|card\.(?:name|description)|line\.label|it\.label|[ev]\.label|(?:cmd|opt|c)\.description|label|hint|pair\[1\]|m\[1\]|PRESET_LABEL\[p\] \|\| p|msg|message|error|title|pill\.label)$/;
 
 // Mask EJS before tokenizing HTML: EJS expressions can contain >, quotes and
 // HTML. Only literal UI text and known UI expressions are translated; editable
@@ -150,7 +166,7 @@ export function localizeTemplate(source) {
         return token;
       }
       const output = token.replace(
-        /\b(placeholder|aria-label|title|data-confirm|hx-confirm)="([^"]*)"/g,
+        /\b(placeholder|data-ph|aria-label|title|data-confirm|hx-confirm)="([^"]*)"/g,
         (original, attr, value) => (value.includes('\uE000') ? original : `${attr}="${localized(value)}"`)
       );
       if (skipped.has(name)) {
@@ -167,7 +183,7 @@ export function localizeTemplate(source) {
 export function mountI18n(app) {
   app.use((req, res, next) => {
     const cookie = req.headers.cookie?.match(/(?:^|;\s*)sylo_language=(en|pl)(?:;|$)/)?.[1];
-    const language = ['en', 'pl'].includes(req.query.lang) ? req.query.lang : cookie || 'en';
+    const language = ['en', 'pl'].includes(req.query.lang) ? req.query.lang : cookie || 'pl';
     if (req.method === 'GET' && ['en', 'pl'].includes(req.query.lang)) {
       res.cookie('sylo_language', language, {
         maxAge: 365 * 86400_000,
@@ -195,7 +211,7 @@ export function mountI18n(app) {
       .join(',');
     res
       .type('application/javascript')
-      .set('Cache-Control', 'public, max-age=3600')
+      .set('Cache-Control', 'public, max-age=0, must-revalidate')
       .send(
         `(()=>{const polish=${JSON.stringify(polish).replace(/</g, '\\u003c')};const normalize=${normalize.toString()};const translatedPatterns=[${patterns}];const translate=${translate.toString()};window.syloTranslate=translate;})();`
       );

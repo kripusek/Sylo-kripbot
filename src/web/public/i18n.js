@@ -6,10 +6,12 @@
   // Changing locale requires a render in the selected language. Let the user
   // keep working if a form contains unsaved edits.
   const dirtyForms = new Set();
-  document.addEventListener('input', (event) => {
+  const markDirty = (event) => {
     const form = event.target.closest('form');
     if (form && !event.target.matches('[type="search"]')) dirtyForms.add(form);
-  });
+  };
+  document.addEventListener('input', markDirty);
+  document.addEventListener('change', markDirty);
   document.addEventListener('htmx:afterRequest', (event) => {
     if (event.detail.successful) {
       const form = event.detail.elt?.closest('form');

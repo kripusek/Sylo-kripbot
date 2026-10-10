@@ -25,6 +25,7 @@ export const DEFAULT_TICKET_FIELDS = [
 export function ticketFormFields(config = {}) {
   const raw = Array.isArray(config.formFields) ? config.formFields : DEFAULT_TICKET_FIELDS;
   const fields = raw
+    .filter((field) => field && typeof field === 'object')
     .slice(0, 5)
     .map((field) => ({
       label: String(field.label || '')
@@ -40,31 +41,36 @@ export function ticketFormFields(config = {}) {
 const formFieldId = (index) => ['title', 'description'][index] || `field_${index}`;
 export function normaliseChannelTickets(input = {}, previous = {}) {
   const seen = new Set();
-  const types = (Array.isArray(input.ticketTypes) ? input.ticketTypes : []).slice(0, 25).flatMap((row) => {
-    const label = String(row.label ?? '')
-      .trim()
-      .slice(0, 100);
-    if (!label) return [];
-    let key = /^[a-zA-Z0-9_-]{1,50}$/.test(row.id ?? '') ? row.id : randomUUID();
-    if (seen.has(key)) key = randomUUID();
-    seen.add(key);
-    return [
-      {
-        id: key,
-        label,
-        description: String(row.description ?? '')
-          .trim()
-          .slice(0, 100),
-        categoryId: id(row.categoryId),
-      },
-    ];
-  });
+  const types = (Array.isArray(input.ticketTypes) ? input.ticketTypes : [])
+    .filter((row) => row && typeof row === 'object')
+    .slice(0, 25)
+    .flatMap((row) => {
+      const label = String(row.label ?? '')
+        .trim()
+        .slice(0, 100);
+      if (!label) return [];
+      let key = /^[a-zA-Z0-9_-]{1,50}$/.test(row.id ?? '') ? row.id : randomUUID();
+      if (seen.has(key)) key = randomUUID();
+      seen.add(key);
+      return [
+        {
+          id: key,
+          label,
+          description: String(row.description ?? '')
+            .trim()
+            .slice(0, 100),
+          categoryId: id(row.categoryId),
+        },
+      ];
+    });
   const panelChannel = id(input.panelChannel);
   return {
     panelChannel,
     panelMessageId: panelChannel === previous.panelChannel ? previous.panelMessageId || '' : '',
-    panelTitle: String(input.panelTitle || 'Support tickets').slice(0, 256),
-    panelText: String(input.panelText || 'Choose a topic below to open a private ticket.').slice(0, 2000),
+    panelTitle: String(input.panelTitle || 'Tickety pomocy').slice(0, 256),
+    panelText: String(
+      input.panelText || 'Kliknij przycisk, aby wybrać temat i otworzyć prywatny ticket.'
+    ).slice(0, 2000),
     ticketLogChannel: id(input.ticketLogChannel),
     ticketTypes: types,
     formTitle:
@@ -78,16 +84,16 @@ export function normaliseChannelTickets(input = {}, previous = {}) {
 
 export async function publishTicketPanel(guild, cfg) {
   if (!cfg.panelChannel || !cfg.ticketTypes?.length)
-    throw new Error('Choose a panel channel and add at least one ticket type.');
+    throw new Error('Wybierz kanał panelu i dodaj przynajmniej jeden temat ticketa.');
   if (cfg.ticketTypes.some((type) => !type.categoryId))
-    throw new Error('Choose a category for every ticket type.');
+    throw new Error('Wybierz kategorię dla każdego tematu ticketa.');
   for (const type of cfg.ticketTypes) {
     const category = await guild.channels.fetch(type.categoryId);
     if (category?.type !== ChannelType.GuildCategory)
-      throw new Error('A ticket category is missing. Choose it again.');
+      throw new Error('Brakuje kategorii ticketa. Wybierz ją ponownie.');
   }
   const channel = await guild.channels.fetch(cfg.panelChannel);
-  if (!channel?.isTextBased()) throw new Error('The panel channel is unavailable.');
+  if (!channel?.isTextBased()) throw new Error('Kanał panelu jest niedostępny.');
   const payload = {
     embeds: [new EmbedBuilder().setColor(0x4aa3df).setTitle(cfg.panelTitle).setDescription(cfg.panelText)],
     components: [
@@ -125,26 +131,26 @@ export async function channelTicketTranscript(channel, ownerId, closerId) {
     if (!batch.size) break;
     messages.push(...batch.values());
     const oldest = [...batch.keys()].reduce((a, b) => (BigInt(a) < BigInt(b) ? a : b));
-    if (oldest === before) throw new Error('Ticket history pagination did not advance.');
+    if (oldest === before) throw new Error('Nie udało się pobrać kolejnej strony historii ticketa.');
     before = oldest;
     if (batch.size < 100) break;
   }
   messages.sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0));
   const blocks = [
-    `Ticket channel: #${channel.name || channel.id} (${channel.id})\nOwner: ${ownerId}\nClosed by: ${closerId}\nArchived: ${new Date().toISOString()}\nMessages: ${messages.length}\n\n`,
+    `Kanał ticketa: #${channel.name || channel.id} (${channel.id})\nAutor: ${ownerId}\nZamknął: ${closerId}\nZarchiwizowano: ${new Date().toISOString()}\nWiadomości: ${messages.length}\n\n`,
     ...messages.map((message) => {
       const lines = [
-        `[${new Date(message.createdTimestamp).toISOString()}] ${message.author?.tag || 'Unknown'} (${message.author?.id || 'unknown'}) | Message ${message.id}`,
+        `[${new Date(message.createdTimestamp).toISOString()}] ${message.author?.tag || 'Nieznany'} (${message.author?.id || 'unknown'}) | Wiadomość ${message.id}`,
       ];
       if (message.content) lines.push(message.content);
       for (const embed of message.embeds || []) {
         if (embed.title) lines.push(`[Embed] ${embed.title}`);
         if (embed.description) lines.push(embed.description);
         for (const field of embed.fields || []) lines.push(`${field.name}: ${field.value}`);
-        if (embed.image?.url) lines.push(`[Image] ${embed.image.url}`);
+        if (embed.image?.url) lines.push(`[Obraz] ${embed.image.url}`);
       }
       for (const file of message.attachments?.values() || [])
-        lines.push(`[Attachment] ${file.name || 'file'}: ${file.url}`);
+        lines.push(`[Załącznik] ${file.name || 'file'}: ${file.url}`);
       return lines.join('\n') + '\n\n';
     }),
   ];
@@ -167,19 +173,19 @@ export async function channelTicketTranscript(channel, ownerId, closerId) {
 
 export async function archiveChannelTicket(guild, channel, cfg, ownerId, closerId) {
   if (!cfg.ticketLogChannel || cfg.ticketLogChannel === channel.id)
-    throw new Error('Choose a separate ticket log channel before closing.');
+    throw new Error('Przed zamknięciem wybierz osobny kanał logów ticketów.');
   const parts = await channelTicketTranscript(channel, ownerId, closerId);
   for (let index = 0; index < parts.length; index++) {
     const sent = await sendToChannel(guild.id, cfg.ticketLogChannel, {
       embeds: [
         new EmbedBuilder()
           .setColor(0x8b95a1)
-          .setTitle('Ticket closed')
+          .setTitle('Ticket zamknięty')
           .addFields(
-            { name: 'Member', value: `<@${ownerId}> (${ownerId})` },
-            { name: 'Closed by', value: `<@${closerId}> (${closerId})` },
-            { name: 'Channel', value: `#${channel.name || channel.id} (${channel.id})` },
-            { name: 'Transcript', value: `Part ${index + 1}/${parts.length}` }
+            { name: 'Użytkownik', value: `<@${ownerId}> (${ownerId})` },
+            { name: 'Zamknął', value: `<@${closerId}> (${closerId})` },
+            { name: 'Kanał', value: `#${channel.name || channel.id} (${channel.id})` },
+            { name: 'Zapis rozmowy', value: `Część ${index + 1}/${parts.length}` }
           )
           .setTimestamp(),
       ],
@@ -188,9 +194,9 @@ export async function archiveChannelTicket(guild, channel, cfg, ownerId, closerI
       ],
       allowedMentions: { parse: [] },
     });
-    if (!sent) throw new Error('Transcript delivery failed; the ticket channel was retained.');
+    if (!sent) throw new Error('Nie udało się wysłać zapisu rozmowy; kanał ticketa pozostał.');
   }
-  await channel.delete(`Ticket archived and closed by ${closerId}`);
+  await channel.delete(`Ticket zarchiwizowany i zamknięty przez ${closerId}`);
 }
 
 export async function handleChannelTicket(interaction) {
@@ -281,7 +287,7 @@ export async function handleChannelTicket(interaction) {
   const cfg = (await getGuildModule(guild.id, 'tickets')).config;
   const opening = interaction.customId === 'ticket-channel:open' || Boolean(submission);
   const lock = opening ? `${guild.id}:${interaction.user.id}` : `${guild.id}:${interaction.channelId}`;
-  if (locks.has(lock)) return interaction.editReply('A ticket action is already in progress.');
+  if (locks.has(lock)) return interaction.editReply('Trwa już wykonywanie działania na tym tickecie.');
   locks.add(lock);
   try {
     if (opening) {
@@ -291,7 +297,7 @@ export async function handleChannelTicket(interaction) {
         interaction.channelId !== cfg.panelChannel ||
         (!submission && interaction.message.id !== cfg.panelMessageId)
       )
-        return interaction.editReply('This panel is outdated. Please use the current ticket panel.');
+        return interaction.editReply('Ten panel jest nieaktualny. Użyj obecnego panelu ticketów.');
       const type = cfg.ticketTypes?.find(
         (item) => item.id === (submission ? submission[2] : interaction.values[0])
       );
@@ -319,15 +325,15 @@ export async function handleChannelTicket(interaction) {
               .join('\n\n')
               .slice(0, 4096)
           : 'Zgłoszenie dla administracji.';
-      if (!type) return interaction.editReply('This ticket type is no longer available.');
+      if (!type) return interaction.editReply('Ten temat ticketa nie jest już dostępny.');
       const existing = guild.channels.cache.find((channel) => {
         const match = parseTicketTopic(channel.topic);
         return match?.[1] === interaction.user.id && match[3] === 'open';
       });
-      if (existing) return interaction.editReply(`You already have an open ticket: ${existing}`);
+      if (existing) return interaction.editReply(`Masz już otwarty ticket: ${existing}`);
       const category = await guild.channels.fetch(type.categoryId);
       if (category?.type !== ChannelType.GuildCategory)
-        return interaction.editReply('The ticket category is unavailable. Please contact staff.');
+        return interaction.editReply('Kategoria ticketa jest niedostępna. Skontaktuj się z administracją.');
       const permissions = [
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.SendMessages,
@@ -352,7 +358,7 @@ export async function handleChannelTicket(interaction) {
           { id: guild.members.me.id, allow: [...permissions, PermissionFlagsBits.ManageChannels] },
           ...staffRoles.map((role) => ({ id: role, allow: permissions })),
         ],
-        reason: `Ticket opened by ${interaction.user.id}: ${type.label}`,
+        reason: `Ticket otwarty przez ${interaction.user.id}: ${type.label}`,
       });
       try {
         await channel.send({
@@ -383,30 +389,30 @@ export async function handleChannelTicket(interaction) {
           ],
         });
       } catch (error) {
-        await channel.delete('Ticket setup failed').catch(() => {});
+        await channel.delete('Nie udało się skonfigurować ticketa').catch(() => {});
         throw error;
       }
-      await ticketLog(guild, cfg, 'Ticket opened', [
-        { name: 'Member', value: `<@${interaction.user.id}> (${interaction.user.id})` },
-        { name: 'Topic', value: type.label },
-        { name: 'Channel', value: `${channel} (${channel.id})` },
+      await ticketLog(guild, cfg, 'Ticket otwarty', [
+        { name: 'Użytkownik', value: `<@${interaction.user.id}> (${interaction.user.id})` },
+        { name: 'Temat', value: type.label },
+        { name: 'Kanał', value: `${channel} (${channel.id})` },
       ]);
-      return interaction.editReply(`Your ticket is ready: ${channel}`);
+      return interaction.editReply(`Twój ticket jest gotowy: ${channel}`);
     }
     if (
       !['ticket-channel:close', 'ticket-channel:call'].includes(interaction.customId) ||
       !interaction.isButton()
     )
-      return interaction.editReply('Unknown ticket action.');
+      return interaction.editReply('Nieznane działanie ticketa.');
     const channel = interaction.channel;
     const match = parseTicketTopic(channel?.topic);
-    if (!match) return interaction.editReply('This ticket is already closed or unavailable.');
+    if (!match) return interaction.editReply('Ten ticket jest już zamknięty lub niedostępny.');
     const member = await guild.members.fetch(interaction.user.id);
     const staff =
       member.permissions.has(PermissionFlagsBits.ManageGuild) ||
       (cfg.staffRoles || []).some((role) => member.roles.cache.has(role));
     if (match[1] !== interaction.user.id && !staff)
-      return interaction.editReply('Only the ticket owner or staff may close this ticket.');
+      return interaction.editReply('Tylko autor ticketa lub administracja mogą używać jego przycisków.');
     if (interaction.customId === 'ticket-channel:call') {
       const key = `${guild.id}:${channel.id}`;
       if ((callCooldowns.get(key) || 0) > Date.now())
@@ -429,9 +435,7 @@ export async function handleChannelTicket(interaction) {
       return interaction.editReply('Przywołano administrację.');
     }
     if (!cfg.ticketLogChannel || cfg.ticketLogChannel === channel.id)
-      return interaction.editReply(
-        'Set a separate Ticket log channel in the dashboard before closing this ticket.'
-      );
+      return interaction.editReply('Przed zamknięciem ustaw osobny kanał logów ticketów w panelu.');
     await channel.permissionOverwrites.edit(match[1], {
       SendMessages: false,
       AddReactions: false,
@@ -441,10 +445,10 @@ export async function handleChannelTicket(interaction) {
     });
     await channel.setTopic(`sylo-ticket:${match[1]}:${match[2]}:closed`);
     await archiveChannelTicket(guild, channel, cfg, match[1], interaction.user.id);
-    return interaction.editReply('Ticket archived in the log channel and deleted.');
+    return interaction.editReply('Zapis rozmowy wysłano na kanał logów, a kanał ticketa usunięto.');
   } catch (error) {
     await interaction.editReply(
-      'The ticket action failed. Ask staff to check the bot permissions and category settings.'
+      'Działanie nie powiodło się. Poproś administrację o sprawdzenie uprawnień bota i ustawień kategorii.'
     );
     throw error;
   } finally {

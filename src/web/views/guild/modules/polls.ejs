@@ -7,14 +7,14 @@
 <%
   var PM_BODY = '<div class="poll-body">' +
     '<div class="poll-body-q">{question}</div>' +
-    '<div>🇦&nbsp; First option</div><div>🇧&nbsp; Second option</div><div>🇨&nbsp; …</div>' +
-    '<div class="muted small u-mt-2">Sylo fills the question &amp; choices here</div>' +
+    '<div>🇦&nbsp; ' + uiText('First option') + '</div><div>🇧&nbsp; ' + uiText('Second option') + '</div><div>🇨&nbsp; …</div>' +
+    '<div class="muted small u-mt-2">' + uiText('Sylo fills the question & choices here') + '</div>' +
     '</div>';
   var RM_BODY = '<div class="poll-body">' +
     '<div class="poll-body-q">{question}</div>' +
-    '<div>🇦&nbsp; <b>First option</b><br>██████░░░░  60.0% · 6 votes</div>' +
-    '<div>🇧&nbsp; <b>Second option</b><br>████░░░░░░  40.0% · 4 votes</div>' +
-    '<div class="muted small u-mt-2">Sylo fills the results here</div>' +
+    '<div>🇦&nbsp; <b>' + uiText('First option') + '</b><br>██████░░░░  60.0% · ' + uiText('6 votes') + '</div>' +
+    '<div>🇧&nbsp; <b>' + uiText('Second option') + '</b><br>████░░░░░░  40.0% · ' + uiText('4 votes') + '</div>' +
+    '<div class="muted small u-mt-2">' + uiText('Sylo fills the results here') + '</div>' +
     '</div>';
   var EMBED_OPTS = { content: true, author: false, description: false, fields: false, thumb: false, footerIcon: false, footerKey: 'footer', defaultColor: '#5b7cfa' };
 %>

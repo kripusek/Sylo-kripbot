@@ -11,7 +11,7 @@
       <div class="cmd">
         <code class="cmd-sig"><%= cmd.signature %></code>
         <% if (cmd.permissions) { %>
-          <span class="cmd-perm">requires: <%= cmd.permissions.join(', ') %></span>
+          <span class="cmd-perm">requires: <%= cmd.permissions.map(uiText).join(', ') %></span>
         <% } %>
         <p class="cmd-desc"><%= cmd.description %></p>
         <% if (cmd.options.length > 0) { %>
@@ -23,7 +23,7 @@
                   <td class="mono"><%= opt.name %></td>
                   <td><%= opt.required ? 'yes' : 'no' %></td>
                   <td><%= opt.description %></td>
-                  <td class="muted"><%= opt.choices.length ? opt.choices.join(', ') : '—' %></td>
+                  <td class="muted"><%= opt.choices.length ? opt.choices.map(uiText).join(', ') : '—' %></td>
                 </tr>
               <% }) %>
             </tbody>

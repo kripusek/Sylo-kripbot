@@ -121,8 +121,9 @@ document.addEventListener('alpine:init', function () {
       field: cfg.field,
       kind: cfg.kind === 'channel' ? 'channel' : 'role',
       items: Array.isArray(cfg.items) ? cfg.items : [],
-      selectedIds: (Array.isArray(cfg.selected) ? cfg.selected : []).map(String),
+      selectedIds: [...new Set((Array.isArray(cfg.selected) ? cfg.selected : []).map(String))],
       pick: '',
+      query: '',
       get byId() {
         var m = {};
         this.items.forEach(function (i) {
@@ -142,16 +143,25 @@ document.addEventListener('alpine:init', function () {
           return sel.indexOf(String(i.id)) === -1;
         });
       },
+      get filtered() {
+        var query = this.query.trim().toLocaleLowerCase();
+        return this.available.filter(function (item) {
+          return !query || item.name.toLocaleLowerCase().includes(query) || String(item.id).includes(query);
+        });
+      },
       add() {
         var id = String(this.pick || '');
-        if (id && this.selectedIds.indexOf(id) === -1) this.selectedIds.push(id);
+        if (id && this.byId[id] && this.selectedIds.indexOf(id) === -1) this.selectedIds.push(id);
         this.pick = '';
+        this.query = '';
+        this.$dispatch('change');
       },
       remove(id) {
         id = String(id);
         this.selectedIds = this.selectedIds.filter(function (x) {
           return x !== id;
         });
+        this.$dispatch('change');
       },
     };
   });

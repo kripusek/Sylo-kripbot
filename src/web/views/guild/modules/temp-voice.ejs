@@ -26,8 +26,8 @@
         <span>
           <strong>🔊 <%= vcName(h.hubChannelId) %></strong>
           <span class="muted small">
-            · <%= h.userLimit ? (h.userLimit + ' max') : 'no limit' %>
-            · <%= h.keepAliveMinutes < 0 ? 'never deleted' : (h.keepAliveMinutes === 0 ? 'delete when empty' : ('keep ' + h.keepAliveMinutes + 'm')) %>
+            · <%= uiText(h.userLimit ? (h.userLimit + ' max') : 'no limit') %>
+            · <%= uiText(h.keepAliveMinutes < 0 ? 'never deleted' : (h.keepAliveMinutes === 0 ? 'delete when empty' : ('keep ' + h.keepAliveMinutes + 'm'))) %>
             <% if (h.textChannel && h.textChannel.enabled) { %> · text channel<% } %>
           </span>
         </span>

@@ -13,7 +13,8 @@ test.before(async () => {
 });
 test.after(() => app.close());
 
-const get = (p, headers) => fetch(app.base + p, { headers, redirect: 'manual' });
+const get = (p, headers) =>
+  fetch(app.base + p, { headers: { cookie: 'sylo_language=en', ...headers }, redirect: 'manual' });
 
 test('GET /m/afk without HX-Request renders the full page', async () => {
   const res = await get(`/guilds/${GID}/m/afk`);

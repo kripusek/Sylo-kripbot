@@ -44,7 +44,7 @@
           </div>
         </div>
         <label class="small">Message</label>
-        <textarea name="kc_message" rows="2" maxlength="1500" placeholder="<%= defMsg %>"><%= a.message || '' %></textarea>
+        <textarea name="kc_message" rows="2" maxlength="1500" placeholder="<%= uiText(defMsg) %>"><%= a.message || '' %></textarea>
         <label class="small">Post as
           <select name="kc_format" class="u-w-field-sm">
             <option value="embed" <%= a.plainText ? '' : 'selected' %>>Embed</option>
@@ -80,7 +80,7 @@
           <% roles.forEach(function (r) { %><option value="<%= r.id %>"><%= r.name %></option><% }) %></select></div>
     </div>
     <label class="small">Message</label>
-    <textarea name="kc_message" rows="2" maxlength="1500" placeholder="<%= defMsg %>"></textarea>
+    <textarea name="kc_message" rows="2" maxlength="1500" placeholder="<%= uiText(defMsg) %>"></textarea>
     <label class="small">Post as
       <select name="kc_format" class="u-w-field-sm">
         <option value="embed" selected>Embed</option>

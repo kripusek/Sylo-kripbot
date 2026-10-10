@@ -1,5 +1,5 @@
 <% var ACTION_LABEL = { warn: 'Warn', note: 'Note', timeout: 'Timeout', untimeout: 'Timeout lifted', kick: 'Kick', ban: 'Ban', unban: 'Unban' }; %>
-<h2>Infractions <span class="muted">(<%= caseShown %><%= caseTotal > caseShown ? ` of ${caseTotal}` : '' %>)</span></h2>
+<h2>Infractions <span class="muted">(<%= caseShown %><%= caseTotal > caseShown ? uiText(` of ${caseTotal}`) : '' %>)</span></h2>
 
 <form method="POST" action="/guilds/<%= guild.id %>/warnings" class="row-form">
   <input type="text" name="userId" placeholder="User ID or @mention" required />
@@ -56,7 +56,7 @@
   <p class="muted small">Deleting is soft — the case stays for audit but drops out of <code>/history</code> and the warn count.</p>
 <% } %>
 
-<h2 class="u-mt-6">Bans <span class="muted">(<%= bansShown %><%= bansTotal > bansShown ? ` of ${bansTotal}, first ${banLimit}` : '' %>)</span></h2>
+<h2 class="u-mt-6">Bans <span class="muted">(<%= bansShown %><%= bansTotal > bansShown ? uiText(` of ${bansTotal}, first ${banLimit}`) : '' %>)</span></h2>
 <% if (bansError) { %>
   <p class="warn-text">⚠️ <%= bansError %></p>
 <% } else if (bans.length === 0) { %>

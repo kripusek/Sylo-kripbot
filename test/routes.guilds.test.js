@@ -10,7 +10,8 @@ test.before(async () => {
 });
 test.after(() => app.close());
 
-const get = (p, headers) => fetch(app.base + p, { headers, redirect: 'manual' });
+const get = (p, headers) =>
+  fetch(app.base + p, { headers: { cookie: 'sylo_language=en', ...headers }, redirect: 'manual' });
 
 test('GET /guilds/:id redirects to /overview', async () => {
   const res = await get(`/guilds/${GID}`);
@@ -363,7 +364,7 @@ test('POST /m/automod/config pushes and later removes native AutoMod rules', asy
 test('auto-threads settings render and save selected channels in V1', async () => {
   const page = await get(`/guilds/${GID}/m/auto-threads`);
   assert.equal(page.status, 200);
-  assert.match(await page.text(), /name="channelIds"/);
+  assert.match(await page.text(), /&#34;field&#34;:&#34;channelIds&#34;/);
   const saved = await post(app.base, `/guilds/${GID}/m/auto-threads/config`, {
     channelIds: CH.general,
     nameTemplate: 'Temat {author}',

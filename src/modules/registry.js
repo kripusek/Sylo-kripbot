@@ -59,7 +59,8 @@ export const MODULES = [
   {
     id: 'tickets',
     name: 'Tickets',
-    description: 'Private channel tickets from a dropdown panel, plus DM modmail.',
+    description:
+      'Private channel tickets from a button, private topic menu and editable form, plus DM modmail.',
     icon: '🎫',
     requiredIntents: [],
     defaultEnabled: false,

@@ -9,7 +9,8 @@ test.before(async () => {
 });
 test.after(() => app.close());
 
-const get = (p, headers) => fetch(app.base + p, { headers, redirect: 'manual' });
+const get = (p, headers) =>
+  fetch(app.base + p, { headers: { cookie: 'sylo_language=en', ...headers }, redirect: 'manual' });
 
 // --- / and /health ----------------------------------------------------------
 

@@ -10,20 +10,24 @@
 %>
 <div class="role-picker" x-data="chipPicker(<%= JSON.stringify(_cfg) %>)">
   <div class="role-chips">
+    <span class="muted small" x-show="!selectedIds.length">None selected</span>
     <template x-for="chip in chips" :key="chip.id">
       <span class="role-chip">
         <template x-if="kind === 'channel'"><span class="chip-hash">#</span></template>
         <template x-if="kind !== 'channel'"><span class="role-dot" :style="'background:' + (chip.color || 'var(--muted)')"></span></template>
         <span x-text="chip.name"></span>
-        <button type="button" class="role-chip-x" aria-label="Remove" @click="remove(chip.id)">&times;</button>
+        <button type="button" class="role-chip-x" :aria-label="window.syloT('Remove') + ' ' + chip.name" @click="remove(chip.id)">&times;</button>
         <input type="hidden" :name="field" :value="chip.id" />
       </span>
     </template>
   </div>
-  <select class="role-picker-add" x-model="pick" @change="add()">
-    <option value="">+ Add <%= _kind === 'channel' ? 'a channel' : 'a role' %>…</option>
-    <template x-for="opt in available" :key="opt.id">
+  <input type="search" x-model="query" placeholder="Search by name or ID…" aria-label="Search by name or ID" autocomplete="off" @keydown.enter.prevent />
+  <select class="role-picker-add" x-model="pick" @change="add()" :disabled="!filtered.length" aria-label="Choose an item to add">
+    <option value=""><%= uiText(_kind === 'channel' ? 'Choose a channel…' : 'Choose a role…') %></option>
+    <template x-for="opt in filtered" :key="opt.id">
       <option :value="opt.id" x-text="(kind === 'channel' ? '#' : '') + opt.name"></option>
     </template>
   </select>
+  <span class="muted small" x-show="query && !filtered.length">No matching items</span>
+  <span class="muted small" x-show="!query && !available.length">All available items selected</span>
 </div>

@@ -1,10 +1,8 @@
 <% var cfg = moduleConfig || {}; %>
 <p class="muted small">Create a public thread for each new member message. Bots, webhooks and messages inside threads are skipped. Older messages are not processed.</p>
 <form method="POST" action="/guilds/<%= guild.id %>/m/auto-threads/config" hx-post="/guilds/<%= guild.id %>/m/auto-threads/config" hx-target="#module-config" hx-swap="outerHTML" class="stack u-mw-lg">
-<label>Channels — use Ctrl to select multiple</label>
-<select name="channelIds" multiple size="8">
-<% channels.forEach(function(c) { %><option value="<%= c.id %>" <%= (cfg.channelIds || []).includes(c.id) ? 'selected' : '' %>>#<%= c.name %></option><% }) %>
-</select>
+<label>Channels</label>
+<%- include('../../partials/chip-picker', { field: 'channelIds', kind: 'channel', items: channels, selected: cfg.channelIds || [] }) %>
 <label>Thread name</label><input name="nameTemplate" maxlength="100" value="<%= cfg.nameTemplate || 'Dyskusja — {author}' %>" />
 <p class="muted small">Placeholders: {author} and {message}. Message text requires Message Content Intent.</p>
 <label>Archive after inactivity</label><select name="autoArchiveDuration">

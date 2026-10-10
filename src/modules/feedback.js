@@ -21,21 +21,21 @@ export function normaliseFeedbackConfig(input = {}, previous = {}) {
     panelMessageId: panelChannel === previous.panelChannel ? previous.panelMessageId || '' : '',
     reviewChannel: snowflake(input.reviewChannel),
     title:
-      String(input.title || 'Complaints and feedback')
+      String(input.title || 'Skargi i opinie')
         .trim()
-        .slice(0, 256) || 'Complaints and feedback',
+        .slice(0, 256) || 'Skargi i opinie',
     message:
-      String(input.message || 'Share feedback or report an issue to the administration.')
+      String(input.message || 'Napisz opinię lub zgłoś problem administracji.')
         .trim()
-        .slice(0, 2000) || 'Share feedback or report an issue to the administration.',
+        .slice(0, 2000) || 'Napisz opinię lub zgłoś problem administracji.',
     buttonLabel:
-      String(input.buttonLabel || 'Write feedback')
+      String(input.buttonLabel || 'Napisz opinię')
         .trim()
-        .slice(0, 80) || 'Write feedback',
+        .slice(0, 80) || 'Napisz opinię',
     anonymousButtonLabel:
-      String(input.anonymousButtonLabel || 'Write anonymous feedback')
+      String(input.anonymousButtonLabel || 'Napisz anonimową opinię')
         .trim()
-        .slice(0, 80) || 'Write anonymous feedback',
+        .slice(0, 80) || 'Napisz anonimową opinię',
     subjectRoles: [...new Set([].concat(input.subjectRoles ?? []).filter((role) => snowflake(role)))],
     anonymous: input.anonymous === true || input.anonymous === 'on',
   };
@@ -68,7 +68,7 @@ export async function publishFeedbackPanel(guild, cfg) {
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
           .setCustomId('feedback:open:anonymous')
-          .setLabel(cfg.anonymousButtonLabel || 'Write anonymous feedback')
+          .setLabel(cfg.anonymousButtonLabel || 'Napisz anonimową opinię')
           .setStyle(ButtonStyle.Secondary)
       ),
     ],

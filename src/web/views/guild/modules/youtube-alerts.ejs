@@ -51,9 +51,9 @@
           </div>
         </div>
         <label class="small">New-video message</label>
-        <textarea name="yt_videoMessage" rows="2" maxlength="1500" placeholder="<%= vMsg %>"><%= a.videoMessage || '' %></textarea>
+        <textarea name="yt_videoMessage" rows="2" maxlength="1500" placeholder="<%= uiText(vMsg) %>"><%= a.videoMessage || '' %></textarea>
         <label class="small">Went-live message</label>
-        <textarea name="yt_liveMessage" rows="2" maxlength="1500" placeholder="<%= lMsg %>"><%= a.liveMessage || '' %></textarea>
+        <textarea name="yt_liveMessage" rows="2" maxlength="1500" placeholder="<%= uiText(lMsg) %>"><%= a.liveMessage || '' %></textarea>
         <label class="small">When a livestream ends <span class="muted">— the went-live post only</span>
           <select name="yt_onEnd" class="u-w-field-sm">
             <option value="delete" <%= (a.onEnd || 'delete') === 'delete' ? 'selected' : '' %>>Delete the message</option>
@@ -88,9 +88,9 @@
           <% roles.forEach(function (r) { %><option value="<%= r.id %>"><%= r.name %></option><% }) %></select></div>
     </div>
     <label class="small">New-video message</label>
-    <textarea name="yt_videoMessage" rows="2" maxlength="1500" placeholder="<%= vMsg %>"></textarea>
+    <textarea name="yt_videoMessage" rows="2" maxlength="1500" placeholder="<%= uiText(vMsg) %>"></textarea>
     <label class="small">Went-live message</label>
-    <textarea name="yt_liveMessage" rows="2" maxlength="1500" placeholder="<%= lMsg %>"></textarea>
+    <textarea name="yt_liveMessage" rows="2" maxlength="1500" placeholder="<%= uiText(lMsg) %>"></textarea>
     <label class="small">When a livestream ends
       <select name="yt_onEnd" class="u-w-field-sm">
         <option value="delete" selected>Delete the message</option>

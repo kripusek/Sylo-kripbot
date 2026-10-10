@@ -20,12 +20,12 @@ test('V1 publishes feedback panel and exposes the module in overview and sidebar
     assert.ok(config.panelMessageId);
     assert.equal(config.anonymous, false);
     assert.deepEqual(config.subjectRoles, [ROLE.member]);
-    const page = await fetch(`${app.base}/guilds/${GID}/m/feedback`);
+    const page = await fetch(`${app.base}/guilds/${GID}/m/feedback?lang=en`);
     assert.equal(page.status, 200);
     const html = await page.text();
     assert.match(html, /Staff review channel/);
     assert.match(html, /Roles shown in member picker/);
-    const overview = await fetch(`${app.base}/guilds/${GID}/overview`);
+    const overview = await fetch(`${app.base}/guilds/${GID}/overview?lang=en`);
     assert.match(await overview.text(), /m\/feedback/);
   } finally {
     app.close();

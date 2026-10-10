@@ -22,7 +22,7 @@ test('V1 ticket topics save, render and publish a dropdown panel', async () => {
     assert.equal(config.ticketTypes[0].categoryId, CH.category);
     assert.ok(config.panelMessageId);
     assert.equal(config.ticketLogChannel, CH.bots);
-    const page = await fetch(`${app.base}/guilds/${GID}/m/tickets`);
+    const page = await fetch(`${app.base}/guilds/${GID}/m/tickets?lang=en`);
     assert.equal(page.status, 200);
     const html = await page.text();
     assert.match(html, /Technical support/);

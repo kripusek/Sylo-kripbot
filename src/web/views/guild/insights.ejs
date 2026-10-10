@@ -81,14 +81,14 @@
 <div class="ins-grid">
   <section class="card ins-chart">
     <h3>Messages <%= perLabel %></h3>
-    <svg viewBox="0 0 <%= W %> <%= H %>" preserveAspectRatio="none" role="img" aria-label="Messages <%= perLabel %>">
+    <svg viewBox="0 0 <%= W %> <%= H %>" preserveAspectRatio="none" role="img" aria-label="<%= uiText('Messages ' + perLabel) %>">
       <%- bars('messages', 'ins-bar-msg') %>
     </svg>
   </section>
 
   <section class="card ins-chart">
     <h3>Voice minutes <%= perLabel %></h3>
-    <svg viewBox="0 0 <%= W %> <%= H %>" preserveAspectRatio="none" role="img" aria-label="Voice minutes <%= perLabel %>">
+    <svg viewBox="0 0 <%= W %> <%= H %>" preserveAspectRatio="none" role="img" aria-label="<%= uiText('Voice minutes ' + perLabel) %>">
       <%- bars('voiceMinutes', 'ins-bar-voice') %>
     </svg>
   </section>
@@ -102,7 +102,7 @@
 
   <section class="card ins-chart">
     <h3>Joins vs leaves</h3>
-    <svg viewBox="0 0 <%= W %> <%= H %>" preserveAspectRatio="none" role="img" aria-label="Joins versus leaves <%= perLabel %>">
+    <svg viewBox="0 0 <%= W %> <%= H %>" preserveAspectRatio="none" role="img" aria-label="<%= uiText('Joins versus leaves ' + perLabel) %>">
       <%- line('joins', ['joins', 'leaves'], 'ins-line-join') %>
       <%- line('leaves', ['joins', 'leaves'], 'ins-line-leave') %>
     </svg>

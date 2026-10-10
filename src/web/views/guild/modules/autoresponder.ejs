@@ -7,7 +7,7 @@
 
 <p class="muted small">
   Replies automatically when a message matches a trigger — no prefix. First matching responder wins.
-  Placeholders: <%= arPlaceholders.map(function (p) { return '<code>' + p + '</code>'; }).join(' ') %>.
+  Placeholders: <%- arPlaceholders.map(function (p) { return '<code>' + p + '</code>'; }).join(' ') %>.
   Deleting the trigger needs the <strong>Manage Messages</strong> permission.
 </p>
 
@@ -43,17 +43,9 @@
   <div><button type="button" class="secondary" id="ar-add">+ Add responder</button></div>
 
   <label class="u-mt-3">Ignore channels</label>
-  <select name="ignoreChannels" multiple size="4">
-    <% channels.forEach(function (c) { %>
-      <option value="<%= c.id %>" <%= igC.includes(c.id) ? 'selected' : '' %>>#<%= c.name %></option>
-    <% }) %>
-  </select>
+  <%- include('../../partials/chip-picker', { field: 'ignoreChannels', kind: 'channel', items: channels, selected: igC }) %>
   <label class="u-mt-2">Ignore roles</label>
-  <select name="ignoreRoles" multiple size="4">
-    <% roles.forEach(function (r) { %>
-      <option value="<%= r.id %>" <%= igR.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
-    <% }) %>
-  </select>
+  <%- include('../../partials/chip-picker', { field: 'ignoreRoles', kind: 'role', items: roles, selected: igR }) %>
 
   <div class="u-mt-3"><button type="submit">Save</button></div>
 </form>

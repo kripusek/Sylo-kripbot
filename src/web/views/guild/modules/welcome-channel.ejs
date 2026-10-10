@@ -43,7 +43,7 @@
     <div class="wc-add-grid" id="wc-add-grid">
       <template x-for="p in presets" :key="p.id">
         <button type="button" class="wc-add-card" @click="addPreset(p.id)" :disabled="full">
-          <b x-text="p.label"></b><span class="wc-add-mini" :class="'wc-add-' + p.kind"></span>
+          <b x-text="window.syloT(p.label)"></b><span class="wc-add-mini" :class="'wc-add-' + p.kind"></span>
         </button>
       </template>
     </div>

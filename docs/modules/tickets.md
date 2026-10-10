@@ -1,16 +1,20 @@
 # Tickets
 
-## Discord dropdown panel
+## Discord ticket panel
 
 In the Tickets module, enable the module and configure:
 
-- **Panel channel**: the text channel where members select a topic.
+- **Panel channel**: the text channel containing the Open ticket button.
 - **Panel title / Panel message**: the public panel text.
 - **Ticket topics**: add up to 25 names, descriptions and destination categories. Categories contain the newly created private text channels.
 - **Staff roles**: roles allowed to read and reply in newly created tickets. Administrators can also access them. Category permissions are not inherited; explicit private permissions protect each ticket.
 - **Ticket log channel**: records member, topic and channel on opening, and member, closing user and channel on closure.
 
-Click **Save and publish panel** to create or update the dropdown message. Ordinary Save stores settings; publish updates the visible Discord menu. Use Add topic / Remove topic whenever you need to change the options. Existing tickets retain their current permissions and destination.
+Click **Save and publish panel** to create or update the public button message. Clicking it opens a topic dropdown visible only to that member; choosing a topic opens the ticket form. Ordinary Save stores settings. Use Add topic / Remove topic whenever you need to change the options. Existing tickets retain their current permissions and destination.
+
+Under **New ticket form**, edit the modal title and add or remove 1–5 text fields. Each field has a label, optional placeholder, short/long text style and required/optional setting. The first answer becomes the ticket title; remaining answers form its description. Saving applies the form to new openings.
+
+**Roles to ping when a ticket opens** also configures the **Przywołaj administratora** button in each new ticket. The owner or staff can use it to ping all configured roles; members cannot choose their own ping targets. Each ticket has a five-minute call cooldown. Role and channel pickers support search by name or ID and removable selections.
 
 The bot needs View Channel, Send Messages and Embed Links in the panel and log channels, and Manage Channels / Manage Roles to create channels and manage permission overwrites. The bot must be allowed to grant the ticket permissions.
 

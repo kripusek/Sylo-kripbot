@@ -79,7 +79,7 @@ test('ticket panel edits an existing message with dropdown options', async () =>
   };
   assert.equal(await publishTicketPanel(guild, cfg), 'panel');
   assert.equal(payload.components[0].toJSON().components[0].custom_id, 'ticket-channel:start');
-  await assert.rejects(() => publishTicketPanel(guild, { ...cfg, ticketTypes: [] }), /at least one/);
+  await assert.rejects(() => publishTicketPanel(guild, { ...cfg, ticketTypes: [] }), /przynajmniej jeden/);
 });
 
 test('private tickets route to a category, reject duplicates and unauthorized closure, and survive config reloads', async () => {
@@ -177,7 +177,7 @@ test('private tickets route to a category, reject duplicates and unauthorized cl
   assert.equal(created[0].permissionOverwrites[1].id, ownerId);
   await handleChannelTicket(interaction('ticket-channel:open'));
   assert.equal(created.length, 1);
-  assert.match(interaction.lastReply, /already have an open ticket/);
+  assert.match(interaction.lastReply, /Masz już otwarty ticket/);
   const beforeCall = sent.length;
   await handleChannelTicket(interaction('ticket-channel:call', '900000000000000999'));
   assert.equal(sent.length, beforeCall);
@@ -195,8 +195,8 @@ test('private tickets route to a category, reject duplicates and unauthorized cl
   assert.equal(edits[0].id, ownerId);
   assert.equal(edits[0].patch.SendMessages, false);
   assert.match(channel.topic, /:closed$/);
-  assert.equal(sent.filter((entry) => entry.embeds?.[0]?.data.title === 'Ticket opened').length, 1);
-  assert.equal(sent.filter((entry) => entry.embeds?.[0]?.data.title === 'Ticket closed').length, 1);
+  assert.equal(sent.filter((entry) => entry.embeds?.[0]?.data.title === 'Ticket otwarty').length, 1);
+  assert.equal(sent.filter((entry) => entry.embeds?.[0]?.data.title === 'Ticket zamknięty').length, 1);
   assert.equal(channel.deleted, true);
   assert.ok(sent.at(-1).files[0].attachment.toString().includes(ownerId));
 
@@ -239,7 +239,7 @@ test('ticket transcript fetches multiple history pages in chronological order', 
   const text = parts[0].toString();
   assert.equal(requests.length, 2);
   assert.equal(requests[1].before, '2');
-  assert.match(text, /Messages: 101/);
+  assert.match(text, /Wiadomości: 101/);
   assert.ok(text.indexOf('Text 1\n') < text.indexOf('Text 101\n'));
   assert.match(text, /image.png/);
 });
@@ -267,14 +267,17 @@ test('ticket channel is deleted only after transcript delivery succeeds', async 
   };
   const guild = { id: guildId, channels: { cache: new Collection([[logId, log]]) }, members: {} };
   runtime.client = { guilds: { cache: new Collection([[guildId, guild]]) } };
-  await assert.rejects(() => archiveChannelTicket(guild, channel, cfg, ownerId, 'staff'), /delivery failed/);
+  await assert.rejects(
+    () => archiveChannelTicket(guild, channel, cfg, ownerId, 'staff'),
+    /Nie udało się wysłać/
+  );
   assert.equal(deleted, false);
   fail = false;
   await archiveChannelTicket(guild, channel, cfg, ownerId, 'staff');
   assert.equal(deleted, true);
   await assert.rejects(
     () => archiveChannelTicket(guild, channel, { ...cfg, ticketLogChannel: 'ticket' }, ownerId, 'staff'),
-    /separate/
+    /osobny/
   );
   runtime.client = null;
 });
@@ -332,6 +335,8 @@ test('ticket form editor normalizes labels, field count, styles and optional fie
     5
   );
   assert.equal(ticketFormFields({ formFields: [] }).length, 2);
+  assert.equal(ticketFormFields({ formFields: [null, { label: 'Temat' }] }).length, 1);
+  assert.equal(normaliseChannelTickets({ ticketTypes: [null, { label: 'Pomoc' }] }).ticketTypes.length, 1);
   assert.equal(
     ticketFormFields({
       formFields: [{ label: 'A'.repeat(100), placeholder: 'B'.repeat(200), style: 'bad' }],

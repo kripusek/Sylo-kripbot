@@ -6,12 +6,12 @@
   <label>Staff review channel</label>
   <select name="reviewChannel"><option value="">— none —</option><% channels.forEach(function(c) { %><option value="<%= c.id %>" <%= c.id === cfg.reviewChannel ? 'selected' : '' %>>#<%= c.name %></option><% }) %></select>
   <label>Roles shown in member picker</label>
-  <select name="subjectRoles" multiple size="6"><% roles.forEach(function(role) { %><option value="<%= role.id %>" <%= (cfg.subjectRoles || []).includes(role.id) ? 'selected' : '' %>><%= role.name %></option><% }) %></select>
+  <%- include('../../partials/chip-picker', { field: 'subjectRoles', kind: 'role', items: roles, selected: cfg.subjectRoles || [] }) %>
   <p class="muted small">Members choose a person with any selected role before writing feedback. Leave empty for general feedback without a person picker. Server Members Intent is required to list all eligible members.</p>
-  <label>Panel title</label><input name="title" maxlength="256" value="<%= cfg.title || 'Complaints and feedback' %>" />
-  <label>Panel message</label><textarea name="message" maxlength="2000" rows="4"><%= cfg.message || 'Share feedback or report an issue to the administration.' %></textarea>
-  <label>Button label</label><input name="buttonLabel" maxlength="80" value="<%= cfg.buttonLabel || 'Write feedback' %>" />
-  <label>Anonymous button label</label><input name="anonymousButtonLabel" maxlength="80" value="<%= cfg.anonymousButtonLabel || 'Write anonymous feedback' %>" />
+  <label>Panel title</label><input name="title" maxlength="256" value="<%= cfg.title || 'Skargi i opinie' %>" />
+  <label>Panel message</label><textarea name="message" maxlength="2000" rows="4"><%= cfg.message || 'Napisz opinię lub zgłoś problem administracji.' %></textarea>
+  <label>Button label</label><input name="buttonLabel" maxlength="80" value="<%= cfg.buttonLabel || 'Napisz opinię' %>" />
+  <label>Anonymous button label</label><input name="anonymousButtonLabel" maxlength="80" value="<%= cfg.anonymousButtonLabel || 'Napisz anonimową opinię' %>" />
   <p class="muted small">The panel offers identified and anonymous feedback buttons. Members choose the privacy mode for each submission. Anonymous feedback omits the author's Discord username and ID from the staff message. One submission per member per minute. Submission text is sent to Discord, not stored in the bot database.</p>
   <div><button type="submit">Save</button> <button type="submit" name="action" value="publish">Save and publish panel</button></div>
 </form>

@@ -61,6 +61,7 @@ test('all configurable V1 module pages render in Polish', async () => {
     const html = await response.text();
     assert.match(html, /<html lang="pl">/, module.id);
     assert.doesNotMatch(html, /Internal server error/, module.id);
+    assert.ok(!html.includes(`>${module.description}<`), `Untranslated description: ${module.id}`);
   }
 });
 
@@ -142,6 +143,7 @@ test('localization preserves conditional state comparisons and names', () => {
 test('browser and server translations agree for toasts and dynamic values', async () => {
   const response = await fetch(`${app.base}/dashboard-translations.js`);
   assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'public, max-age=0, must-revalidate');
   const window = {};
   runInNewContext(await response.text(), { window });
   for (const message of [
@@ -149,6 +151,10 @@ test('browser and server translations agree for toasts and dynamic values', asyn
     'Test sent to #Save',
     'Server logging enabled',
     'Request failed (403) — reload the page and try again.',
+    '3 selected',
+    'Every 5 minutes',
+    'Every 2 hours',
+    'Every 2 days',
   ]) {
     assert.equal(window.syloTranslate(message, 'pl'), translate(message, 'pl'));
     assert.equal(window.syloTranslate(message, 'en'), message);
@@ -156,8 +162,43 @@ test('browser and server translations agree for toasts and dynamic values', asyn
   assert.equal(window.syloTranslate('Unknown custom text', 'pl'), 'Unknown custom text');
 });
 
+test('all built-in command and option descriptions have Polish dashboard translations', async () => {
+  function check(definition) {
+    if (definition.description) {
+      assert.notEqual(
+        translate(definition.description, 'pl'),
+        definition.description,
+        definition.description
+      );
+    }
+    for (const option of definition.options || []) check(option);
+  }
+  const folder = new URL('../src/bot/commands/', import.meta.url);
+  for (const filename of readdirSync(folder).filter((name) => name.endsWith('.js'))) {
+    const command = await import(new URL(filename, folder));
+    if (command.data) check(command.data.toJSON());
+  }
+});
+
+test('embed hints and static UI metadata translate while editable messages stay intact', () => {
+  const html = ejs.render(
+    localizeTemplate(
+      '<div data-ph="Field name"><%= v.label %></div><p><%= c.description %></p><textarea><%= c.description %></textarea>'
+    ),
+    {
+      uiText: (text) => translate(text, 'pl'),
+      v: { label: 'Description' },
+      c: { description: "Show a member's moderation history." },
+    }
+  );
+  assert.match(html, /data-ph="Nazwa pola"/);
+  assert.match(html, />Opis<\/div>/);
+  assert.match(html, /Pokaż historię moderacji użytkownika/);
+  assert.match(html, /<textarea>Show a member&#39;s moderation history\.<\/textarea>/);
+});
+
 test('invalid language falls back safely and does not set a preference cookie', async () => {
   const response = await fetch(`${app.base}/?lang=xx`);
   assert.equal(response.headers.get('set-cookie'), null);
-  assert.match(await response.text(), /<html lang="en">/);
+  assert.match(await response.text(), /<html lang="pl">/);
 });

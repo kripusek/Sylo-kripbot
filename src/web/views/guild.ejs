@@ -105,10 +105,10 @@
         <input type="search" placeholder="Filter plugins&hellip;" x-model="q"
                @input.debounce.120ms="filter()" aria-label="Filter plugins" />
         <button type="button" class="secondary" @click="toggleSelect()"
-                x-text="selecting ? 'Cancel' : 'Select'"></button>
+                x-text="window.syloT(selecting ? 'Cancel' : 'Select')"></button>
         <template x-if="selecting">
           <span class="plugin-bulk">
-            <span class="muted small" x-text="sel.size + ' selected'"></span>
+            <span class="muted small" x-text="window.syloT(sel.size + ' selected')"></span>
             <button type="button" @click="apply(true)" :disabled="!sel.size || busy">Enable</button>
             <button type="button" class="danger" @click="apply(false)" :disabled="!sel.size || busy">Disable</button>
           </span>
@@ -123,7 +123,7 @@
             <% if (c.hasToggle && c.status !== 'blocked') { %>
               <label class="plugin-pick" @click.stop>
                 <input type="checkbox" @change="pick('<%= c.id %>', $event.target.checked)"
-                       aria-label="Select <%= uiText(c.name) %>" />
+                       aria-label="<%= uiText('Select') %> <%= uiText(c.name) %>" />
               </label>
             <% } %>
             <a class="plugin-hit" href="<%= c.href %>" aria-label="<%= uiText(c.name) %>"></a>
