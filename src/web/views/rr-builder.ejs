@@ -2,6 +2,8 @@
 
 <p class="muted"><a href="/guilds/<%= guildId %>/m/roles">&larr; Reaction roles</a></p>
 
+<% if (error) { %><div class="banner banner-flash bad" role="alert"><%= error %></div><% } %>
+
 <div class="rr-builder-head">
   <h1 class="page-title"><%= isNew ? 'New self-assign roles' : 'Edit self-assign roles' %></h1>
   <div class="rr-actions">
@@ -27,15 +29,15 @@
     <h2>Style</h2>
     <div class="rr-style">
       <label class="rr-mode">
-        <input type="radio" name="rr_style" value="reaction" x-model="style" />
+        <input type="radio" name="rr_style" value="reaction" x-model="style" <%= _rr.style === "reaction" ? "checked" : "" %> />
         <span><strong>Reactions</strong> — members react with an emoji. Needs Add Reactions permission.</span>
       </label>
       <label class="rr-mode">
-        <input type="radio" name="rr_style" value="buttons" x-model="style" />
+        <input type="radio" name="rr_style" value="buttons" x-model="style" <%= _rr.style === "buttons" ? "checked" : "" %> />
         <span><strong>Buttons</strong> — members click a button. Up to 25, no reaction permission needed.</span>
       </label>
       <label class="rr-mode">
-        <input type="radio" name="rr_style" value="select" x-model="style" />
+        <input type="radio" name="rr_style" value="select" x-model="style" <%= _rr.style === "select" ? "checked" : "" %> />
         <span><strong>Dropdown</strong> — members pick from a select menu. Best for long lists.</span>
       </label>
     </div>
@@ -77,7 +79,7 @@
     </div>
 
     <div class="rr-rows">
-      <template x-for="(row, i) in rows" :key="i">
+      <template x-for="(row, i) in rows" :key="row.key">
         <div class="rr-row">
           <span class="emoji-cellwrap" x-data="emojiPicker('<%= guildId %>')" @emoji-pick="row.emoji = $event.detail">
             <input type="text" name="rr_emoji" class="rr-emoji" x-model="row.emoji"
@@ -104,9 +106,14 @@
           </span>
           <input type="text" name="rr_label" class="rr-row-label" x-model="row.label"
                  placeholder="Button label (optional)" maxlength="80" x-show="style !== 'reaction'" />
-          <select name="rr_role" x-model="row.roleId">
-            <option value="">— select a role —</option>
-            <template x-for="r in roles" :key="r.id"><option :value="r.id" x-text="r.name"></option></template>
+          <select name="rr_role" x-model="row.roleId" required>
+            <option value="">— wybierz rolę —</option>
+            <% (roles || []).forEach(function (r) { %>
+              <option value="<%= r.id %>"><%= r.name %></option>
+            <% }) %>
+            <template x-if="row.roleId && !roles.some(r => r.id === row.roleId)">
+              <option :value="row.roleId" x-text="'Niedostępna rola: ' + row.roleId"></option>
+            </template>
           </select>
           <select name="rr_btnstyle" class="rr-row-btnstyle" x-model="row.btnStyle" x-show="style === 'buttons'">
             <template x-for="b in btnStyles" :key="b"><option :value="b" x-text="window.syloT(b)"></option></template>
@@ -115,7 +122,7 @@
         </div>
       </template>
     </div>
-    <button type="button" class="secondary" @click="addRow()" x-text="addLabel">＋ Add role</button>
+    <button type="button" class="secondary" @click="addRow()" x-text="addLabel">＋ Dodaj rolę</button>
   </section>
 
   <section class="card" x-show="style !== 'select'">

@@ -169,12 +169,14 @@ document.addEventListener('alpine:init', function () {
   // Reaction-role builder: the style toggle + the emoji/label/role rows.
   // (The in-place embed editor on the same page is the shared `embedEditor`.)
   window.Alpine.data('rrRows', function (cfg) {
+    var nextKey = 0;
     return {
       style: cfg.style === 'buttons' || cfg.style === 'select' ? cfg.style : 'reaction',
       roles: Array.isArray(cfg.roles) ? cfg.roles : [],
       btnStyles: ['secondary', 'primary', 'success', 'danger'],
       rows: (Array.isArray(cfg.pairs) && cfg.pairs.length ? cfg.pairs : [{}]).map(function (p) {
         return {
+          key: 'rr-' + nextKey++,
           emoji: p.display || '',
           label: p.label || '',
           roleId: p.roleId ? String(p.roleId) : '',
@@ -204,7 +206,7 @@ document.addEventListener('alpine:init', function () {
       },
       addRow() {
         if (this.rows.length < this.max)
-          this.rows.push({ emoji: '', label: '', roleId: '', btnStyle: 'secondary' });
+          this.rows.push({ key: 'rr-' + nextKey++, emoji: '', label: '', roleId: '', btnStyle: 'secondary' });
       },
       removeRow(i) {
         this.rows.splice(i, 1);

@@ -2262,13 +2262,14 @@ router.post(
 
 // --- Reaction-role builder (MEE6-style) ---------------------------------
 
-async function renderRrBuilder(req, res, rm) {
+async function renderRrBuilder(req, res, rm, error = null) {
   res.render('rr-builder', {
     ...(await baseContext(req.guild, 'm/roles')),
     channels: guildTextChannels(req.guild),
     roles: assignableRoles(req.guild),
     guildId: req.guild.id,
-    isNew: !rm,
+    isNew: !rm?.id,
+    error,
     rm: rm || {
       id: '',
       channelId: '',
@@ -2322,23 +2323,6 @@ router.post(
     const roleIds = [].concat(req.body.rr_role ?? []);
     const labels = [].concat(req.body.rr_label ?? []);
     const btnStyles = [].concat(req.body.rr_btnstyle ?? []);
-    const pairs = [];
-    roleIds.forEach((rid, i) => {
-      if (!/^\d{17,20}$/.test(rid ?? '')) return;
-      const parsed = parseEmoji(emojis[i] ?? '', guild);
-      // The reaction style needs a usable emoji; button / select styles don't.
-      if (style === 'reaction' && !parsed) return;
-      pairs.push({
-        ...(parsed || { key: '', display: '', react: '' }),
-        roleId: rid,
-        label: String(labels[i] ?? '').slice(0, 80),
-        btnStyle: ['primary', 'secondary', 'success', 'danger'].includes(btnStyles[i])
-          ? btnStyles[i]
-          : 'secondary',
-      });
-    });
-    if (pairs.length === 0) return res.redirect(`${back}?msg=needpair`);
-
     const id = /^\d+$/.test(req.body.id ?? '') ? req.body.id : String(Date.now());
     const existing = list.find((x) => String(x.id) === id);
     const rm = {
@@ -2353,8 +2337,47 @@ router.post(
       placeholder: String(req.body.rr_placeholder ?? '').slice(0, 150),
       selMin: Number.parseInt(req.body.rr_selmin, 10) || 0,
       selMax: Number.parseInt(req.body.rr_selmax, 10) || 0,
-      pairs,
+      pairs: Array.from({ length: Math.max(roleIds.length, emojis.length, labels.length) }, (_, i) => ({
+        roleId: String(roleIds[i] ?? '').trim(),
+        display: String(emojis[i] ?? '').trim(),
+        label: String(labels[i] ?? '').slice(0, 80),
+        btnStyle: ['primary', 'secondary', 'success', 'danger'].includes(btnStyles[i])
+          ? btnStyles[i]
+          : 'secondary',
+      })),
     };
+    const pairs = [];
+    const usableRoles = new Set(assignableRoles(guild).map((role) => String(role.id)));
+    let error = null;
+    for (const [i, pair] of rm.pairs.entries()) {
+      if (!pair.roleId && !pair.display && !pair.label) continue; // Ignore a completely empty add-row.
+      if (!/^\d{17,20}$/.test(pair.roleId) || !usableRoles.has(pair.roleId)) {
+        error = `Wiersz ${i + 1}: wybierz rolę, którą bot może nadawać.`;
+        break;
+      }
+      const parsed = parseEmoji(pair.display, guild);
+      if (style === 'reaction' && !parsed) {
+        error = `Wiersz ${i + 1}: wybierz poprawną emotkę dla roli. Bez emotek użyj stylu Przyciski lub Lista rozwijana.`;
+        break;
+      }
+      if (style === 'select' && pairs.some((p) => p.roleId === pair.roleId)) {
+        error = `Wiersz ${i + 1}: ta rola jest już wybrana w tej liście.`;
+        break;
+      }
+      if (style === 'reaction' && pairs.some((p) => p.key === parsed.key)) {
+        error = `Wiersz ${i + 1}: ta emotka jest już użyta. Wybierz inną emotkę dla kolejnej roli.`;
+        break;
+      }
+      pairs.push({ ...pair, ...(parsed || { key: '', display: '', react: '' }) });
+    }
+    const limit = style === 'reaction' ? 20 : 25;
+    if (!error && pairs.length > limit) error = `Ten styl obsługuje maksymalnie ${limit} ról.`;
+    if (!error && !pairs.length) error = 'Dodaj co najmniej jedną rolę.';
+    if (error) {
+      res.status(400);
+      return renderRrBuilder(req, res, { ...rm, id: existing ? id : '' }, error);
+    }
+    rm.pairs = pairs;
     // Re-publishing after a style change: drop the old message so the new one is
     // posted cleanly (components vs reactions differ enough that editing is messy).
     if (existing && existing.style && existing.style !== style && existing.messageId) {
