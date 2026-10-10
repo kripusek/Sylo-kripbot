@@ -9,6 +9,7 @@ import { handleCustomSlash } from '../lib/customCommandSync.js';
 import { routeComponent } from '../lib/components.js';
 import { log } from '../../lib/log.js';
 import { inc } from '../../lib/metrics.js';
+import { moderationPermissions } from '../lib/commandAccess.js';
 
 export const name = Events.InteractionCreate;
 
@@ -22,25 +23,26 @@ export const name = Events.InteractionCreate;
  * @param {import('discord.js').ChatInputCommandInteraction} interaction
  */
 export async function overrideBlockReason(interaction) {
-  if (!interaction.inGuild()) return null;
+  const requiredPermission = moderationPermissions[interaction.commandName];
+  if (!interaction.inGuild()) return requiredPermission ? 'This command can only be used in a server.' : null;
 
   const ov = await getCommandOverride(interaction.guildId, interaction.commandName);
-  if (!ov) return null;
-
-  if (!ov.enabled) return 'This command is disabled in this server.';
+  if (ov && !ov.enabled) return 'This command is disabled in this server.';
 
   if (interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) return null;
 
-  if (ov.allowedChannels.length && !ov.allowedChannels.includes(interaction.channelId)) {
+  if (ov?.allowedChannels.length && !ov.allowedChannels.includes(interaction.channelId)) {
     return `This command can only be used in: ${ov.allowedChannels.map((c) => `<#${c}>`).join(', ')}.`;
   }
 
-  if (ov.allowedRoles.length) {
+  if (ov?.allowedRoles.length) {
     const roles = interaction.member?.roles;
     const ids = roles?.cache ? [...roles.cache.keys()] : Array.isArray(roles) ? roles : [];
     if (!ov.allowedRoles.some((r) => ids.includes(r))) {
       return 'You do not have a role allowed to use this command here.';
     }
+  } else if (requiredPermission && !interaction.memberPermissions?.has(requiredPermission)) {
+    return 'You need the Discord moderation permission or a role granted access in the dashboard to use this command.';
   }
 
   return null;

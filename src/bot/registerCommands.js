@@ -6,13 +6,14 @@
 import { REST, Routes } from 'discord.js';
 import { config } from '../config.js';
 import { log } from '../lib/log.js';
+import { commandDefinitionForRegistration } from './lib/commandAccess.js';
 
 /**
  * @param {import('discord.js').Collection<string, { data: import('discord.js').SlashCommandBuilder }>} commands
  * @returns {Promise<number>} the number of commands registered
  */
 export async function registerCommands(commands) {
-  const body = [...commands.values()].map((c) => c.data.toJSON());
+  const body = [...commands.values()].map(commandDefinitionForRegistration);
   const rest = new REST({ version: '10' }).setToken(config.discordToken);
   const clientId = config.discordClientId;
 

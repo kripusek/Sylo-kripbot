@@ -1795,5 +1795,9 @@
   "Thanks for contacting the staff of {server}…": "Dziękujemy za kontakt z obsługą {server}…",
   "This ticket has been closed…": "Zgłoszenie zostało zamknięte…",
   "Pick your roles below!": "Wybierz swoje role poniżej!",
-  "contains": "zawiera"
+  "contains": "zawiera",
+  "Disable a command in this server, or restrict it to channels / roles. Administrators bypass channel and role limits, but cannot use disabled commands.": "Wyłącz komendę na serwerze lub ogranicz ją do kanałów i ról. Administratorzy omijają ograniczenia kanałów i ról, ale nie mogą używać wyłączonych komend.",
+  "Roles allowed to use this command": "Role uprawnione do używania tej komendy",
+  "— blank = Discord permissions": "— puste = uprawnienia Discorda",
+  "Selected roles can use this command without its native Discord permission. Target role hierarchy and bot permissions still apply.": "Wybrane role mogą używać tej komendy bez jej standardowego uprawnienia Discorda. Nadal obowiązują hierarchia ról i uprawnienia bota."
 }

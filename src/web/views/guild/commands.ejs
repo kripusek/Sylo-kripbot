@@ -1,5 +1,5 @@
-<p class="muted">Disable a command in this server, or restrict it to channels / roles. Administrators always bypass these limits.</p>
-<% commands.forEach(function (c) { %>
+<p class="muted">Disable a command in this server, or restrict it to channels / roles. Administrators bypass channel and role limits, but cannot use disabled commands.</p>
+<% commands.forEach(function (c) { const delegated = ['warn', 'ban', 'kick', 'timeout', 'untimeout', 'unban', 'case', 'history', 'purge', 'lock', 'unlock', 'lockdown', 'slowmode'].includes(c.name); %>
   <form method="POST" action="/guilds/<%= guild.id %>/commands/<%= c.name %>"
         hx-post="/guilds/<%= guild.id %>/commands/<%= c.name %>" hx-target="this" hx-swap="none"
         class="cmd-override">
@@ -13,7 +13,12 @@
     <p class="muted small"><%= c.description %></p>
     <label class="small">Limit to channels <span class="muted">— blank = all</span></label>
     <%- include('../partials/chip-picker', { field: 'channels', kind: 'channel', items: channels, selected: c.allowedChannels }) %>
-    <label class="small u-mt-2">Limit to roles <span class="muted">— blank = everyone</span></label>
+    <% if (delegated) { %>
+      <label class="small u-mt-2">Roles allowed to use this command <span class="muted">— blank = Discord permissions</span></label>
+      <p class="muted small">Selected roles can use this command without its native Discord permission. Target role hierarchy and bot permissions still apply.</p>
+    <% } else { %>
+      <label class="small u-mt-2">Limit to roles <span class="muted">— blank = everyone</span></label>
+    <% } %>
     <%- include('../partials/chip-picker', { field: 'roles', kind: 'role', items: roles, selected: c.allowedRoles }) %>
     <div class="u-mt-2"><button type="submit">Save</button></div>
   </form>
