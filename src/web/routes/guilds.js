@@ -1,3 +1,4 @@
+import { headerJson } from '../lib/httpJson.js';
 import { normaliseFeedbackConfig, publishFeedbackPanel } from '../../modules/feedback.js';
 import { normaliseChannelTickets, publishTicketPanel } from '../../modules/channelTickets.js';
 // Per-guild control panel: module toggles, general settings, command
@@ -729,7 +730,7 @@ router.post(
     if (req.get('HX-Request')) {
       return res
         .status(204)
-        .set('HX-Trigger', JSON.stringify({ toast: { msg: 'Immunity roles saved', kind: 'ok' } }))
+        .set('HX-Trigger', headerJson({ toast: { msg: 'Immunity roles saved', kind: 'ok' } }))
         .end();
     }
     res.redirect(`/guilds/${req.guild.id}/moderation?msg=saved`);
@@ -1037,7 +1038,7 @@ router.post(
           kind: 'bad',
         };
     if (req.get('HX-Request')) {
-      return res.status(204).set('HX-Trigger', JSON.stringify({ toast })).end();
+      return res.status(204).set('HX-Trigger', headerJson({ toast })).end();
     }
     const msg = r.ok ? 'test-sent' : r.reason === 'no-channel' ? 'test-nochan' : 'test-fail';
     res.redirect(`${back}?msg=${msg}`);
@@ -1579,7 +1580,7 @@ router.post(
       return res
         .set(
           'HX-Trigger',
-          JSON.stringify({ toast: { msg: `Saved${nativeNote}`, kind: nativeWarned ? 'warn' : 'ok' } })
+          headerJson({ toast: { msg: `Saved${nativeNote}`, kind: nativeWarned ? 'warn' : 'ok' } })
         )
         .render('guild/_module-config', await moduleViewLocals(mod, req, config));
     }
@@ -2841,7 +2842,7 @@ router.post(
     if (req.get('HX-Request')) {
       res.set(
         'HX-Trigger',
-        JSON.stringify({
+        headerJson({
           moduleToggled: { id: mod.id, enabled },
           toast: { msg: `${mod.name} ${enabled ? 'enabled' : 'disabled'}`, kind: 'ok' },
         })
@@ -3013,7 +3014,7 @@ router.post(
       if (hx) {
         return res
           .status(404)
-          .set('HX-Trigger', JSON.stringify({ toast: { msg: 'Unknown command', kind: 'bad' } }))
+          .set('HX-Trigger', headerJson({ toast: { msg: 'Unknown command', kind: 'bad' } }))
           .end();
       }
       return res.redirect(`/guilds/${guild.id}/commands?msg=badcommand`);
@@ -3038,7 +3039,7 @@ router.post(
     if (hx) {
       return res
         .status(204)
-        .set('HX-Trigger', JSON.stringify({ toast: { msg: `/${command} updated`, kind: 'ok' } }))
+        .set('HX-Trigger', headerJson({ toast: { msg: `/${command} updated`, kind: 'ok' } }))
         .end();
     }
     res.redirect(`/guilds/${guild.id}/commands?msg=saved`);
