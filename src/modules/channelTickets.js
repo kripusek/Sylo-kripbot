@@ -393,7 +393,10 @@ export async function handleChannelTicket(interaction) {
       ]);
       return interaction.editReply(`Your ticket is ready: ${channel}`);
     }
-    if (interaction.customId !== 'ticket-channel:close' || !interaction.isButton())
+    if (
+      !['ticket-channel:close', 'ticket-channel:call'].includes(interaction.customId) ||
+      !interaction.isButton()
+    )
       return interaction.editReply('Unknown ticket action.');
     const channel = interaction.channel;
     const match = parseTicketTopic(channel?.topic);
