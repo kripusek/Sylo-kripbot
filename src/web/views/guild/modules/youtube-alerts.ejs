@@ -18,7 +18,7 @@
         <div class="star-age">
           <div class="stack u-grow">
             <label class="small">YouTube channel <span class="muted">— URL or @handle</span></label>
-            <input type="text" name="yt_input" value="<%= a.ytChannelId ? ('@' + (a.name || a.ytChannelId)) : '' %>" placeholder="@MrBeast or a channel URL" />
+            <input type="text" name="yt_input" value="<%= a.ytChannelId ? ('https://www.youtube.com/channel/' + a.ytChannelId) : '' %>" placeholder="@MrBeast or a channel URL" />
             <% if (a.ytChannelId) { %><span class="muted small mono">resolved: <%= a.ytChannelId %></span><% } %>
           </div>
           <div class="stack u-grow">

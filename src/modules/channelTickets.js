@@ -9,6 +9,9 @@ import {
   ChannelType,
   PermissionFlagsBits,
   MessageFlags,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } from 'discord.js';
 import { registerComponent } from '../bot/lib/components.js';
 import { getGuildModule, isModuleEnabled } from '../db/modules.js';
@@ -60,19 +63,16 @@ export async function publishTicketPanel(guild, cfg) {
   }
   const channel = await guild.channels.fetch(cfg.panelChannel);
   if (!channel?.isTextBased()) throw new Error('The panel channel is unavailable.');
-  const menu = new StringSelectMenuBuilder()
-    .setCustomId('ticket-channel:open')
-    .setPlaceholder('Wybierz temat zgłoszenia')
-    .addOptions(
-      cfg.ticketTypes.map((type) => ({
-        label: type.label,
-        value: type.id,
-        ...(type.description ? { description: type.description } : {}),
-      }))
-    );
   const payload = {
     embeds: [new EmbedBuilder().setColor(0x4aa3df).setTitle(cfg.panelTitle).setDescription(cfg.panelText)],
-    components: [new ActionRowBuilder().addComponents(menu)],
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('ticket-channel:start')
+          .setLabel('Otwórz ticket')
+          .setStyle(ButtonStyle.Primary)
+      ),
+    ],
     allowedMentions: { parse: [] },
   };
   const old = cfg.panelMessageId ? await channel.messages.fetch(cfg.panelMessageId).catch(() => null) : null;
@@ -81,6 +81,7 @@ export async function publishTicketPanel(guild, cfg) {
 }
 
 const locks = new Set();
+const callCooldowns = new Map();
 const topicFor = (owner, type) => `sylo-ticket:${owner}:${type}:open`;
 export const parseTicketTopic = (topic) =>
   /^sylo-ticket:(\d{17,20}):([a-zA-Z0-9_-]{1,50}):(open|closed)$/.exec(topic || '');
@@ -174,19 +175,114 @@ export async function handleChannelTicket(interaction) {
       flags: MessageFlags.Ephemeral,
     });
   }
+  const current = (await getGuildModule(interaction.guildId, 'tickets')).config;
+  if (interaction.customId === 'ticket-channel:start') {
+    if (
+      !interaction.isButton() ||
+      interaction.channelId !== current.panelChannel ||
+      interaction.message.id !== current.panelMessageId
+    )
+      return interaction.reply({
+        content: 'Użyj aktualnego panelu ticketów.',
+        flags: MessageFlags.Ephemeral,
+      });
+    if (!current.ticketTypes?.length)
+      return interaction.reply({ content: 'Brak skonfigurowanych tematów.', flags: MessageFlags.Ephemeral });
+    return interaction.reply({
+      content: 'Wybierz temat zgłoszenia:',
+      flags: MessageFlags.Ephemeral,
+      components: [
+        new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId(`ticket-channel:select:${interaction.user.id}:${current.panelMessageId}`)
+            .setPlaceholder('Wybierz temat zgłoszenia')
+            .addOptions(
+              current.ticketTypes.map((type) => ({
+                label: type.label,
+                value: type.id,
+                ...(type.description ? { description: type.description } : {}),
+              }))
+            )
+        ),
+      ],
+    });
+  }
+  const selected = /^ticket-channel:select:(\d{17,20}):(\d{17,20})$/.exec(interaction.customId);
+  if (selected) {
+    if (
+      selected[1] !== interaction.user.id ||
+      selected[2] !== current.panelMessageId ||
+      interaction.channelId !== current.panelChannel ||
+      !interaction.isStringSelectMenu()
+    )
+      return interaction.reply({
+        content: 'Otwórz własny formularz z aktualnego panelu.',
+        flags: MessageFlags.Ephemeral,
+      });
+    const type = current.ticketTypes?.find((item) => item.id === interaction.values[0]);
+    if (!type)
+      return interaction.reply({
+        content: 'Ten temat nie jest już dostępny.',
+        flags: MessageFlags.Ephemeral,
+      });
+    return interaction.showModal(
+      new ModalBuilder()
+        .setCustomId(`ticket-channel:submit:${interaction.user.id}:${type.id}`)
+        .setTitle('Otwórz ticket')
+        .addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('title')
+              .setLabel('Tytuł')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+              .setMaxLength(100)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('description')
+              .setLabel('Opis')
+              .setStyle(TextInputStyle.Paragraph)
+              .setRequired(true)
+              .setMaxLength(2000)
+          )
+        )
+    );
+  }
+  const submission = /^ticket-channel:submit:(\d{17,20}):([a-zA-Z0-9_-]{1,50})$/.exec(interaction.customId);
+  if (
+    submission &&
+    (submission[1] !== interaction.user.id ||
+      interaction.channelId !== current.panelChannel ||
+      !interaction.isModalSubmit())
+  )
+    return interaction.reply({ content: 'Otwórz własny formularz ticketu.', flags: MessageFlags.Ephemeral });
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   const guild = interaction.guild;
   const cfg = (await getGuildModule(guild.id, 'tickets')).config;
-  const opening = interaction.customId === 'ticket-channel:open';
+  const opening = interaction.customId === 'ticket-channel:open' || Boolean(submission);
   const lock = opening ? `${guild.id}:${interaction.user.id}` : `${guild.id}:${interaction.channelId}`;
   if (locks.has(lock)) return interaction.editReply('A ticket action is already in progress.');
   locks.add(lock);
   try {
     if (opening) {
-      if (!interaction.isStringSelectMenu()) return interaction.editReply('Wybierz temat zgłoszenia z menu.');
-      if (interaction.channelId !== cfg.panelChannel || interaction.message.id !== cfg.panelMessageId)
+      if (!submission && !interaction.isStringSelectMenu())
+        return interaction.editReply('Wybierz temat zgłoszenia z menu.');
+      if (
+        interaction.channelId !== cfg.panelChannel ||
+        (!submission && interaction.message.id !== cfg.panelMessageId)
+      )
         return interaction.editReply('This panel is outdated. Please use the current ticket panel.');
-      const type = cfg.ticketTypes?.find((item) => item.id === interaction.values[0]);
+      const type = cfg.ticketTypes?.find(
+        (item) => item.id === (submission ? submission[2] : interaction.values[0])
+      );
+      const title = submission
+        ? interaction.fields.getTextInputValue('title').trim().slice(0, 100)
+        : type?.label;
+      const description = submission
+        ? interaction.fields.getTextInputValue('description').trim().slice(0, 2000)
+        : 'Opisz tutaj swoją sprawę. Administracja odpowie na tym kanale.';
+      if (!title || !description) return interaction.editReply('Wpisz tytuł i opis zgłoszenia.');
       if (!type) return interaction.editReply('This ticket type is no longer available.');
       const existing = guild.channels.cache.find((channel) => {
         const match = parseTicketTopic(channel.topic);
@@ -229,15 +325,24 @@ export async function handleChannelTicket(interaction) {
           embeds: [
             new EmbedBuilder()
               .setColor(0x4aa3df)
-              .setTitle(type.label)
-              .setDescription('Opisz tutaj swoją sprawę. Administracja odpowie na tym kanale.'),
+              .setTitle(title)
+              .setDescription(description)
+              .addFields(
+                { name: 'Autor', value: `<@${interaction.user.id}>`, inline: true },
+                { name: 'Utworzono', value: `<t:${Math.floor(Date.now() / 1000)}:f>`, inline: true }
+              )
+              .setTimestamp(),
           ],
           components: [
             new ActionRowBuilder().addComponents(
               new ButtonBuilder()
                 .setCustomId('ticket-channel:close')
                 .setStyle(ButtonStyle.Danger)
-                .setLabel('Zamknij zgłoszenie')
+                .setLabel('Zamknij ticket'),
+              new ButtonBuilder()
+                .setCustomId('ticket-channel:call')
+                .setStyle(ButtonStyle.Primary)
+                .setLabel('Przywołaj administratora')
             ),
           ],
         });
@@ -263,6 +368,27 @@ export async function handleChannelTicket(interaction) {
       (cfg.staffRoles || []).some((role) => member.roles.cache.has(role));
     if (match[1] !== interaction.user.id && !staff)
       return interaction.editReply('Only the ticket owner or staff may close this ticket.');
+    if (interaction.customId === 'ticket-channel:call') {
+      const key = `${guild.id}:${channel.id}`;
+      if ((callCooldowns.get(key) || 0) > Date.now())
+        return interaction.editReply('Poczekaj 5 minut przed kolejnym przywołaniem.');
+      const roles = [...new Set(cfg.pingRoles || [])]
+        .filter((role) => role !== guild.id && guild.roles.cache.has(role))
+        .slice(0, 20);
+      if (!roles.length) return interaction.editReply('Administracja nie ustawiła ról do przywołania.');
+      callCooldowns.set(key, Date.now() + 300000);
+      try {
+        await channel.send({
+          content: `Przywołano: ${roles.map((role) => `<@&${role}>`).join(' ')}`,
+          allowedMentions: { parse: [], roles },
+        });
+      } catch (error) {
+        callCooldowns.delete(key);
+        throw error;
+      }
+      for (const [id, expires] of callCooldowns) if (expires <= Date.now()) callCooldowns.delete(id);
+      return interaction.editReply('Przywołano administrację.');
+    }
     if (!cfg.ticketLogChannel || cfg.ticketLogChannel === channel.id)
       return interaction.editReply(
         'Set a separate Ticket log channel in the dashboard before closing this ticket.'

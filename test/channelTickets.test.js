@@ -78,7 +78,7 @@ test('ticket panel edits an existing message with dropdown options', async () =>
     },
   };
   assert.equal(await publishTicketPanel(guild, cfg), 'panel');
-  assert.equal(payload.components[0].toJSON().components[0].options[0].value, 'support');
+  assert.equal(payload.components[0].toJSON().components[0].custom_id, 'ticket-channel:start');
   await assert.rejects(() => publishTicketPanel(guild, { ...cfg, ticketTypes: [] }), /at least one/);
 });
 
@@ -157,13 +157,20 @@ test('private tickets route to a category, reject duplicates and unauthorized cl
       interaction.lastReply = text;
     },
   });
-  await handleChannelTicket(interaction('ticket-channel:open'));
+  const submitted = interaction(`ticket-channel:submit:${ownerId}:support`);
+  submitted.channelId = panelId;
+  submitted.isModalSubmit = () => true;
+  submitted.fields = { getTextInputValue: (key) => (key === 'title' ? 'Prośba o pomoc' : 'Opis problemu') };
+  await handleChannelTicket(submitted);
   assert.equal(created.length, 1);
   assert.equal(created[0].parent, categoryId);
   const opening = sent.find((entry) => entry.content?.includes(`<@${ownerId}>`));
   assert.equal(opening.content, `<@${ownerId}> <@&100000000000000701>`);
   assert.deepEqual(opening.allowedMentions.roles, ['100000000000000701']);
   assert.deepEqual(opening.allowedMentions.parse, []);
+  assert.equal(opening.embeds[0].toJSON().title, 'Prośba o pomoc');
+  assert.equal(opening.embeds[0].toJSON().description, 'Opis problemu');
+  assert.equal(opening.components[0].toJSON().components[1].custom_id, 'ticket-channel:call');
   assert.ok(created[0].permissionOverwrites.some((entry) => entry.id === '100000000000000701'));
   assert.deepEqual(normaliseChannelTickets(cfg).pingRoles, ['100000000000000701', guildId]);
   assert.equal(created[0].permissionOverwrites[0].deny[0], PermissionFlagsBits.ViewChannel);
@@ -259,4 +266,40 @@ test('ticket channel is deleted only after transcript delivery succeeds', async 
     /separate/
   );
   runtime.client = null;
+});
+
+test('ticket button opens a private picker, then a Polish title/description modal', async () => {
+  const panelMessageId = '100000000000000999';
+  await setGuildModule(guildId, 'tickets', { enabled: true, config: { ...cfg, panelMessageId } });
+  let response;
+  let modal;
+  const i = {
+    guild: { id: guildId },
+    guildId,
+    channelId: panelId,
+    message: { id: panelMessageId },
+    user: { id: ownerId },
+    customId: 'ticket-channel:start',
+    isButton: () => true,
+    isStringSelectMenu: () => true,
+    reply: async (value) => {
+      response = value;
+    },
+    showModal: async (value) => {
+      modal = value.toJSON();
+    },
+  };
+  await handleChannelTicket(i);
+  assert.equal(response.flags, 64);
+  i.customId = response.components[0].toJSON().components[0].custom_id;
+  i.values = ['support'];
+  await handleChannelTicket(i);
+  assert.equal(modal.title, 'Otwórz ticket');
+  assert.equal(modal.components[0].components[0].label, 'Tytuł');
+  assert.equal(modal.components[1].components[0].label, 'Opis');
+  i.user.id = '900000000000000999';
+  modal = null;
+  await handleChannelTicket(i);
+  assert.equal(modal, null);
+  assert.match(response.content, /własny formularz/);
 });
