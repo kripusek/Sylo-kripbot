@@ -606,3 +606,7 @@ The first successful feed check records existing uploads without announcing them
 Upload and live announcement history is independent for each Discord destination. Failed Discord deliveries are retried, and transient YouTube errors preserve the active stream announcement. The module tries both public Atom feed paths and reads live status from the matching video's player data. Upcoming/archived streams and recommendations do not count as a live broadcast. A public-page format change or YouTube IP restrictions can still prevent live detection; look for `youtube-alerts` warnings/errors in the bot console.
 
 For delivery, grant the bot **View Channel**, **Send Messages**, and **Embed Links** in the destination. Updating/deleting announcements requires access to the original destination as well. Existing custom message templates are preserved; placeholders are `{name}`, `{title}`, and `{url}`.
+
+### Progi warnów
+
+Domyślnie `/warn add` i warny z panelu stosują zasadę: **3 warny = ban na 30 dni**, **5 warnów = ban permanentny**. Moduł moderacji musi być włączony. Własne zapisane progi pozostają konfigurowalne w panelu; czas bana podaje się w minutach (43200 = 30 dni, 0 = permanentny). Warny nie znikają po odbanowaniu. Czwarty warn podczas trwającego bana nie przedłuża terminu. Piąty warn anuluje automatyczne odbanowanie. Terminy są zapisane w bazie i sprawdzane co 30 sekund; po restarcie bot obsłuży zaległe odbanowania, a błędy Discorda ponowi. Bot potrzebuje uprawnienia Ban Members i odpowiedniej pozycji roli.

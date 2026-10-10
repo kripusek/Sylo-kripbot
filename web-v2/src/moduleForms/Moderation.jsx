@@ -140,12 +140,12 @@ export default function Moderation() {
                   ))}
                 </select>
               </div>
-              {r.action === 'timeout' ? (
+              {r.action === 'timeout' || r.action === 'ban' ? (
                 <div className="v2-field">
-                  <label>Timeout (min)</label>
+                  <label>Czas (min); ban: 0 = permanentny</label>
                   <input
                     type="number"
-                    min={1}
+                    min={r.action === 'ban' ? 0 : 1}
                     value={r.durationMinutes}
                     onChange={(e) => updateRule(r.key, { durationMinutes: Number(e.target.value) })}
                   />
