@@ -28,7 +28,22 @@ export async function setAppSetting(key, value) {
 export const PRESENCE_TYPES = ['Playing', 'Listening', 'Watching', 'Competing', 'Custom'];
 export const PRESENCE_STATUSES = ['online', 'idle', 'dnd', 'invisible'];
 
-const DEFAULT_PRESENCE = { status: 'online', type: 'Listening', text: '/stats battlefield' };
+const DEFAULT_PRESENCE = {
+  status: 'online',
+  type: 'Listening',
+  text: '/stats battlefield',
+  texts: [],
+  rotationSeconds: 60,
+};
+
+function rotationConfig(p) {
+  const texts = Array.isArray(p.texts) ? p.texts : String(p.texts ?? '').split(/\r?\n/);
+  const seconds = Number(p.rotationSeconds);
+  return {
+    texts: [...new Set(texts.map((text) => String(text).trim().slice(0, 128)).filter(Boolean))].slice(0, 100),
+    rotationSeconds: Number.isFinite(seconds) ? Math.max(30, Math.min(3600, Math.floor(seconds))) : 60,
+  };
+}
 
 /** @returns {Promise<{ status: string, type: string, text: string }>} */
 export async function getPresenceConfig() {
@@ -40,17 +55,19 @@ export async function getPresenceConfig() {
       status: PRESENCE_STATUSES.includes(p.status) ? p.status : DEFAULT_PRESENCE.status,
       type: PRESENCE_TYPES.includes(p.type) ? p.type : DEFAULT_PRESENCE.type,
       text: String(p.text ?? '').slice(0, 128),
+      ...rotationConfig(p),
     };
   } catch {
     return { ...DEFAULT_PRESENCE };
   }
 }
 
-export async function setPresenceConfig({ status, type, text }) {
+export async function setPresenceConfig({ status, type, text, texts, rotationSeconds }) {
   const value = {
     status: PRESENCE_STATUSES.includes(status) ? status : 'online',
     type: PRESENCE_TYPES.includes(type) ? type : 'Custom',
     text: String(text ?? '').slice(0, 128),
+    ...rotationConfig({ texts, rotationSeconds }),
   };
   await setAppSetting('presence', JSON.stringify(value));
   return value;

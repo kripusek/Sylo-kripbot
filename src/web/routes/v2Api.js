@@ -2066,8 +2066,10 @@ router.post(
       status: req.body.status,
       type: req.body.type,
       text: req.body.text,
+      texts: req.body.texts,
+      rotationSeconds: req.body.rotationSeconds,
     });
-    if (runtime.client) applyPresence(runtime.client);
+    if (runtime.client) await applyPresence(runtime.client);
     res.json({ presence });
   })
 );

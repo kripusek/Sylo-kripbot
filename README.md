@@ -614,3 +614,9 @@ Domyślnie `/warn add` i warny z panelu stosują zasadę: **3 warny = ban na 30 
 ### Automatyczne odpowiedzi: tekst i losowe obrazki
 
 Włącz moduł **Autoresponder** i dodaj regułę bez prefiksu. Przykład: słowo `cp`, dopasowanie „dokładnie ta wiadomość”, rodzaj „Stały tekst”, treść `serowa pizza`. Dla `f` wybierz „Losowy obrazek” i wklej trzy bezpośrednie linki do obrazków, każdy w osobnym wierszu. Przy każdej odpowiedzi bot losuje jeden obrazek z listy (maksymalnie 25); tekst może być opcjonalnym podpisem. Reguły działają bez rozróżniania wielkości liter, zachowują ignorowane role/kanały i przerwę między odpowiedziami. Bot potrzebuje Message Content Intent oraz uprawnień View Channel, Send Messages i Embed Links dla obrazków.
+
+### Losowe teksty statusu bota
+
+W ustawieniach bota `/settings` wybierz rodzaj aktywności **Custom**, wpisz własne teksty (każdy w osobnym wierszu) i ustaw odstęp 30–3600 sekund. Bot losuje tekst bez natychmiastowych powtórek. Lista jest zapisana w bazie i działa po restarcie; jest wspólna dla wszystkich serwerów. Pusta lista przywraca pole stałego tekstu. Obsługiwane są zmienne `{servers}` i `{members}`.
+
+Możliwe przyszłe rozszerzenia `/stats` wymagają osobnych adapterów i kluczy: [CS2/FACEIT](https://docs.faceit.com/docs/data-api/data/), [PUBG](https://documentation.pubg.com/en/getting-started.html), [Minecraft/Hypixel](https://api.hypixel.net/) oraz [League of Legends/TFT](https://developer.riotgames.com/docs/portal). FACEIT zwraca dane FACEIT; nie należy przedstawiać ich jako statystyk Valve Premier. Dla publicznego bota na dużym serwerze Riot wymaga klucza produkcyjnego; Valorant dodatkowo wymaga zgody użytkownika na dostęp do jego danych. Te integracje nie zostały dodane w zmianie statusów.

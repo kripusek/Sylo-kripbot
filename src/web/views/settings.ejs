@@ -41,14 +41,13 @@
 <% } %>
 
 <section class="card">
-  <h2>Presence / activity</h2>
+  <h2>Status i aktywność</h2>
   <p class="muted small">
-    What shows under the bot's name in Discord. <code>{servers}</code> and <code>{members}</code>
-    are replaced with live counts and refreshed every 10 minutes.
+    Tekst widoczny pod nazwą bota na Discordzie. Zmienne <code>{servers}</code> i <code>{members}</code> pokazują liczbę serwerów i użytkowników. Wypełnij listę, aby bot losował teksty.
   </p>
 
   <form method="POST" action="/settings/presence" class="stack u-mw-lg">
-    <label>Online status</label>
+    <label>Status dostępności</label>
     <select name="status">
       <% presenceStatuses.forEach(function (s) { %>
         <option value="<%= s %>" <%= s === presence.status ? 'selected' : '' %>>
@@ -57,18 +56,23 @@
       <% }) %>
     </select>
 
-    <label>Activity type</label>
+    <label>Rodzaj aktywności</label>
     <select name="type">
       <% presenceTypes.forEach(function (t) { %>
         <option value="<%= t %>" <%= t === presence.type ? 'selected' : '' %>><%= t %></option>
       <% }) %>
     </select>
-    <p class="muted small">"Custom" shows the text as-is; the others prefix it with Playing / Listening to / Watching / Competing in.</p>
+    <p class="muted small">„Custom” wyświetla sam tekst. Pozostałe rodzaje dodają np. „Gra w” lub „Słucha”.</p>
 
-    <label>Text</label>
+    <label>Stały tekst (gdy lista losowych tekstów jest pusta)</label>
     <input type="text" name="text" maxlength="128" value="<%= presence.text %>" placeholder="e.g. over {servers} servers" />
 
-    <div class="u-mt-3"><button type="submit">Save presence</button></div>
+    <label>Losowe teksty — każdy w osobnym wierszu</label>
+    <textarea name="texts" rows="6" placeholder="serowa pizza&#10;robię nic, ale szybko&#10;liczę do trzech"><%= (presence.texts || []).join('\n') %></textarea>
+    <p class="muted small">Maks. 100 tekstów po 128 znaków. Bot nie powtarza tego samego tekstu dwa razy z rzędu, gdy lista ma więcej niż jedną pozycję. Status jest wspólny dla wszystkich serwerów bota.</p>
+    <label>Zmiana tekstu co (sekundy)</label>
+    <input type="number" name="rotationSeconds" min="30" max="3600" step="30" value="<%= presence.rotationSeconds || 60 %>" />
+    <div class="u-mt-3"><button type="submit">Zapisz status</button></div>
   </form>
 </section>
 

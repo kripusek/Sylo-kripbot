@@ -38,3 +38,50 @@ test('fillPresenceText substitutes {servers} and {members}', () => {
     'in 2 servers, 15 members'
   );
 });
+
+test('random presence texts persist, trim empty rows, deduplicate and clamp intervals', async () => {
+  const config = await setPresenceConfig({
+    status: 'online',
+    type: 'Custom',
+    text: 'fallback',
+    texts: 'pizza\n\n  frytki  \npizza',
+    rotationSeconds: 1,
+  });
+  assert.deepEqual(config.texts, ['pizza', 'frytki']);
+  assert.equal(config.rotationSeconds, 30);
+  assert.deepEqual((await getPresenceConfig()).texts, ['pizza', 'frytki']);
+  const capped = await setPresenceConfig({
+    texts: Array.from({ length: 150 }, (_, i) => `${i}${'x'.repeat(150)}`),
+    rotationSeconds: 99999,
+  });
+  assert.equal(capped.texts.length, 100);
+  assert.ok(capped.texts.every((text) => text.length === 128));
+  assert.equal(capped.rotationSeconds, 3600);
+});
+
+test('presence rotation waits for configured interval, avoids immediate repeats and keeps placeholders', async () => {
+  const { applyPresence } = await import('../src/bot/lib/presence.js');
+  const updates = [];
+  const client = {
+    guilds: { cache: new Map([['1', { memberCount: 12 }]]) },
+    user: { setPresence: (value) => updates.push(value) },
+  };
+  await setPresenceConfig({
+    status: 'dnd',
+    type: 'Custom',
+    text: 'fallback',
+    texts: ['pizza {members}', 'frytki'],
+    rotationSeconds: 60,
+  });
+  await applyPresence(client, { force: false, now: 0, random: () => 0 });
+  assert.equal(updates[0].activities[0].state, 'pizza 12');
+  await applyPresence(client, { force: false, now: 30000, random: () => 0 });
+  assert.equal(updates.length, 1);
+  await applyPresence(client, { force: false, now: 60000, random: () => 0 });
+  assert.equal(updates[1].activities[0].state, 'frytki');
+  await applyPresence(client, { force: false, now: 120000, random: () => 0 });
+  assert.equal(updates[2].activities[0].state, 'pizza 12');
+  await setPresenceConfig({ status: 'online', type: 'Playing', text: 'nowy status', texts: [] });
+  await applyPresence(client, { force: false, now: 120001 });
+  assert.equal(updates[3].activities[0].name, 'nowy status');
+});

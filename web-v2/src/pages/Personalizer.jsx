@@ -198,6 +198,31 @@ export default function Personalizer() {
             onChange={(e) => setPresence((p) => ({ ...p, text: e.target.value }))}
           />
         </div>
+        <div className="v2-field">
+          <label htmlFor="ptexts">Losowe teksty — każdy w osobnym wierszu</label>
+          <textarea
+            id="ptexts"
+            rows={6}
+            value={Array.isArray(presence.texts) ? presence.texts.join('\n') : presence.texts || ''}
+            onChange={(e) => setPresence((p) => ({ ...p, texts: e.target.value }))}
+          />
+          <p className="v2-field-hint">
+            Maks. 100 tekstów po 128 znaków. Pusta lista używa stałego tekstu. Status jest wspólny dla
+            wszystkich serwerów.
+          </p>
+        </div>
+        <div className="v2-field">
+          <label htmlFor="protation">Zmiana tekstu co (sekundy)</label>
+          <input
+            id="protation"
+            type="number"
+            min={30}
+            max={3600}
+            step={30}
+            value={presence.rotationSeconds || 60}
+            onChange={(e) => setPresence((p) => ({ ...p, rotationSeconds: Number(e.target.value) }))}
+          />
+        </div>
         <button type="submit" className="v2-btn-primary" disabled={saving}>
           {saving ? 'Saving…' : 'Save presence'}
         </button>

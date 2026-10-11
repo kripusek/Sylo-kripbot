@@ -16,7 +16,7 @@ export function execute(client) {
   // Presence is configured from the dashboard; re-apply periodically so
   // {servers} / {members} placeholders stay current as the bot joins/leaves.
   applyPresence(client);
-  setInterval(() => applyPresence(client), 10 * 60 * 1000).unref();
+  setInterval(() => applyPresence(client, { force: false }), 30_000).unref();
 
   // Sample the gateway heartbeat once a minute for the /health ping sparkline.
   recordGatewayPing(client.ws.ping);

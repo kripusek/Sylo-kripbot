@@ -110,8 +110,14 @@ router.post(
 router.post(
   '/presence',
   asyncHandler(async (req, res) => {
-    await setPresenceConfig({ status: req.body.status, type: req.body.type, text: req.body.text });
-    if (runtime.client) applyPresence(runtime.client);
+    await setPresenceConfig({
+      status: req.body.status,
+      type: req.body.type,
+      text: req.body.text,
+      texts: req.body.texts,
+      rotationSeconds: req.body.rotationSeconds,
+    });
+    if (runtime.client) await applyPresence(runtime.client);
     back(res, 'Presence updated.', true);
   })
 );
