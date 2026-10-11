@@ -46,6 +46,24 @@
     });
   });
 
+  // Delegate to the current form: HTMX replaces it after every Save.
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-ar-add]');
+    if (!button) return;
+    const form = button.closest('form');
+    const rows = form?.querySelector('#ar-rows');
+    const template = form?.querySelector('[data-ar-template]');
+    if (!rows || !template) return;
+    if (rows.children.length >= 100) {
+      window.syloToast?.('Możesz dodać maksymalnie 100 odpowiedzi.', 'bad');
+      return;
+    }
+    const fragment = template.content.cloneNode(true);
+    const input = fragment.querySelector('[name="ar_trigger"]');
+    rows.appendChild(fragment);
+    input?.focus();
+  });
+
   // --- Confirm-on-submit / confirm-on-click ---------------------------------
   // Forms and links opt in with data-confirm="…". Registered in the *capture*
   // phase so the prompt resolves before hx-boost's own handler on the element

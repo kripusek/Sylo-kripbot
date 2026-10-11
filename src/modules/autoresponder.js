@@ -43,11 +43,19 @@ const validImageUrl = (value) => {
 
 /** Validate before saving so an incomplete image rule cannot silently disappear. */
 export function autoresponderValidationError(responders) {
-  for (const [i, rule] of (Array.isArray(responders) ? responders : []).entries()) {
-    if (!rule || rule.responseType !== 'random-image') continue;
+  const rows = Array.isArray(responders) ? responders : [];
+  if (rows.length > 100) return 'Możesz dodać maksymalnie 100 odpowiedzi.';
+  for (const [i, rule] of rows.entries()) {
+    if (!rule) continue;
     const urls = imageLines(rule.imageUrls);
-    if (!String(rule.trigger ?? '').trim() && !urls.length && !String(rule.response ?? '').trim()) continue;
-    if (!String(rule.trigger ?? '').trim()) return `Odpowiedź ${i + 1}: wpisz słowo wyzwalające.`;
+    const trigger = String(rule.trigger ?? '').trim();
+    const response = String(rule.response ?? '').trim();
+    if (!trigger && !response && !urls.length) continue;
+    if (!trigger) return `Odpowiedź ${i + 1}: wpisz słowo wyzwalające.`;
+    if (rule.responseType !== 'random-image') {
+      if (!response) return `Odpowiedź ${i + 1}: wpisz treść odpowiedzi lub wybierz rodzaj „Losowy obrazek”.`;
+      continue;
+    }
     if (!urls.length) return `Odpowiedź ${i + 1}: dodaj co najmniej jeden link do obrazka.`;
     if (urls.length > 25) return `Odpowiedź ${i + 1}: możesz dodać maksymalnie 25 obrazków.`;
     if (urls.some((url) => !validImageUrl(url)))

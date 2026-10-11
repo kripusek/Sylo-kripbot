@@ -50,7 +50,7 @@
       </div>
     <% }) %>
   </div>
-  <div><button type="button" class="secondary" id="ar-add">+ Dodaj odpowiedź</button></div>
+  <div><button type="button" class="secondary" id="ar-add" data-ar-add>+ Dodaj odpowiedź</button></div>
 
   <label class="u-mt-3">Ignorowane kanały</label>
   <%- include('../../partials/chip-picker', { field: 'ignoreChannels', kind: 'channel', items: channels, selected: igC }) %>
@@ -58,9 +58,8 @@
   <%- include('../../partials/chip-picker', { field: 'ignoreRoles', kind: 'role', items: roles, selected: igR }) %>
 
   <div class="u-mt-3"><button type="submit">Zapisz</button></div>
-</form>
 
-<template id="ar-template">
+<template id="ar-template" data-ar-template>
   <div class="sticky-row">
     <div class="row-form">
       <input class="u-w-field" type="text" name="ar_trigger" placeholder="Słowo, np. cp lub f" />
@@ -80,8 +79,4 @@
     <p class="muted small">W trybie „Losowy obrazek” bot wysyła jeden wylosowany obrazek. Podaj bezpośrednie linki do plików.</p>
   </div>
 </template>
-<script>
-  document.getElementById('ar-add')?.addEventListener('click', () => {
-    document.getElementById('ar-rows').appendChild(document.getElementById('ar-template').content.cloneNode(true));
-  });
-</script>
+</form>
