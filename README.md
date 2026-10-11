@@ -617,6 +617,6 @@ Włącz moduł **Autoresponder** i dodaj regułę bez prefiksu. Przykład: słow
 
 ### Losowe teksty statusu bota
 
-W ustawieniach bota `/settings` wybierz rodzaj aktywności **Custom**, wpisz własne teksty (każdy w osobnym wierszu) i ustaw odstęp 30–3600 sekund. Bot losuje tekst bez natychmiastowych powtórek. Lista jest zapisana w bazie i działa po restarcie; jest wspólna dla wszystkich serwerów. Pusta lista przywraca pole stałego tekstu. Obsługiwane są zmienne `{servers}` i `{members}`.
+W ustawieniach bota `/settings` wybierz rodzaj aktywności **Custom**, wpisz własne teksty (każdy w osobnym wierszu) i ustaw odstęp 10–3600 sekund. Bot losuje tekst bez natychmiastowych powtórek. Lista jest zapisana w bazie i działa po restarcie; jest wspólna dla wszystkich serwerów. Pusta lista przywraca pole stałego tekstu. Obsługiwane są zmienne `{servers}` i `{members}`.
 
 Możliwe przyszłe rozszerzenia `/stats` wymagają osobnych adapterów i kluczy: [CS2/FACEIT](https://docs.faceit.com/docs/data-api/data/), [PUBG](https://documentation.pubg.com/en/getting-started.html), [Minecraft/Hypixel](https://api.hypixel.net/) oraz [League of Legends/TFT](https://developer.riotgames.com/docs/portal). FACEIT zwraca dane FACEIT; nie należy przedstawiać ich jako statystyk Valve Premier. Dla publicznego bota na dużym serwerze Riot wymaga klucza produkcyjnego; Valorant dodatkowo wymaga zgody użytkownika na dostęp do jego danych. Te integracje nie zostały dodane w zmianie statusów.

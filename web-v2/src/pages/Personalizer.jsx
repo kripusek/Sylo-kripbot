@@ -216,9 +216,9 @@ export default function Personalizer() {
           <input
             id="protation"
             type="number"
-            min={30}
+            min={10}
             max={3600}
-            step={30}
+            step={10}
             value={presence.rotationSeconds || 60}
             onChange={(e) => setPresence((p) => ({ ...p, rotationSeconds: Number(e.target.value) }))}
           />

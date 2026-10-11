@@ -48,7 +48,7 @@ test('random presence texts persist, trim empty rows, deduplicate and clamp inte
     rotationSeconds: 1,
   });
   assert.deepEqual(config.texts, ['pizza', 'frytki']);
-  assert.equal(config.rotationSeconds, 30);
+  assert.equal(config.rotationSeconds, 10);
   assert.deepEqual((await getPresenceConfig()).texts, ['pizza', 'frytki']);
   const capped = await setPresenceConfig({
     texts: Array.from({ length: 150 }, (_, i) => `${i}${'x'.repeat(150)}`),
@@ -84,4 +84,18 @@ test('presence rotation waits for configured interval, avoids immediate repeats 
   await setPresenceConfig({ status: 'online', type: 'Playing', text: 'nowy status', texts: [] });
   await applyPresence(client, { force: false, now: 120001 });
   assert.equal(updates[3].activities[0].name, 'nowy status');
+});
+
+test('ten-second rotation is saved and updates at ten seconds, not earlier', async () => {
+  const { applyPresence } = await import('../src/bot/lib/presence.js');
+  const updates = [];
+  const client = { guilds: { cache: new Map() }, user: { setPresence: (value) => updates.push(value) } };
+  await setPresenceConfig({ status: 'online', type: 'Custom', texts: ['a', 'b'], rotationSeconds: 10 });
+  assert.equal((await getPresenceConfig()).rotationSeconds, 10);
+  await applyPresence(client, { force: false, now: 0, random: () => 0 });
+  await applyPresence(client, { force: false, now: 9999, random: () => 0 });
+  assert.equal(updates.length, 1);
+  await applyPresence(client, { force: false, now: 10000, random: () => 0 });
+  assert.equal(updates.length, 2);
+  assert.equal(updates[1].activities[0].state, 'b');
 });

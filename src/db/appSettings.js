@@ -41,7 +41,7 @@ function rotationConfig(p) {
   const seconds = Number(p.rotationSeconds);
   return {
     texts: [...new Set(texts.map((text) => String(text).trim().slice(0, 128)).filter(Boolean))].slice(0, 100),
-    rotationSeconds: Number.isFinite(seconds) ? Math.max(30, Math.min(3600, Math.floor(seconds))) : 60,
+    rotationSeconds: Number.isFinite(seconds) ? Math.max(10, Math.min(3600, Math.floor(seconds))) : 60,
   };
 }
 

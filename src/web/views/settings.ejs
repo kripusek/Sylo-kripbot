@@ -71,7 +71,7 @@
     <textarea name="texts" rows="6" placeholder="serowa pizza&#10;robię nic, ale szybko&#10;liczę do trzech"><%= (presence.texts || []).join('\n') %></textarea>
     <p class="muted small">Maks. 100 tekstów po 128 znaków. Bot nie powtarza tego samego tekstu dwa razy z rzędu, gdy lista ma więcej niż jedną pozycję. Status jest wspólny dla wszystkich serwerów bota.</p>
     <label>Zmiana tekstu co (sekundy)</label>
-    <input type="number" name="rotationSeconds" min="30" max="3600" step="30" value="<%= presence.rotationSeconds || 60 %>" />
+    <input type="number" name="rotationSeconds" min="10" max="3600" step="10" value="<%= presence.rotationSeconds || 60 %>" />
     <div class="u-mt-3"><button type="submit">Zapisz status</button></div>
   </form>
 </section>
