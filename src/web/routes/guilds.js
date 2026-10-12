@@ -7,7 +7,7 @@ import { normaliseChannelTickets, publishTicketPanel } from '../../modules/chann
 import { Router } from 'express';
 import { PermissionFlagsBits, EmbedBuilder, ChannelType } from 'discord.js';
 import { runtime } from '../../runtime.js';
-import { requireGuildAdmin, currentUser } from '../middleware/auth.js';
+import { requireAuth, requireGuildAdmin, currentUser } from '../middleware/auth.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { getGuild, baseContext, assignableRoles } from '../lib/guildContext.js';
 import { guildTextChannels, guildVoiceChannels, guildCategories, resolveUserTags } from '../lib/discord.js';
