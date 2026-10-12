@@ -1,6 +1,6 @@
 // Sylo entrypoint — boots the database, the Discord bot, and the web dashboard
 // in a single process.
-import fs from 'node:fs';
+import fs from 'fs';
 import semver from 'semver';
 import { config } from './config.js';
 import { log } from './lib/log.js';
@@ -57,19 +57,14 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 }
 
 async function main() {
-
-  try {
-    const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
-    const requiredVersion = pkg.engines?.node;
-    const currentVersion = process.version;
-
-    if (requiredVersion && !semver.satisfies(currentVersion, requiredVersion)) {
-      updateBot();
-    }
-  } catch (err) {
-    // If package.json is missing or corrupt, log a warning but decide if you want to fail or proceed
-    log.error('sylo', 'Could not validate engine compatibility rules', err);
-    process.exit(1); 
+  const localPkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+  const localVersion = localPkg.version;
+  const remotePackageUrl = 'https://raw.githubusercontent.com/kripusek/Sylo-kripbot/main/package.json';
+  let response = await fetch(remotePackageUrl);
+  let remotePkg = await response.json();
+  let remoteVersion = remotePkg.version;
+  if (semver.lt(localVersion, remoteVersion)) {
+    updateBot();
   }
   
   log.info('sylo', `Starting in ${config.nodeEnv} mode`);
