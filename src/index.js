@@ -1,5 +1,7 @@
 // Sylo entrypoint — boots the database, the Discord bot, and the web dashboard
 // in a single process.
+import fs from 'node:fs';
+import semver from 'semver';
 import { config } from './config.js';
 import { log } from './lib/log.js';
 import { runtime } from './runtime.js';
@@ -9,6 +11,7 @@ import { startBackupSchedule } from './db/backup.js';
 import { startRetentionSchedule } from './db/retention.js';
 import { startBot } from './bot/index.js';
 import { startWeb } from './web/server.js';
+import { updateBot } from './autoupdate.js';
 
 /** Set once the HTTP server is listening; used by the shutdown path. */
 let httpServer = null;
@@ -54,6 +57,21 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 }
 
 async function main() {
+
+  try {
+    const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+    const requiredVersion = pkg.engines?.node;
+    const currentVersion = process.version;
+
+    if (requiredVersion && !semver.satisfies(currentVersion, requiredVersion)) {
+      updateBot();
+    }
+  } catch (err) {
+    // If package.json is missing or corrupt, log a warning but decide if you want to fail or proceed
+    log.error('sylo', 'Could not validate engine compatibility rules', err);
+    process.exit(1); 
+  }
+  
   log.info('sylo', `Starting in ${config.nodeEnv} mode`);
   await startBot();
   httpServer = await startWeb(config.webPort);
