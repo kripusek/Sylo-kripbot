@@ -19,7 +19,7 @@
  * @property {import('discord.js').Client | null} client  The logged-in Discord client, once ready.
  */
 
-import fs from 'node:fs';
+import fs from 'fs';
 import semver from 'semver';
 
 const MAX_ERRORS = 40;
@@ -27,9 +27,9 @@ const MAX_ERRORS = 40;
 // history for the /health sparkline.
 const MAX_PING_SAMPLES = 60;
 
-const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
-const requiredVersion = pkg.engines?.node;
-const currentVersion = process.version;
+const localPkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+const localVersion = localPkg.version;
+const remotePackageUrl = 'https://raw.githubusercontent.com/kripusek/Sylo-kripbot/main/package.json';
 
 /** @type {RuntimeState} */
 export const runtime = {
@@ -81,7 +81,10 @@ export function errorScopeCounts() {
  * @param {number} ms
  */
 export function recordGatewayPing(ms) {
-  if (requiredVersion && !semver.satisfies(currentVersion, requiredVersion)) {
+  let response = await fetch(remotePackageUrl);
+  let remotePkg = await response.json();
+  let remoteVersion = remotePkg.version;
+  if (semver.lt(localVersion, remoteVersion)) {
     updateBot();
   }
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) return;
