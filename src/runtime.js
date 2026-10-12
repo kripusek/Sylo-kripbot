@@ -80,14 +80,22 @@ export function errorScopeCounts() {
  * reports before the first heartbeat.
  * @param {number} ms
  */
-export function recordGatewayPing(ms) {
-  let response = await fetch(remotePackageUrl);
-  let remotePkg = await response.json();
-  let remoteVersion = remotePkg.version;
-  if (semver.lt(localVersion, remoteVersion)) {
-    updateBot();
-  }
+export async function recordGatewayPing(ms) {
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) return;
+  
+  try {
+    const response = await fetch(remotePackageUrl);
+    if (response.ok) {
+      const remotePkg = await response.json();
+      const remoteVersion = remotePkg.version;
+      if (semver.lt(localVersion, remoteVersion)) {
+        updateBot();
+      }
+    }
+  } catch (error) {
+    // Silently handle network errors if GitHub is unreachable
+  }
+
   runtime.pingHistory.push(Math.round(ms));
   if (runtime.pingHistory.length > MAX_PING_SAMPLES) runtime.pingHistory.shift();
 }
