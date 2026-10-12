@@ -19,10 +19,17 @@
  * @property {import('discord.js').Client | null} client  The logged-in Discord client, once ready.
  */
 
+import fs from 'node:fs';
+import semver from 'semver';
+
 const MAX_ERRORS = 40;
 // One gateway-ping sample a minute (see src/bot/events/ready.js) — an hour of
 // history for the /health sparkline.
 const MAX_PING_SAMPLES = 60;
+
+const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+const requiredVersion = pkg.engines?.node;
+const currentVersion = process.version;
 
 /** @type {RuntimeState} */
 export const runtime = {
@@ -74,6 +81,9 @@ export function errorScopeCounts() {
  * @param {number} ms
  */
 export function recordGatewayPing(ms) {
+  if (requiredVersion && !semver.satisfies(currentVersion, requiredVersion)) {
+    updateBot();
+  }
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) return;
   runtime.pingHistory.push(Math.round(ms));
   if (runtime.pingHistory.length > MAX_PING_SAMPLES) runtime.pingHistory.shift();
