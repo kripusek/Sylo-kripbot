@@ -1,4 +1,5 @@
 {
+  "Shows the privacy policy of this bot.": "Wyświetla politykę prywatności tego bota.",
   "\"Custom\" shows the text as-is; the others prefix it with Playing / Listening to / Watching / Competing in.": "„Własna” pokazuje sam tekst; pozostałe opcje dodają Gra w / Słucha / Ogląda / Rywalizuje w.",
   "\"Join to create\" voice channel": "Kanał głosowy „Wejdź, aby utworzyć”",
   "#{index} - {username}'s Channel": "#{index} - kanał użytkownika {username}",

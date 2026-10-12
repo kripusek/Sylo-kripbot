@@ -6,7 +6,7 @@ const KRIPBOT_POLICY = 'https://github.com/kripusek/Sylo-kripbot/blob/main/docs/
 
 export const data = new SlashCommandBuilder()
   .setName('privacy')
-  .setDescription('Wyświetla politykę prywatności tego bota.');
+  .setDescription('Shows the privacy policy of this bot.');
 
 export async function execute(interaction) {
   // Fork deployments must supply their own policy rather than inherit kripbot's operator.
