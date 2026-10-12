@@ -21,6 +21,7 @@
 
 import fs from 'fs';
 import semver from 'semver';
+import { updateBot } from './autoupdate.js';
 
 const MAX_ERRORS = 40;
 // One gateway-ping sample a minute (see src/bot/events/ready.js) — an hour of
