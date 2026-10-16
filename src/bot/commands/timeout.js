@@ -56,7 +56,7 @@ export async function execute(interaction) {
     return;
   }
 
-  await interaction.deferReply();
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   const pretty = formatDuration(ms);
   const dmed = await notifyTarget(target.user, {
     guildName: interaction.guild.name,

@@ -38,7 +38,7 @@ export async function execute(interaction) {
     return;
   }
 
-  await interaction.deferReply();
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   await target.timeout(null, `${interaction.user.tag}: ${reason}`);
 
   const clearedCase = await deactivateLatest(interaction.guild.id, target.id, 'timeout');

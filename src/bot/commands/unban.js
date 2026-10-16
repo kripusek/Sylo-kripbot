@@ -35,7 +35,7 @@ export async function execute(interaction) {
     return;
   }
 
-  await interaction.deferReply();
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   await guild.bans.remove(userId, `${interaction.user.tag}: ${reason}`);
   await clearTempBan(guild.id, userId); // in case this was a scheduled temporary ban
 

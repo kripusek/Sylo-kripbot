@@ -103,7 +103,7 @@ export async function execute(interaction) {
     return;
   }
 
-  await interaction.deferReply();
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   // DM before banning — a bot can't message a user it no longer shares a guild
   // with. When the appeals module is active it sends the DM (with the appeal
   // link); otherwise fall back to the plain "you were banned" notice.

@@ -60,7 +60,7 @@ export async function execute(interaction) {
       return;
     }
 
-    await interaction.deferReply();
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const { id, count } = await addWarning({
       guildId,
       userId: user.id,
@@ -127,7 +127,7 @@ export async function execute(interaction) {
       return;
     }
 
-    await interaction.deferReply();
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const target = await interaction.client.users.fetch(existing.user_id).catch(() => null);
     const embed = new EmbedBuilder()
       .setColor(MOD_COLOR)
@@ -159,7 +159,7 @@ export async function execute(interaction) {
         { name: 'Moderator', value: interaction.user.tag }
       )
       .setTimestamp(Date.now());
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     if (n > 0) await postModLog(interaction.guild, embed);
     return;
   }
