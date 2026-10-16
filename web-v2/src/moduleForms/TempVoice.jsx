@@ -17,6 +17,7 @@ function toFormRow(h = {}) {
     hubChannelId: h.hubChannelId || '',
     categoryId: h.categoryId || '',
     nameTemplate: h.nameTemplate || DEFAULT_NAME,
+    channelType: h.channelType === 'stage' ? 'stage' : 'voice',
     userLimit: h.userLimit || 0,
     bitrate: h.bitrate || 0,
     keepAliveMinutes: h.keepAliveMinutes ?? 0,
@@ -127,9 +128,9 @@ export default function TempVoice() {
     <>
       <h1 className="v2-section-title">Temporary voice channels</h1>
       <p className="v2-field-hint">
-        A hub is a "Join to create" voice channel. When a member joins it, Krip-bot makes them a personal voice
-        channel, moves them in, and cleans it up after everyone leaves. Needs <strong>Manage Channels</strong>{' '}
-        and <strong>Move Members</strong>.
+        A hub is a "Join to create" voice channel. When a member joins it, Krip-bot makes them a personal
+        voice channel, moves them in, and cleans it up after everyone leaves. Needs{' '}
+        <strong>Manage Channels</strong> and <strong>Move Members</strong>.
       </p>
 
       <form onSubmit={onSave}>
@@ -187,6 +188,21 @@ export default function TempVoice() {
               </p>
             </div>
 
+            <div className="v2-field">
+              <label>Typ kanału</label>
+              <select
+                value={h.channelType}
+                onChange={(e) => updateHub(h.key, { channelType: e.target.value })}
+              >
+                <option value="voice">Kanał głosowy</option>
+                <option value="stage">Scena (podium)</option>
+              </select>
+              <span className="v2-field-hint">
+                Scena startuje na żywo, a osoba, która weszła do huba, jest gospodarzem i mówcą. Reszta
+                dołącza jako publiczność i może poprosić o głos. Wymaga funkcji Społeczność na serwerze
+                (inaczej powstanie zwykły kanał głosowy). Limit osób nie działa na scenie.
+              </span>
+            </div>
             <div className="v2-field-row">
               <div className="v2-field">
                 <label>

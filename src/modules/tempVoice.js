@@ -5,7 +5,7 @@
 // moderators lock/hide/ban/rename/transfer it.
 //
 // config shape (per hub):
-//   { id, hubChannelId, categoryId, nameTemplate, userLimit, bitrate,
+//   { id, hubChannelId, categoryId, nameTemplate, channelType: 'voice'|'stage', userLimit, bitrate,
 //     keepAliveMinutes, ownershipLock, syncCategory, syncChannel,
 //     roleMode: 'allow'|'deny', roleList: [], useRolesForAccess,
 //     ignoredRoles: [], moderatorRoles: [],
@@ -61,6 +61,7 @@ export function normaliseTempVoiceConfig(raw = {}) {
           String(h.nameTemplate ?? '')
             .slice(0, 95)
             .trim() || DEFAULT_NAME,
+        channelType: h.channelType === 'stage' ? 'stage' : 'voice',
         userLimit: clampInt(h.userLimit, 0, 99, 0),
         bitrate: clampInt(h.bitrate, 0, 384, 0), // kbps, 0 = server default
         keepAliveMinutes: KEEPALIVE_OPTIONS.includes(Math.trunc(Number(h.keepAliveMinutes)))
@@ -119,6 +120,8 @@ export async function hubForChannel(guildId, hubId) {
 
 function ownerAllowBits(hub) {
   const bits = [P.ViewChannel, P.Connect, P.Speak];
+  // A stage's host needs the stage-moderator trio to invite and mute speakers.
+  if (hub.channelType === 'stage') bits.push(P.MuteMembers, P.MoveMembers, P.ManageChannels);
   if (hub.ownerPerms.manageChannels) bits.push(P.ManageChannels);
   if (hub.ownerPerms.managePermissions) bits.push(P.ManageRoles);
   if (hub.ownerPerms.prioritySpeaker) bits.push(P.PrioritySpeaker);
@@ -150,7 +153,8 @@ export function buildOverwrites(guild, hub, ownerId, { forText = false } = {}) {
   // @everyone: one entry. For a voice channel, always allow Speak/Stream so an
   // inherited category "no talking" rule can't leave members server-muted in
   // their own temp channel. Role gating adjusts the view/connect bit.
-  const everyoneAllow = forText ? [] : [P.Speak, P.Stream];
+  // On a stage the audience only gets to ask to speak; the host invites speakers.
+  const everyoneAllow = forText ? [] : hub.channelType === 'stage' ? [P.RequestToSpeak] : [P.Speak, P.Stream];
   const everyoneDeny = [];
   if (hub.roleList.length && hub.roleMode === 'deny') everyoneDeny.push(view);
   if (everyoneAllow.length || everyoneDeny.length) {
@@ -171,7 +175,7 @@ export function buildOverwrites(guild, hub, ownerId, { forText = false } = {}) {
   if (guild.members.me) {
     overwrites.push({
       id: guild.members.me.id,
-      allow: [P.ViewChannel, P.Connect, P.ManageChannels, P.MoveMembers, P.SendMessages],
+      allow: [P.ViewChannel, P.Connect, P.ManageChannels, P.MoveMembers, P.MuteMembers, P.SendMessages],
     });
   }
   return overwrites;
@@ -204,6 +208,17 @@ async function handleJoin(guild, member, hub) {
     index: (await countHubChannels(hub.hubChannelId)) + 1,
   });
 
+  // Stage channels need the Community feature; without it fall back to a normal voice channel.
+  let asStage = hub.channelType === 'stage';
+  if (asStage && !guild.features.includes('COMMUNITY')) {
+    log.warn(
+      'temp-voice',
+      `${guild.id}: stage hubs need the Community feature, creating a voice channel instead`
+    );
+    asStage = false;
+  }
+  if (!asStage && hub.channelType === 'stage') hub = { ...hub, channelType: 'voice' };
+
   let overwrites;
   if (hub.syncChannel && hubChannel?.permissionOverwrites) {
     overwrites = [
@@ -223,9 +238,9 @@ async function handleJoin(guild, member, hub) {
   try {
     channel = await guild.channels.create({
       name,
-      type: ChannelType.GuildVoice,
+      type: asStage ? ChannelType.GuildStageVoice : ChannelType.GuildVoice,
       parent: parent ?? undefined,
-      userLimit: hub.userLimit || undefined,
+      userLimit: asStage ? undefined : hub.userLimit || undefined,
       bitrate: hub.bitrate ? Math.min(hub.bitrate * 1000, guild.maximumBitrate) : undefined,
       reason: `Temp voice for ${member.user.tag}`,
       permissionOverwrites: overwrites,
@@ -282,6 +297,7 @@ async function handleJoin(guild, member, hub) {
     if (textChannelId) await guild.channels.delete(textChannelId).catch(() => {});
     return;
   }
+  if (asStage) await startStage(channel, member, name);
   await addTempChannel({
     channelId: channel.id,
     guildId: guild.id,
@@ -293,6 +309,22 @@ async function handleJoin(guild, member, hub) {
   await channel
     .send(voicePanel(channel.id, member.id))
     .catch((err) => log.error('temp-voice', 'control panel:', err.message));
+}
+
+/** Go live on a fresh stage and promote its host to speaker. Best effort. */
+async function startStage(channel, member, topic) {
+  try {
+    await channel.createStageInstance({
+      topic: topic.slice(0, 120),
+      privacyLevel: 2, // GuildOnly
+      sendStartNotification: false,
+    });
+  } catch (err) {
+    log.error('temp-voice', 'stage start failed:', err.message);
+  }
+  await member.voice
+    .setSuppressed(false)
+    .catch((err) => log.warn('temp-voice', 'host speaker:', err.message));
 }
 
 // --- cleanup + ownership transfer -----------------------------------

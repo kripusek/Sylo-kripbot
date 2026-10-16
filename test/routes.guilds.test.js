@@ -461,3 +461,17 @@ test('economy adjust rejects bad input and unknown members', async () => {
   });
   assert.match(zero.headers.get('location'), /msg=eco-bad/);
 });
+
+test('temp-voice hub saves the stage channel type in V1', async () => {
+  const page = await get(`/guilds/${GID}/m/temp-voice/hub/new`);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /Stage \(podium\)/);
+  const saved = await post(app.base, `/guilds/${GID}/m/temp-voice/hub`, {
+    hubChannelId: CH.voice ?? CH.general,
+    channelType: 'stage',
+  });
+  assert.equal(saved.status, 302);
+  const { getGuildModule } = await import('../src/db/modules.js');
+  const { config } = await getGuildModule(GID, 'temp-voice');
+  assert.ok(config.hubs.some((h) => h.channelType === 'stage'));
+});

@@ -2165,5 +2165,10 @@
   "Coins removed.": "Odjęto monety.",
   "Balance set.": "Ustawiono saldo.",
   "Enter a valid member ID (or @mention) and an amount.": "Podaj poprawne ID członka (lub @wzmiankę) i kwotę.",
-  "That member is not in this server.": "Tego członka nie ma na serwerze."
+  "That member is not in this server.": "Tego członka nie ma na serwerze.",
+  "Channel type": "Typ kanału",
+  "Voice channel": "Kanał głosowy",
+  "Stage (podium)": "Scena (podium)",
+  "stage": "scena",
+  "A stage starts live with the member who joined the hub as host and speaker; everyone else joins as audience and can ask to speak. Needs the Community feature enabled on the server (otherwise a normal voice channel is created) and ignores the user limit.": "Scena startuje na żywo, a osoba, która weszła do huba, jest gospodarzem i mówcą. Reszta dołącza jako publiczność i może poprosić o głos. Wymaga funkcji Społeczność na serwerze (inaczej powstanie zwykły kanał głosowy) i ignoruje limit osób."
 }

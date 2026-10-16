@@ -1,5 +1,5 @@
 // /voice-limit — set the user limit of your temporary voice channel.
-import { SlashCommandBuilder, InteractionContextType } from 'discord.js';
+import { SlashCommandBuilder, InteractionContextType, ChannelType } from 'discord.js';
 import { resolveContext, canControl, ephemeral } from '../lib/tempVoiceCmd.js';
 
 export const data = new SlashCommandBuilder()
@@ -18,6 +18,8 @@ export async function execute(interaction) {
       content: 'Only the channel owner or a voice moderator can do that.',
       ...ephemeral,
     });
+  if (ctx.channel.type === ChannelType.GuildStageVoice)
+    return interaction.reply({ content: 'Stage channels have no user limit.', ...ephemeral });
   const limit = interaction.options.getInteger('limit', true);
   await ctx.channel.setUserLimit(limit).catch(() => {});
   return interaction.reply({

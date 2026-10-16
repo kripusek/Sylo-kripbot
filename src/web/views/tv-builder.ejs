@@ -45,6 +45,12 @@
 
   <section class="card stack">
     <h2 class="u-m0">Settings</h2>
+    <label class="small">Channel type</label>
+    <select class="u-mw-xs" name="channelType">
+      <option value="voice" <%= hub.channelType !== 'stage' ? 'selected' : '' %>>Voice channel</option>
+      <option value="stage" <%= hub.channelType === 'stage' ? 'selected' : '' %>>Stage (podium)</option>
+    </select>
+    <p class="muted small">A stage starts live with the member who joined the hub as host and speaker; everyone else joins as audience and can ask to speak. Needs the Community feature enabled on the server (otherwise a normal voice channel is created) and ignores the user limit.</p>
     <div class="star-age">
       <div class="stack"><label class="small">User limit <span class="muted">— 0 = ∞</span></label>
         <input class="u-w-field-sm" type="number" name="userLimit" min="0" max="99" value="<%= hub.userLimit || 0 %>" /></div>

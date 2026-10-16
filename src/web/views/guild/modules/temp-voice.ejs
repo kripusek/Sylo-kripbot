@@ -25,6 +25,7 @@
       <div class="cmd-override-head">
         <span>
           <strong>🔊 <%= vcName(h.hubChannelId) %></strong>
+          <% if (h.channelType === 'stage') { %><span class="muted small">· <%= uiText('stage') %></span><% } %>
           <span class="muted small">
             · <%= uiText(h.userLimit ? (h.userLimit + ' max') : 'no limit') %>
             · <%= uiText(h.keepAliveMinutes < 0 ? 'never deleted' : (h.keepAliveMinutes === 0 ? 'delete when empty' : ('keep ' + h.keepAliveMinutes + 'm'))) %>

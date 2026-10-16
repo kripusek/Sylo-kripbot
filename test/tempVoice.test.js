@@ -119,3 +119,24 @@ test('syncedOverwrites: drops the parent @everyone entry, keeps the rest', () =>
   assert.equal(kept.length, 1);
   assert.equal(kept[0].id, 'role-x');
 });
+
+test('normaliseTempVoiceConfig: channelType is voice unless set to stage', () => {
+  const [a, b, c] = normaliseTempVoiceConfig({
+    hubs: [
+      { hubChannelId: HUB },
+      { hubChannelId: HUB, channelType: 'stage' },
+      { hubChannelId: HUB, channelType: 'forum' },
+    ],
+  }).hubs;
+  assert.equal(a.channelType, 'voice');
+  assert.equal(b.channelType, 'stage');
+  assert.equal(c.channelType, 'voice');
+});
+
+test('buildOverwrites: a stage lets the audience request to speak and makes the host a stage moderator', () => {
+  const rows = buildOverwrites(GUILD, hub({ channelType: 'stage' }), 'host-id');
+  assert.deepEqual(forId(rows, GUILD.id).allow, [P.RequestToSpeak]); // no blanket Speak
+  const host = forId(rows, 'host-id').allow;
+  for (const bit of [P.MuteMembers, P.MoveMembers, P.ManageChannels]) assert.ok(host.includes(bit));
+  assert.ok(forId(rows, 'bot').allow.includes(P.MuteMembers), 'bot can promote the host');
+});
