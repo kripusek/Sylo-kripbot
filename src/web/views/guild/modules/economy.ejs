@@ -1,0 +1,207 @@
+<%
+  var cfg = moduleConfig || {};
+  var daily = cfg.daily || {};
+  var rewards = Array.isArray(daily.rewards) && daily.rewards.length ? daily.rewards : [100, 150, 200, 250, 300, 400, 500];
+  var lvl = cfg.levelRewards || {};
+  var milestones = Array.isArray(lvl.milestones) ? lvl.milestones : [];
+  var transfers = cfg.transfers || {};
+  var shop = cfg.shop || {};
+  var items = Array.isArray(shop.items) ? shop.items : [];
+  var games = cfg.games || {};
+  var gameChannels = Array.isArray(games.channelIds) ? games.channelIds : [];
+%>
+
+<p class="muted small">Virtual coins members earn from a daily reward and from levelling up, and spend on roles, transfers and mini-games. The coins have no real-world value.</p>
+
+<form method="POST" action="/guilds/<%= guild.id %>/m/economy/config" hx-post="/guilds/<%= guild.id %>/m/economy/config" hx-target="#module-config" hx-swap="outerHTML">
+
+  <details class="lvl-sec" open>
+    <summary>Currency<span class="lvl-chev">▾</span></summary>
+    <label class="small">Currency name</label>
+    <input class="u-w-field" name="currencyName" maxlength="24" value="<%= cfg.currencyName || 'monet' %>" />
+    <label class="small u-mt-2">Currency emoji</label>
+    <input class="u-w-field-sm" name="currencyEmoji" maxlength="40" value="<%= cfg.currencyEmoji || '🪙' %>" />
+    <label class="small u-mt-2">Starting balance</label>
+    <input class="u-w-field-sm" type="number" name="startingBalance" min="0" max="1000000" value="<%= cfg.startingBalance || 0 %>" />
+  </details>
+
+  <details class="lvl-sec" open>
+    <summary>Daily rewards<span class="lvl-chev">▾</span></summary>
+    <p class="muted small">Members claim a reward with /ekonomia daily. Claiming on consecutive days builds a streak and moves them along the reward days below.</p>
+    <label class="checkline">
+      <input type="checkbox" name="daily_enabled" <%= daily.enabled !== false ? 'checked' : '' %> />
+      Enable daily rewards
+    </label>
+
+    <label class="small u-mt-2">Hours between claims</label>
+    <input class="u-w-field-sm" type="number" name="daily_cooldownHours" min="1" max="168" value="<%= daily.cooldownHours || 24 %>" />
+    <label class="small u-mt-2">Extra hours to keep the streak</label>
+    <input class="u-w-field-sm" type="number" name="daily_graceHours" min="0" max="168" value="<%= daily.graceHours != null ? daily.graceHours : 24 %>" />
+    <p class="muted small">If a member waits longer than the claim interval plus these hours, their streak resets to day 1.</p>
+
+    <label class="checkline">
+      <input type="checkbox" name="daily_loop" <%= daily.loop !== false ? 'checked' : '' %> />
+      Start again from day 1 after the last day
+    </label>
+
+    <label class="small u-mt-2">Reward for each day</label>
+    <table class="thresholds">
+      <thead><tr><th>Day</th><th>Coins</th><th></th></tr></thead>
+      <tbody id="eco-days">
+        <% rewards.forEach(function (amount, i) { %>
+          <tr>
+            <td class="eco-day-no">Day <%= i + 1 %></td>
+            <td><input class="u-w-num" type="number" name="daily_reward" min="0" max="1000000000" value="<%= amount %>" /></td>
+            <td><button type="button" class="link-btn eco-remove-day">remove</button></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <div><button type="button" class="secondary" id="eco-add-day">＋ Add day</button></div>
+  </details>
+
+  <details class="lvl-sec" open>
+    <summary>Level-up rewards<span class="lvl-chev">▾</span></summary>
+    <p class="muted small">Pay coins when a member reaches a new level. Requires the Leveling module to be enabled.</p>
+    <label class="checkline">
+      <input type="checkbox" name="lvl_enabled" <%= lvl.enabled ? 'checked' : '' %> />
+      Pay coins for levelling up
+    </label>
+
+    <label class="rr-mode"><input type="radio" name="lvl_mode" value="flat" <%= lvl.mode !== 'scaled' ? 'checked' : '' %> /> <span>Fixed amount for every level</span></label>
+    <label class="rr-mode"><input type="radio" name="lvl_mode" value="scaled" <%= lvl.mode === 'scaled' ? 'checked' : '' %> /> <span>Amount multiplied by the level reached</span></label>
+    <label class="small u-mt-2">Coins per level</label>
+    <input class="u-w-field-sm" type="number" name="lvl_amount" min="0" max="1000000000" value="<%= lvl.amount != null ? lvl.amount : 50 %>" />
+
+    <label class="small u-mt-2">Bonus at specific levels</label>
+    <table class="thresholds">
+      <thead><tr><th>At level</th><th>Extra coins</th><th></th></tr></thead>
+      <tbody id="eco-milestones">
+        <% milestones.forEach(function (m) { %>
+          <tr>
+            <td><input class="u-w-num" type="number" name="ms_level" min="1" max="1000" value="<%= m.level %>" /></td>
+            <td><input class="u-w-num" type="number" name="ms_amount" min="1" max="1000000000" value="<%= m.amount %>" /></td>
+            <td><button type="button" class="link-btn" onclick="this.closest('tr').remove()">remove</button></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <div><button type="button" class="secondary" id="eco-add-milestone">＋ Add level bonus</button></div>
+
+    <label class="checkline u-mt-2">
+      <input type="checkbox" name="lvl_notify" <%= lvl.notify !== false ? 'checked' : '' %> />
+      Post a short message when coins are paid
+    </label>
+  </details>
+
+  <details class="lvl-sec" open>
+    <summary>Transfers<span class="lvl-chev">▾</span></summary>
+    <label class="checkline">
+      <input type="checkbox" name="transfers_enabled" <%= transfers.enabled !== false ? 'checked' : '' %> />
+      Let members send coins with /ekonomia przekaz
+    </label>
+    <label class="small u-mt-2">Minimum transfer</label>
+    <input class="u-w-field-sm" type="number" name="transfers_minAmount" min="1" max="1000000000" value="<%= transfers.minAmount || 1 %>" />
+    <label class="small u-mt-2">Transfer fee (%)</label>
+    <input class="u-w-field-sm" type="number" name="transfers_feePercent" min="0" max="50" value="<%= transfers.feePercent || 0 %>" />
+  </details>
+
+  <details class="lvl-sec" open>
+    <summary>Role shop<span class="lvl-chev">▾</span></summary>
+    <p class="muted small">Members buy these roles with /kup rola. The bot needs Manage Roles and its role must be above the roles sold.</p>
+    <label class="checkline">
+      <input type="checkbox" name="shop_enabled" <%= shop.enabled ? 'checked' : '' %> />
+      Enable the shop
+    </label>
+    <table class="thresholds">
+      <thead><tr><th>Role</th><th>Price</th><th></th></tr></thead>
+      <tbody id="eco-shop">
+        <% items.forEach(function (item) { %>
+          <tr>
+            <td>
+              <select name="shop_role">
+                <% roles.forEach(function (role) { %><option value="<%= role.id %>" <%= role.id === item.roleId ? 'selected' : '' %>><%= role.name %></option><% }) %>
+              </select>
+            </td>
+            <td><input class="u-w-num" type="number" name="shop_price" min="1" max="1000000000" value="<%= item.price %>" /></td>
+            <td><button type="button" class="link-btn" onclick="this.closest('tr').remove()">remove</button></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <div><button type="button" class="secondary" id="eco-add-item">＋ Add role</button></div>
+  </details>
+
+  <details class="lvl-sec" open>
+    <summary>Games<span class="lvl-chev">▾</span></summary>
+    <p class="muted small">Mini-games played for virtual coins with /gry: coinflip, guess, rock-paper-scissors, dice, slots, blackjack, poker, roulette and cups.</p>
+    <label class="checkline">
+      <input type="checkbox" name="games_enabled" <%= games.enabled ? 'checked' : '' %> />
+      Enable games
+    </label>
+    <label class="small u-mt-2">Minimum bet</label>
+    <input class="u-w-field-sm" type="number" name="games_minBet" min="1" max="1000000000" value="<%= games.minBet || 10 %>" />
+    <label class="small u-mt-2">Maximum bet</label>
+    <input class="u-w-field-sm" type="number" name="games_maxBet" min="1" max="1000000000" value="<%= games.maxBet || 1000 %>" />
+    <label class="small u-mt-2">Seconds between games</label>
+    <input class="u-w-field-sm" type="number" name="games_cooldownSeconds" min="0" max="600" value="<%= games.cooldownSeconds != null ? games.cooldownSeconds : 5 %>" />
+    <label class="small u-mt-2">Only in these channels</label>
+    <%- include('../../partials/chip-picker', { field: 'gameChannels', kind: 'channel', items: channels, selected: gameChannels }) %>
+    <p class="muted small">Leave empty to allow games in every channel.</p>
+  </details>
+
+  <div class="u-mt-4"><button type="submit">Save economy settings</button></div>
+</form>
+
+<template id="eco-day-template">
+  <tr>
+    <td class="eco-day-no">Day</td>
+    <td><input class="u-w-num" type="number" name="daily_reward" min="0" max="1000000000" value="100" /></td>
+    <td><button type="button" class="link-btn eco-remove-day">remove</button></td>
+  </tr>
+</template>
+<template id="eco-milestone-template">
+  <tr>
+    <td><input class="u-w-num" type="number" name="ms_level" min="1" max="1000" value="10" /></td>
+    <td><input class="u-w-num" type="number" name="ms_amount" min="1" max="1000000000" value="500" /></td>
+    <td><button type="button" class="link-btn" onclick="this.closest('tr').remove()">remove</button></td>
+  </tr>
+</template>
+<template id="eco-item-template">
+  <tr>
+    <td>
+      <select name="shop_role">
+        <% roles.forEach(function (role) { %><option value="<%= role.id %>"><%= role.name %></option><% }) %>
+      </select>
+    </td>
+    <td><input class="u-w-num" type="number" name="shop_price" min="1" max="1000000000" value="1000" /></td>
+    <td><button type="button" class="link-btn" onclick="this.closest('tr').remove()">remove</button></td>
+  </tr>
+</template>
+<script>
+  (function () {
+    var days = document.getElementById('eco-days');
+    if (!days) return;
+    var dayWord = days.querySelector('.eco-day-no') ? days.querySelector('.eco-day-no').textContent.replace(/\s*\d+\s*$/, '').trim() || 'Day' : 'Day';
+    function renumber() {
+      days.querySelectorAll('.eco-day-no').forEach(function (cell, i) { cell.textContent = dayWord + ' ' + (i + 1); });
+    }
+    days.addEventListener('click', function (e) {
+      if (!e.target.classList.contains('eco-remove-day')) return;
+      if (days.children.length <= 1) return;
+      e.target.closest('tr').remove();
+      renumber();
+    });
+    document.getElementById('eco-add-day').addEventListener('click', function () {
+      if (days.children.length >= 31) return;
+      days.appendChild(document.getElementById('eco-day-template').content.cloneNode(true));
+      renumber();
+    });
+    document.getElementById('eco-add-milestone').addEventListener('click', function () {
+      document.getElementById('eco-milestones').appendChild(document.getElementById('eco-milestone-template').content.cloneNode(true));
+    });
+    document.getElementById('eco-add-item').addEventListener('click', function () {
+      document.getElementById('eco-shop').appendChild(document.getElementById('eco-item-template').content.cloneNode(true));
+    });
+  })();
+</script>

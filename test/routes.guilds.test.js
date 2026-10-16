@@ -376,3 +376,41 @@ test('auto-threads settings render and save selected channels in V1', async () =
   assert.deepEqual(config.channelIds, [CH.general]);
   assert.equal(config.autoArchiveDuration, 60);
 });
+
+test('economy settings render and save the nested config in V1', async () => {
+  const page = await get(`/guilds/${GID}/m/economy`);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /Daily rewards/);
+  const body = new URLSearchParams();
+  for (const [k, v] of [
+    ['currencyName', 'Złoto'],
+    ['daily_enabled', 'on'],
+    ['daily_cooldownHours', '24'],
+    ['daily_graceHours', '12'],
+    ['daily_reward', '10'],
+    ['daily_reward', '20'],
+    ['daily_reward', '30'],
+    ['lvl_enabled', 'on'],
+    ['lvl_mode', 'scaled'],
+    ['lvl_amount', '15'],
+    ['ms_level', '10'],
+    ['ms_amount', '500'],
+    ['games_enabled', 'on'],
+    ['games_minBet', '5'],
+    ['games_maxBet', '200'],
+    ['gameChannels', CH.general],
+  ])
+    body.append(k, v);
+  const saved = await post(app.base, `/guilds/${GID}/m/economy/config`, body.toString());
+  assert.equal(saved.status, 302);
+  const { getGuildModule } = await import('../src/db/modules.js');
+  const { config } = await getGuildModule(GID, 'economy');
+  assert.equal(config.currencyName, 'Złoto');
+  assert.deepEqual(config.daily.rewards, [10, 20, 30]);
+  assert.equal(config.daily.graceHours, 12);
+  assert.equal(config.daily.loop, false); // unticked checkbox stays off
+  assert.equal(config.levelRewards.mode, 'scaled');
+  assert.deepEqual(config.levelRewards.milestones, [{ level: 10, amount: 500 }]);
+  assert.equal(config.games.enabled, true);
+  assert.deepEqual(config.games.channelIds, [CH.general]);
+});

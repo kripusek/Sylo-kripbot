@@ -186,6 +186,17 @@ export const MODULES = [
     configurable: true,
   },
   {
+    id: 'economy',
+    name: 'Economy',
+    description:
+      'Virtual coins: daily rewards with streaks, level-up payouts, a role shop, transfers and mini-games.',
+    icon: '🪙',
+    requiredIntents: [],
+    defaultEnabled: false,
+    configurable: true,
+    beta: true,
+  },
+  {
     id: 'automod',
     name: 'Auto-moderation',
     description: 'Filter invites, links, spam, caps and banned words automatically.',

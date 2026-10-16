@@ -27,6 +27,7 @@ export const MODULE_ICONS = {
   'auto-react': 'zap',
   'auto-threads': 'message-square',
   music: 'music',
+  economy: 'coins',
   afk: 'moon',
   'server-stats': 'activity',
   'temp-voice': 'mic',

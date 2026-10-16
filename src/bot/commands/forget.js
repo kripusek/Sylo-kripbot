@@ -28,7 +28,7 @@ export async function execute(interaction) {
       flags: MessageFlags.Ephemeral,
       content:
         `This permanently deletes your **warnings**, **XP / level**, **ticket history**, **ban appeals**, ` +
-        `**invite records**, **AFK status**, **saved birthday** and **giveaway entries** in **${interaction.guild.name}**. ` +
+        `**invite records**, **AFK status**, **saved birthday**, **coin balance** and **giveaway entries** in **${interaction.guild.name}**. ` +
         `Messages already posted to channels, a completed giveaway's winner list, and the server's ` +
         `config-change log are not affected, and Sylo will still store new data going forward.` +
         `\n\nRun \`/forget confirm:True\` to proceed.`,

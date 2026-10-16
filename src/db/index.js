@@ -820,6 +820,22 @@ export const MIGRATIONS = [
       );
     `);
   },
+  // Economy module: per-member virtual-coin balance and daily-reward streak.
+  (database) => {
+    database.exec(`
+      CREATE TABLE economy_accounts (
+        guild_id      TEXT NOT NULL,
+        user_id       TEXT NOT NULL,
+        balance       INTEGER NOT NULL DEFAULT 0,
+        daily_streak  INTEGER NOT NULL DEFAULT 0,
+        best_streak   INTEGER NOT NULL DEFAULT 0,
+        daily_claims  INTEGER NOT NULL DEFAULT 0,
+        last_daily_at INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (guild_id, user_id)
+      );
+      CREATE INDEX idx_economy_balance ON economy_accounts (guild_id, balance DESC);
+    `);
+  },
 ];
 
 /** Highest schema version this build knows how to run. */

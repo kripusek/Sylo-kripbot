@@ -34,6 +34,7 @@ import './countingPenalties.js';
 import './githubWatches.js';
 import './scheduledMessages.js';
 import './leveling.js';
+import './economy.js';
 import './audit.js';
 import './afk.js';
 import './postedKeys.js';
@@ -67,6 +68,7 @@ export const GUILD_TABLES = [
   'scheduled_messages',
   'leveling',
   'leveling_periods',
+  'economy_accounts',
   'config_audit',
   'afk',
   'posted_keys',
@@ -110,6 +112,7 @@ const userStmts = {
   warnings: prepare('DELETE FROM infractions WHERE guild_id = ? AND user_id = ?'),
   leveling: prepare('DELETE FROM leveling WHERE guild_id = ? AND user_id = ?'),
   levelingPeriods: prepare('DELETE FROM leveling_periods WHERE guild_id = ? AND user_id = ?'),
+  economy: prepare('DELETE FROM economy_accounts WHERE guild_id = ? AND user_id = ?'),
   counting: prepare('UPDATE counting SET last_user_id = NULL WHERE guild_id = ? AND last_user_id = ?'),
   ticketMsgs: prepare(`
     DELETE FROM ticket_messages
@@ -138,7 +141,7 @@ const userStmts = {
  * a Discord user id; a completed giveaway's host/winner list and the config
  * audit log (which records a display name, not an id) are guild records and are
  * only removed by {@link purgeGuild}.
- * @returns {{ warnings: number, leveling: number, tickets: number, ticketMessages: number, appeals: number, afk: number, birthdays: number, giveawayEntries: number, invites: number }}
+ * @returns {{ warnings: number, leveling: number, tickets: number, ticketMessages: number, appeals: number, afk: number, birthdays: number, economy: number, giveawayEntries: number, invites: number }}
  */
 export async function forgetUser(guildId, userId) {
   const warnings = (await userStmts.warnings.run(guildId, userId)).changes;
@@ -151,6 +154,7 @@ export async function forgetUser(guildId, userId) {
   const appeals = (await userStmts.appeals.run(guildId, userId)).changes;
   const afk = (await userStmts.afk.run(guildId, userId)).changes;
   const birthdays = (await userStmts.birthdays.run(guildId, userId)).changes;
+  const economy = (await userStmts.economy.run(guildId, userId)).changes;
   const giveawayEntries = (await userStmts.giveawayEntries.run(guildId, userId)).changes;
   const invites =
     (await userStmts.inviteCounts.run(guildId, userId)).changes +
@@ -165,6 +169,7 @@ export async function forgetUser(guildId, userId) {
     appeals,
     afk,
     birthdays,
+    economy,
     giveawayEntries,
     invites,
   };
@@ -200,6 +205,13 @@ const USER_DATA_SOURCES = [
     order: 'gu',
     countSql: 'SELECT COUNT(*) AS n FROM leveling_periods WHERE guild_id = ? AND user_id = ?',
     rowsSql: 'SELECT * FROM leveling_periods WHERE guild_id = ? AND user_id = ? ORDER BY period',
+  },
+  {
+    key: 'economy',
+    label: 'Economy account (coin balance / daily streak)',
+    order: 'gu',
+    countSql: 'SELECT COUNT(*) AS n FROM economy_accounts WHERE guild_id = ? AND user_id = ?',
+    rowsSql: 'SELECT * FROM economy_accounts WHERE guild_id = ? AND user_id = ?',
   },
   {
     key: 'tickets',

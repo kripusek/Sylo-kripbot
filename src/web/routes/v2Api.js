@@ -151,6 +151,7 @@ import { getCounting, setCount, resetCount } from '../../db/counting.js';
 import { listCountingPenalties, clearCountingPenalty } from '../../db/countingPenalties.js';
 import { normaliseAutoThreads } from '../../modules/autoThreads.js';
 import { normaliseMusic, stationsToText } from '../../modules/music.js';
+import { normaliseEconomy } from '../../modules/economy.js';
 import { normaliseAutoReact, AUTO_REACT_MODES, AUTO_REACT_ROLE_ACTIONS } from '../../modules/autoReact.js';
 import { LOG_EVENTS } from '../../modules/logging.js';
 import {
@@ -750,6 +751,31 @@ router.post(
     await recordAudit(req.guild.id, {
       actor: moderatorDisplayName(req),
       action: 'module:auto-threads',
+      detail: 'settings saved',
+    });
+    res.json({ config });
+  })
+);
+
+router.get(
+  '/guilds/:guildId/modules/economy/config',
+  asyncHandler(async (req, res) => {
+    const { config } = await getGuildModule(req.guild.id, 'economy');
+    res.json({
+      config: normaliseEconomy(config),
+      channels: guildTextChannels(req.guild),
+      roles: assignableRoles(req.guild),
+    });
+  })
+);
+router.post(
+  '/guilds/:guildId/modules/economy/config',
+  asyncHandler(async (req, res) => {
+    const config = normaliseEconomy(req.body);
+    await setGuildModule(req.guild.id, 'economy', { config });
+    await recordAudit(req.guild.id, {
+      actor: moderatorDisplayName(req),
+      action: 'module:economy',
       detail: 'settings saved',
     });
     res.json({ config });

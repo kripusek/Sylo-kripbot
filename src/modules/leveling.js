@@ -8,7 +8,7 @@
 //     voiceXpEnabled, voiceXpPerMin, voiceAfkExcluded,
 //     multipliers: [ { type: 'role'|'channel', id, factor } ],
 //     rewards: [ { level, roleId } ] }
-import { on } from './dispatch.js';
+import { on, dispatch } from './dispatch.js';
 import { runtime } from '../runtime.js';
 import { isModuleEnabled, getGuildModule } from '../db/modules.js';
 import { addXp, prunePeriods } from '../db/leveling.js';
@@ -145,11 +145,18 @@ on('leveling', 'messageCreate', async (message, rawConfig, guildId) => {
     channelId: message.channelId,
   });
   const gain = Math.max(1, Math.round(base * config.xpRate * mult));
-  const { level, leveledUp } = await addXp(guildId, message.author.id, gain, now);
+  const { level, leveledUp, previousLevel } = await addXp(guildId, message.author.id, gain, now);
   if (!leveledUp) return;
 
   await announceLevelUp(config, message.member, level, { message, channel: message.channelId });
   await syncRewards(message.member, level, config).catch(() => {});
+  // Other modules (economy: coins for levelling up) react to this.
+  await dispatch('levelUp', guildId, {
+    member: message.member,
+    previousLevel,
+    level,
+    channelId: config.announceChannel || message.channelId,
+  });
 });
 
 // --- voice XP --------------------------------------------------------
@@ -202,11 +209,20 @@ async function settleVoiceSession(guildId, member, session, now, rawConfig, { ke
     channelId: session.channelId,
   });
   const gain = Math.max(1, Math.round(minutes * config.voiceXpPerMin * config.xpRate * mult));
-  const { level, leveledUp } = await addXp(guildId, member.id, gain, now, { voice: true, minutes });
+  const { level, leveledUp, previousLevel } = await addXp(guildId, member.id, gain, now, {
+    voice: true,
+    minutes,
+  });
   if (!leveledUp) return;
 
   await announceLevelUp(config, member, level, { channel: config.announceChannel || null });
   await syncRewards(member, level, config).catch(() => {});
+  await dispatch('levelUp', guildId, {
+    member,
+    previousLevel,
+    level,
+    channelId: config.announceChannel || null,
+  });
 }
 
 on('leveling', 'voiceStateUpdate', async ({ old: before, new: after }, rawConfig, guildId) => {

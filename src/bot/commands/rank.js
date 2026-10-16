@@ -24,7 +24,9 @@ export async function execute(interaction) {
     });
   }
 
-  const user = interaction.options.getUser('user') ?? interaction.user;
+  // `user` for /rank, `uzytkownik` when reached through /level profil.
+  const user =
+    interaction.options.getUser('user') ?? interaction.options.getUser('uzytkownik') ?? interaction.user;
   const member = await interaction.guild.members.fetch(user.id).catch(() => null);
   const row = await getMember(interaction.guildId, user.id);
   const p = levelProgress(row.xp);

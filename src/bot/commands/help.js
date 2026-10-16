@@ -29,7 +29,9 @@ const OVERVIEW_DESCRIPTION =
 // miscounted group degrades instead of crashing the command).
 export const GROUPS = [
   { name: 'Ogólne', commands: ['help', 'about', 'version', 'ping', 'stats'] },
-  { name: 'Poziomy', commands: ['rank', 'leaderboard'] },
+  { name: 'Poziomy', commands: ['rank', 'leaderboard', 'level'] },
+  { name: 'Ekonomia', commands: ['ekonomia', 'kup'] },
+  { name: 'Gry', commands: ['gry'] },
   { name: 'Społeczność', commands: ['afk', 'birthday'] },
   {
     name: 'Moderacja',

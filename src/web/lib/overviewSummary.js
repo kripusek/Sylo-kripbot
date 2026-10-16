@@ -43,7 +43,17 @@ const LAYOUT = [
   },
   {
     title: 'Engagement',
-    ids: ['welcome', 'welcome-channel', 'roles', 'counting', 'leveling', 'starboard', 'sticky', 'birthdays'],
+    ids: [
+      'welcome',
+      'welcome-channel',
+      'roles',
+      'counting',
+      'leveling',
+      'economy',
+      'starboard',
+      'sticky',
+      'birthdays',
+    ],
   },
   {
     title: 'Utilities',
@@ -411,6 +421,20 @@ async function moduleLines(id, guild, cfg) {
         neutral('Announce', announce),
         rewards ? on('Reward roles', String(rewards)) : off('Reward roles', 'none'),
         neutral('Ranked members', String(await levelingMemberCount(guild.id))),
+      ];
+    }
+    case 'economy': {
+      const daily = cfg.daily || {};
+      const days = Array.isArray(daily.rewards) && daily.rewards.length ? daily.rewards.length : 7;
+      const lvl = cfg.levelRewards || {};
+      const items = Array.isArray(cfg.shop?.items) ? cfg.shop.items.length : 0;
+      return [
+        daily.enabled !== false ? on('Daily rewards', `${days}-day cycle`) : off('Daily rewards', 'off'),
+        lvl.enabled
+          ? on('Level-up rewards', lvl.mode === 'scaled' ? 'per level' : 'fixed')
+          : off('Level-up rewards', 'off'),
+        cfg.games?.enabled ? on('Games', 'on') : off('Games', 'off'),
+        cfg.shop?.enabled ? on('Shop', `${items} role(s)`) : off('Shop', 'off'),
       ];
     }
     case 'automod': {

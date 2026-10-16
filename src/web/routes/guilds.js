@@ -70,6 +70,7 @@ import {
 } from '../../modules/autoresponder.js';
 import { normaliseAutoThreads } from '../../modules/autoThreads.js';
 import { normaliseMusic } from '../../modules/music.js';
+import { normaliseEconomy } from '../../modules/economy.js';
 import { normaliseAutoReact, AUTO_REACT_MODES, AUTO_REACT_ROLE_ACTIONS } from '../../modules/autoReact.js';
 import {
   normaliseVerificationConfig,
@@ -179,6 +180,7 @@ const CONFIG_VIEWS = new Set([
   'feedback',
   'auto-threads',
   'music',
+  'economy',
   'moderation',
   'logging',
   'welcome',
@@ -831,6 +833,7 @@ async function moduleViewLocals(mod, req, configOverride) {
       'autoresponder',
       'auto-react',
       'music',
+      'economy',
       'verification',
       'free-games',
       'welcome',
@@ -1324,6 +1327,46 @@ router.post(
       });
     } else if (mod.id === 'auto-threads') {
       config = normaliseAutoThreads(req.body);
+    } else if (mod.id === 'economy') {
+      const list = (v) => [].concat(v ?? []);
+      const checked = (v) => v === 'on';
+      const milestoneAmounts = list(req.body.ms_amount);
+      const shopPrices = list(req.body.shop_price);
+      config = normaliseEconomy({
+        currencyName: req.body.currencyName,
+        currencyEmoji: req.body.currencyEmoji,
+        startingBalance: req.body.startingBalance,
+        daily: {
+          enabled: checked(req.body.daily_enabled),
+          rewards: list(req.body.daily_reward),
+          cooldownHours: req.body.daily_cooldownHours,
+          graceHours: req.body.daily_graceHours,
+          loop: checked(req.body.daily_loop),
+        },
+        levelRewards: {
+          enabled: checked(req.body.lvl_enabled),
+          mode: req.body.lvl_mode,
+          amount: req.body.lvl_amount,
+          notify: checked(req.body.lvl_notify),
+          milestones: list(req.body.ms_level).map((level, i) => ({ level, amount: milestoneAmounts[i] })),
+        },
+        transfers: {
+          enabled: checked(req.body.transfers_enabled),
+          minAmount: req.body.transfers_minAmount,
+          feePercent: req.body.transfers_feePercent,
+        },
+        shop: {
+          enabled: checked(req.body.shop_enabled),
+          items: list(req.body.shop_role).map((roleId, i) => ({ roleId, price: shopPrices[i] })),
+        },
+        games: {
+          enabled: checked(req.body.games_enabled),
+          minBet: req.body.games_minBet,
+          maxBet: req.body.games_maxBet,
+          cooldownSeconds: req.body.games_cooldownSeconds,
+          channelIds: list(req.body.gameChannels),
+        },
+      });
     } else if (mod.id === 'music') {
       config = normaliseMusic({ ...req.body, allowUrls: req.body.allowUrls === 'on' });
     } else if (mod.id === 'auto-react') {

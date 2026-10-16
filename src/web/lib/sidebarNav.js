@@ -58,6 +58,7 @@ const CATEGORIES = [
       { module: 'honeypot', label: 'Honeypot' },
       { page: 'moderation', dotModule: 'moderation', label: 'Moderator' },
       { module: 'leveling', label: 'Levels' },
+      { module: 'economy', label: 'Economy' },
       { module: 'starboard', label: 'Starboard' },
     ],
   },
