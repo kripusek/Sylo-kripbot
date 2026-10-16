@@ -1,6 +1,7 @@
 <% var cfg = moduleConfig || {}; %>
 <% var channels_ = Array.isArray(cfg.channels) ? cfg.channels : []; %>
 <% var messages_ = Array.isArray(cfg.messages) ? cfg.messages : []; %>
+<% var cleanup = cfg.cleanup || {}; %>
 <% var exemptRoles = Array.isArray(cfg.exemptRoles) ? cfg.exemptRoles : []; %>
 <% var ACTION_LABELS = { kick: 'Kick', timeout: 'Timeout', ban: 'Ban' }; %>
 
@@ -81,6 +82,16 @@
     <% }) %>
   </div>
   <div><button type="button" class="secondary" id="hp-msg-add">+ Add message honeypot</button></div>
+
+  <h3 class="u-mt-4">Clean up after a catch</h3>
+  <p class="muted small">Scam bots post the same message in many channels before they get caught.</p>
+  <label class="checkline">
+    <input type="checkbox" name="hp_cleanup_enabled" <%= cleanup.enabled ? 'checked' : '' %> />
+    Also delete the caught member's recent messages everywhere
+  </label>
+  <label class="small u-mt-2">Delete messages from the last (minutes)</label>
+  <input class="u-w-field-sm" type="number" name="hp_cleanup_minutes" min="1" max="1440" value="<%= cleanup.minutes || 15 %>" />
+  <p class="muted small">Works with kick, timeout and ban. The bot needs Manage Messages and Read Message History in the channels to clean; a ban uses Discord's own message deletion.</p>
 
   <h3 class="u-mt-4">Exempt roles</h3>
   <p class="muted small">Members with any of these roles are never punished by the honeypot (Administrators are always exempt).</p>

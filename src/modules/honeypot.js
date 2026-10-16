@@ -7,6 +7,7 @@
 // config shape (see normaliseHoneypotConfig for the canonical form):
 //   {
 //     exemptRoles: string[],
+//     cleanup: { enabled, minutes },   // also delete the caught member's recent messages
 //     channels: [ { channelId, action, timeoutMinutes, deleteMessage, triggerCount } ],
 //     messages: [ { channelId, messageId, bait, action, timeoutMinutes, triggerCount } ],
 //   }
@@ -34,9 +35,18 @@ const idList = (v) => [...new Set((Array.isArray(v) ? v : [v]).filter((x) => /^\
 const isId = (v) => /^\d{17,20}$/.test(v ?? '');
 const action = (v) => (HONEYPOT_ACTIONS.includes(v) ? v : 'kick');
 
+export const CLEANUP_MAX_MINUTES = 1440;
+const CLEANUP_MAX_CHANNELS = 80; // scan budget per catch
+const SWEEP_BATCH = 5; // channels scanned in parallel
+const BAN_DELETE_MAX_SECONDS = 7 * 86_400; // Discord's cap for deleteMessageSeconds
+
 export function normaliseHoneypotConfig(raw = {}) {
   return {
     exemptRoles: idList(raw.exemptRoles),
+    cleanup: {
+      enabled: raw.cleanup?.enabled === true,
+      minutes: clampInt(raw.cleanup?.minutes, 1, CLEANUP_MAX_MINUTES, 15),
+    },
     channels: (Array.isArray(raw.channels) ? raw.channels : [])
       .map((c) => ({
         channelId: isId(c.channelId) ? c.channelId : '',
@@ -98,13 +108,48 @@ function baitEmbed(row, cfg = {}) {
     });
 }
 
+/**
+ * Delete a member's messages from the last `minutes` minutes in every channel
+ * the bot can moderate. Scam bots blast the same message into many channels
+ * within seconds, so one sweep over recent history removes the whole burst.
+ * Kick/timeout need this; a ban uses Discord's own deleteMessageSeconds.
+ * @returns {Promise<number>} how many messages were deleted
+ */
+export async function sweepRecentMessages(guild, userId, minutes, now = Date.now()) {
+  const since = now - minutes * 60_000;
+  const me = guild.members.me;
+  const needed = ['ViewChannel', 'ReadMessageHistory', 'ManageMessages'];
+  const channels = [...guild.channels.cache.values()]
+    .filter((c) => c.isTextBased?.() && c.messages && c.permissionsFor?.(me)?.has(needed))
+    .slice(0, CLEANUP_MAX_CHANNELS);
+
+  let deleted = 0;
+  const sweep = async (channel) => {
+    try {
+      const recent = await channel.messages.fetch({ limit: 100 });
+      const mine = [...recent.values()].filter((m) => m.author?.id === userId && m.createdTimestamp >= since);
+      if (!mine.length) return;
+      if (mine.length === 1) await mine[0].delete();
+      else await channel.bulkDelete(mine, true);
+      deleted += mine.length;
+    } catch (err) {
+      log.warn('module:honeypot', `cleanup in ${channel.id} failed: ${err.message}`);
+    }
+  };
+  for (let i = 0; i < channels.length; i += SWEEP_BATCH) {
+    await Promise.all(channels.slice(i, i + SWEEP_BATCH).map(sweep));
+  }
+  return deleted;
+}
+
 /** Apply the configured punishment, log a case, and post to the mod-log.
  * @returns {string|null} a short description of what happened, or null if
  *   nothing was (or could be) done — callers use this to decide whether to
  *   bump the row's trigger count.
  */
-async function punish(guild, member, entry, reason) {
+async function punish(guild, member, entry, reason, cleanup = { enabled: false, minutes: 15 }) {
   let done = null;
+  let cleaned = null; // message count, or text for a ban
   try {
     if (entry.action === 'timeout' && member.moderatable) {
       await member.timeout(Math.min(entry.timeoutMinutes * 60_000, MAX_TIMEOUT_MS), reason);
@@ -116,14 +161,27 @@ async function punish(guild, member, entry, reason) {
       done = 'Wyrzucenie';
     } else if (entry.action === 'ban' && guild.members.me?.permissions.has('BanMembers')) {
       await notifyTarget(member.user, { guildName: guild.name, action: 'banned', reason });
-      await guild.bans.create(member.id, { reason });
+      await guild.bans.create(member.id, {
+        reason,
+        ...(cleanup.enabled
+          ? { deleteMessageSeconds: Math.min(cleanup.minutes * 60, BAN_DELETE_MAX_SECONDS) }
+          : {}),
+      });
       done = 'Ban';
+      if (cleanup.enabled) cleaned = `ostatnie ${cleanup.minutes} min (przy banie)`;
     }
   } catch (err) {
     log.error('module:honeypot', 'punish failed:', err.message);
     return null;
   }
   if (!done) return null;
+
+  if (cleanup.enabled && entry.action !== 'ban') {
+    cleaned = await sweepRecentMessages(guild, member.id, cleanup.minutes).catch((err) => {
+      log.error('module:honeypot', 'cleanup failed:', err.message);
+      return null;
+    });
+  }
 
   const { caseNumber } = await addCase({
     guildId: guild.id,
@@ -145,6 +203,12 @@ async function punish(guild, member, entry, reason) {
       { name: 'Powód', value: reason }
     )
     .setTimestamp(Date.now());
+  if (cleaned !== null) {
+    embed.addFields({
+      name: 'Usunięte wiadomości',
+      value: typeof cleaned === 'number' ? `${cleaned} (ostatnie ${cleanup.minutes} min)` : cleaned,
+    });
+  }
   await postModLog(guild, embed);
   return done;
 }
@@ -266,7 +330,13 @@ on('honeypot', 'messageCreate', async (message, config) => {
   const member = message.member ?? (await message.guild.members.fetch(message.author.id).catch(() => null));
   if (!member || isExempt(member, cfg)) return;
 
-  const done = await punish(message.guild, member, entry, 'Pułapka: wysłanie wiadomości na kanale pułapce');
+  const done = await punish(
+    message.guild,
+    member,
+    entry,
+    'Pułapka: wysłanie wiadomości na kanale pułapce',
+    cfg.cleanup
+  );
   if (entry.deleteMessage && message.deletable) await message.delete().catch(() => {});
   if (done) {
     await bumpHoneypotStat(message.guild, 'channels', message.channelId);
@@ -292,7 +362,13 @@ on('honeypot', 'reactionAdd', async ({ reaction, user }, config) => {
   const member = await guild.members.fetch(user.id).catch(() => null);
   if (!member || isExempt(member, cfg)) return;
 
-  const done = await punish(guild, member, entry, 'Pułapka: dodanie reakcji do wiadomości pułapki');
+  const done = await punish(
+    guild,
+    member,
+    entry,
+    'Pułapka: dodanie reakcji do wiadomości pułapki',
+    cfg.cleanup
+  );
   if (done) {
     await bumpHoneypotStat(guild, 'messages', entry.channelId);
     await recordHoneypotCatch(guild.id, {

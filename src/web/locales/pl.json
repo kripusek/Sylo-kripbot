@@ -2170,5 +2170,10 @@
   "Voice channel": "Kanał głosowy",
   "Stage (podium)": "Scena (podium)",
   "stage": "scena",
-  "A stage starts live with the member who joined the hub as host and speaker; everyone else joins as audience and can ask to speak. Needs the Community feature enabled on the server (otherwise a normal voice channel is created) and ignores the user limit.": "Scena startuje na żywo, a osoba, która weszła do huba, jest gospodarzem i mówcą. Reszta dołącza jako publiczność i może poprosić o głos. Wymaga funkcji Społeczność na serwerze (inaczej powstanie zwykły kanał głosowy) i ignoruje limit osób."
+  "A stage starts live with the member who joined the hub as host and speaker; everyone else joins as audience and can ask to speak. Needs the Community feature enabled on the server (otherwise a normal voice channel is created) and ignores the user limit.": "Scena startuje na żywo, a osoba, która weszła do huba, jest gospodarzem i mówcą. Reszta dołącza jako publiczność i może poprosić o głos. Wymaga funkcji Społeczność na serwerze (inaczej powstanie zwykły kanał głosowy) i ignoruje limit osób.",
+  "Clean up after a catch": "Sprzątanie po złapaniu",
+  "Scam bots post the same message in many channels before they get caught.": "Boty-oszuści wrzucają tę samą wiadomość na wiele kanałów, zanim zostaną złapane.",
+  "Also delete the caught member's recent messages everywhere": "Usuń też ostatnie wiadomości złapanej osoby na całym serwerze",
+  "Delete messages from the last (minutes)": "Usuń wiadomości z ostatnich (minut)",
+  "Works with kick, timeout and ban. The bot needs Manage Messages and Read Message History in the channels to clean; a ban uses Discord's own message deletion.": "Działa z kickiem, wyciszeniem i banem. Bot potrzebuje Zarządzania wiadomościami i Czytania historii wiadomości na kanałach do sprzątania; przy banie używane jest własne usuwanie wiadomości Discorda."
 }

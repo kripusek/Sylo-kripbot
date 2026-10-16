@@ -44,6 +44,7 @@ export default function Honeypot() {
     if (data) {
       setForm({
         exemptRoles: data.config.exemptRoles,
+        cleanup: data.config.cleanup,
         channels: data.config.channels.map(toChannelRow),
         messages: data.config.messages.map(toMessageRow),
       });
@@ -86,6 +87,7 @@ export default function Honeypot() {
     try {
       const body = {
         exemptRoles: form.exemptRoles,
+        cleanup: form.cleanup,
         channels: form.channels.map((c) => ({
           channelId: c.channelId,
           action: c.action,
@@ -102,6 +104,7 @@ export default function Honeypot() {
       const { config } = await saveModuleConfig(guildId, 'honeypot', body);
       setForm({
         exemptRoles: config.exemptRoles,
+        cleanup: config.cleanup,
         channels: config.channels.map(toChannelRow),
         messages: config.messages.map(toMessageRow),
       });
@@ -275,6 +278,38 @@ export default function Honeypot() {
         <button type="button" className="v2-btn-ghost" onClick={addMessageRow}>
           + Add message honeypot
         </button>
+
+        <h2 className="v2-group-title v2-section-gap">Clean up after a catch</h2>
+        <div className="v2-field">
+          <label className="v2-check">
+            <input
+              type="checkbox"
+              checked={form.cleanup.enabled}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, cleanup: { ...f.cleanup, enabled: e.target.checked } }))
+              }
+            />
+            Also delete the caught member&apos;s recent messages everywhere
+          </label>
+          <p className="v2-field-hint">
+            Scam bots post the same message in many channels before they get caught. Works with kick, timeout
+            and ban; a ban uses Discord&apos;s own message deletion. The bot needs Manage Messages and Read
+            Message History in the channels to clean.
+          </p>
+        </div>
+        <div className="v2-field">
+          <label>Delete messages from the last (minutes)</label>
+          <input
+            type="number"
+            min={1}
+            max={1440}
+            style={{ maxWidth: '100px' }}
+            value={form.cleanup.minutes}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, cleanup: { ...f.cleanup, minutes: Number(e.target.value) } }))
+            }
+          />
+        </div>
 
         <div className="v2-field v2-section-gap-sm">
           <label>Exempt roles</label>

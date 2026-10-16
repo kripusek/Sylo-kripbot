@@ -576,6 +576,7 @@ router.post(
     const rawMessages = Array.isArray(req.body.messages) ? req.body.messages : [];
     const config = normaliseHoneypotConfig({
       exemptRoles: req.body.exemptRoles,
+      cleanup: req.body.cleanup,
       channels: rawChannels.map((c) => ({
         ...c,
         triggerCount: prevChanByChannel.get(c.channelId)?.triggerCount ?? 0,

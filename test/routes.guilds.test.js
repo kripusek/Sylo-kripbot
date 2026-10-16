@@ -475,3 +475,17 @@ test('temp-voice hub saves the stage channel type in V1', async () => {
   const { config } = await getGuildModule(GID, 'temp-voice');
   assert.ok(config.hubs.some((h) => h.channelType === 'stage'));
 });
+
+test('honeypot saves the cleanup option in V1', async () => {
+  const page = await get(`/guilds/${GID}/m/honeypot`);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /Clean up after a catch/);
+  const saved = await post(app.base, `/guilds/${GID}/m/honeypot/config`, {
+    hp_cleanup_enabled: 'on',
+    hp_cleanup_minutes: '30',
+  });
+  assert.equal(saved.status, 302);
+  const { getGuildModule } = await import('../src/db/modules.js');
+  const { config } = await getGuildModule(GID, 'honeypot');
+  assert.deepEqual(config.cleanup, { enabled: true, minutes: 30 });
+});
