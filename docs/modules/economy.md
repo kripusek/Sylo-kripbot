@@ -21,6 +21,9 @@ Monety są wirtualne, nie mają wartości w prawdziwym świecie, a gry nie używ
 - **Waluta**: nazwa, emoji, saldo startowe.
 - **Dzienne nagrody**: włącznik, odstęp między odbiorami, dodatkowy czas na utrzymanie passy, osobna nagroda dla każdego dnia (Dzień 1, Dzień 2…) oraz zapętlanie cyklu.
 - **Nagrody za poziomy**: włącznik, stała kwota albo kwota × osiągnięty poziom, premie na wybranych poziomach i komunikat o wypłacie. Wymaga włączonego modułu Poziomy. Przy skoku o kilka poziomów wypłacany jest każdy zdobyty poziom (maks. 200).
+- **Nagrody za aktywność**: monety za pisanie (kwota, odstęp między wypłatami, dzienny limit) i za czas na kanale głosowym (monety za minutę, dzienny limit). Limit 0 = bez limitu. Czas na VC liczy się tylko, gdy członek nie jest sam, nie ma wyciszonych słuchawek i nie jest na kanale AFK. Dzienne limity zerują się po restarcie bota.
+- **Zarządzanie monetami**: dodaj, odejmij lub ustaw saldo wybranego członka (ID lub @wzmianka), np. do testów. Zmiany trafiają do dziennika audytu.
+- **Najbogatsi członkowie**: ranking top 10 na dole widoku.
 - **Przelewy**: włącznik, minimalna kwota, prowizja (0–50%).
 - **Sklep z rolami**: role i ceny. Rola bota musi być wyżej niż sprzedawane role i potrzebne jest uprawnienie Zarządzanie rolami.
 - **Gry**: włącznik (domyślnie wyłączone), minimalna i maksymalna stawka, przerwa między grami i opcjonalna lista kanałów.

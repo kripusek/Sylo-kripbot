@@ -151,7 +151,7 @@ import { getCounting, setCount, resetCount } from '../../db/counting.js';
 import { listCountingPenalties, clearCountingPenalty } from '../../db/countingPenalties.js';
 import { normaliseAutoThreads } from '../../modules/autoThreads.js';
 import { normaliseMusic, stationsToText } from '../../modules/music.js';
-import { normaliseEconomy } from '../../modules/economy.js';
+import { normaliseEconomy, adjustBalance, richestMembers } from '../../modules/economy.js';
 import { normaliseAutoReact, AUTO_REACT_MODES, AUTO_REACT_ROLE_ACTIONS } from '../../modules/autoReact.js';
 import { LOG_EVENTS } from '../../modules/logging.js';
 import {
@@ -765,6 +765,7 @@ router.get(
       config: normaliseEconomy(config),
       channels: guildTextChannels(req.guild),
       roles: assignableRoles(req.guild),
+      top: await richestMembers(req.guild, 10),
     });
   })
 );
@@ -779,6 +780,38 @@ router.post(
       detail: 'settings saved',
     });
     res.json({ config });
+  })
+);
+
+router.post(
+  '/guilds/:guildId/modules/economy/adjust',
+  asyncHandler(async (req, res) => {
+    const userId = String(req.body.userId ?? '')
+      .trim()
+      .replace(/^<@!?(\d+)>$/, '$1');
+    const amount = Number(req.body.amount);
+    if (!/^\d{17,20}$/.test(userId) || !Number.isInteger(amount)) {
+      return res.status(400).json({ error: 'Podaj poprawne ID członka i kwotę.' });
+    }
+    const member = await req.guild.members.fetch(userId).catch(() => null);
+    if (!member || member.user.bot) {
+      return res.status(400).json({ error: 'Nie ma takiego członka na serwerze.' });
+    }
+    const { config } = await getGuildModule(req.guild.id, 'economy');
+    const result = await adjustBalance(
+      req.guild.id,
+      userId,
+      String(req.body.action ?? ''),
+      amount,
+      normaliseEconomy(config).startingBalance
+    );
+    if (!result.ok) return res.status(400).json({ error: 'Nieprawidłowa operacja lub kwota.' });
+    await recordAudit(req.guild.id, {
+      actor: moderatorDisplayName(req),
+      action: 'economy:adjust',
+      detail: `${req.body.action} ${amount} for ${userId} (balance ${result.balance})`,
+    });
+    res.json({ balance: result.balance, top: await richestMembers(req.guild, 10) });
   })
 );
 

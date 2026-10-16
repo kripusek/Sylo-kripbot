@@ -1,5 +1,7 @@
 import './helpers/tmpDb.js';
 import test from 'node:test';
+import { dispatch } from '../src/modules/dispatch.js';
+import { setGuildModule } from '../src/db/modules.js';
 import assert from 'node:assert/strict';
 import { getAccount, credit, debit, topBalances, balanceRank, MAX_BALANCE } from '../src/db/economy.js';
 import {
@@ -10,6 +12,10 @@ import {
   levelRewardFor,
   levelRewardTotal,
   grantLevelReward,
+  adjustBalance,
+  reserveActivity,
+  richestMembers,
+  _internals,
 } from '../src/modules/economy.js';
 import {
   coinflip,
@@ -367,4 +373,133 @@ test('blackjack values, naturals, dealer rules and settlement', () => {
     if (s.done) naturals.add(s.result.outcome);
   }
   assert.ok(naturals.size > 0);
+});
+
+test('activity config is clamped and off by default', () => {
+  const d = normaliseEconomy({});
+  assert.equal(d.activity.messages.enabled, false);
+  assert.equal(d.activity.voice.enabled, false);
+  const c = normaliseEconomy({
+    activity: {
+      messages: { enabled: true, amount: 0, cooldownSeconds: 1, dailyCap: -4 },
+      voice: { enabled: true, perMinute: 'x', dailyCap: 5 },
+    },
+  });
+  assert.deepEqual(c.activity.messages, { enabled: true, amount: 1, cooldownSeconds: 5, dailyCap: 0 });
+  assert.deepEqual(c.activity.voice, { enabled: true, perMinute: 1, dailyCap: 5 });
+});
+
+test('daily activity caps clip payouts and reset the next day', () => {
+  const u = user();
+  const day = 86_400_000;
+  const t = 40 * day;
+  assert.equal(reserveActivity('msg', G, u, 4, 10, t), 4);
+  assert.equal(reserveActivity('msg', G, u, 4, 10, t), 4);
+  assert.equal(reserveActivity('msg', G, u, 4, 10, t), 2); // only 2 left today
+  assert.equal(reserveActivity('msg', G, u, 4, 10, t), 0);
+  assert.equal(reserveActivity('voice', G, u, 4, 10, t), 4); // separate tally per source
+  assert.equal(reserveActivity('msg', G, u, 4, 10, t + day), 4); // new day
+  assert.equal(reserveActivity('msg', G, u, 999, 0, t + day), 999); // 0 = unlimited
+});
+
+test('chatting pays coins once per cooldown and respects the toggle', async () => {
+  const GID = '333333333333333333';
+  const u = user();
+  const msg = { author: { id: u, bot: false }, inGuild: () => true };
+  await setGuildModule(GID, 'economy', {
+    enabled: true,
+    config: { activity: { messages: { enabled: true, amount: 3, cooldownSeconds: 60, dailyCap: 5 } } },
+  });
+  await dispatch('messageCreate', GID, msg);
+  await dispatch('messageCreate', GID, msg); // inside the cooldown
+  assert.equal((await getAccount(GID, u)).balance, 3);
+
+  _internals.messageCooldowns.clear();
+  await dispatch('messageCreate', GID, msg); // cap of 5 leaves 2
+  assert.equal((await getAccount(GID, u)).balance, 5);
+  _internals.messageCooldowns.clear();
+  await dispatch('messageCreate', GID, msg);
+  assert.equal((await getAccount(GID, u)).balance, 5);
+
+  const bot = { author: { id: user(), bot: true }, inGuild: () => true };
+  await dispatch('messageCreate', GID, bot);
+  assert.equal((await getAccount(GID, bot.author.id)).balance, 0);
+
+  await setGuildModule(GID, 'economy', { enabled: true, config: {} });
+  _internals.earned.clear();
+  _internals.messageCooldowns.clear();
+  await dispatch('messageCreate', GID, msg);
+  assert.equal((await getAccount(GID, u)).balance, 5); // activity pay is off by default
+});
+
+test('voice time pays per minute only when the member is not alone', async () => {
+  const GID = '444444444444444444';
+  const a = user();
+  const b = user();
+  await setGuildModule(GID, 'economy', {
+    enabled: true,
+    config: { activity: { voice: { enabled: true, perMinute: 2, dailyCap: 0 } } },
+  });
+  const { runtime } = await import('../src/runtime.js');
+  const states = new Map();
+  const vs = (id, channelId, extra = {}) => ({ id, channelId, member: { user: { bot: false } }, ...extra });
+  runtime.client = {
+    guilds: { cache: new Map([[GID, { afkChannelId: 'afk', voiceStates: { cache: states } }]]) },
+  };
+  const raw = { activity: { voice: { enabled: true, perMinute: 2, dailyCap: 0 } } };
+  const t0 = Date.now();
+  const minutes = (n) => t0 + n * 60_000;
+
+  states.set(a, vs(a, 'vc1'));
+  await _internals.settleVoice(GID, a, { at: t0, channelId: 'vc1' }, minutes(5), raw, { keepOpen: false });
+  assert.equal((await getAccount(GID, a)).balance, 0); // alone in the channel
+
+  states.set(b, vs(b, 'vc1'));
+  await _internals.settleVoice(GID, a, { at: t0, channelId: 'vc1' }, minutes(5), raw, { keepOpen: false });
+  assert.equal((await getAccount(GID, a)).balance, 10);
+
+  const session = { at: t0, channelId: 'vc1' };
+  await _internals.settleVoice(GID, b, session, minutes(3) + 30_000, raw, { keepOpen: true });
+  assert.equal((await getAccount(GID, b)).balance, 6);
+  assert.equal(session.at, minutes(3)); // the half minute carries over
+
+  states.set(b, vs(b, 'vc1', { selfDeaf: true }));
+  await _internals.settleVoice(GID, b, { at: t0, channelId: 'vc1' }, minutes(5), raw, { keepOpen: false });
+  assert.equal((await getAccount(GID, b)).balance, 6); // deafened earns nothing
+  delete runtime.client;
+});
+
+test('admin adjustments add, remove (never below zero) and set', async () => {
+  const GID = '555555555555555555';
+  const u = user();
+  assert.deepEqual(await adjustBalance(GID, u, 'add', 500, 10), { ok: true, balance: 510 });
+  assert.deepEqual(await adjustBalance(GID, u, 'remove', 100), { ok: true, balance: 410 });
+  assert.deepEqual(await adjustBalance(GID, u, 'remove', 9999), { ok: true, balance: 0 }); // clamps at zero
+  assert.deepEqual(await adjustBalance(GID, u, 'set', 42), { ok: true, balance: 42 });
+  assert.deepEqual(await adjustBalance(GID, u, 'set', 0), { ok: true, balance: 0 });
+  for (const [action, amount] of [
+    ['add', 0],
+    ['add', -5],
+    ['remove', 0],
+    ['bogus', 5],
+    ['add', 1.5],
+    ['add', NaN],
+    ['set', -1],
+  ])
+    assert.equal((await adjustBalance(GID, u, action, amount)).ok, false, `${action} ${amount}`);
+  assert.equal((await getAccount(GID, u)).balance, 0);
+});
+
+test('richestMembers ranks by balance and resolves display names', async () => {
+  const GID = '666666666666666666';
+  const [x, y, z] = [user(), user(), user()];
+  await credit(GID, x, 30);
+  await credit(GID, y, 90);
+  await credit(GID, z, 60);
+  const guild = { id: GID, members: { cache: new Map([[y, { displayName: 'Yaya' }]]) } };
+  const rows = await richestMembers(guild, 2);
+  assert.deepEqual(rows, [
+    { rank: 1, userId: y, name: 'Yaya', balance: 90 },
+    { rank: 2, userId: z, name: z, balance: 60 }, // not cached -> id
+  ]);
 });

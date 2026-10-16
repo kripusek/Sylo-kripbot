@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { getModuleConfig, saveModuleConfig, ApiError } from '../api.js';
+import { getModuleConfig, saveModuleConfig, adjustEconomyBalance, ApiError } from '../api.js';
 import { useApiData } from '../useApiData.js';
 import ChipPicker from '../components/ChipPicker.jsx';
 
@@ -42,9 +42,15 @@ export default function Economy() {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [top, setTop] = useState([]);
+  const [adjust, setAdjust] = useState({ userId: '', amount: '' });
+  const [adjustMsg, setAdjustMsg] = useState(null);
 
   useEffect(() => {
-    if (data) setForm(toForm(data.config));
+    if (data) {
+      setForm(toForm(data.config));
+      setTop(data.top ?? []);
+    }
   }, [data]);
 
   if ((loading && !data) || !form) return <p className="v2-state">Ładowanie…</p>;
@@ -68,7 +74,20 @@ export default function Economy() {
   const setSection = (section, patch) => setForm((f) => ({ ...f, [section]: { ...f[section], ...patch } }));
   const num = (value) => (value === '' ? '' : Number(value));
 
-  const { daily, levelRewards, transfers, shop, games } = form;
+  const { daily, levelRewards, transfers, shop, games, activity } = form;
+  const setActivity = (kind, patch) =>
+    setForm((f) => ({ ...f, activity: { ...f.activity, [kind]: { ...f.activity[kind], ...patch } } }));
+
+  async function onAdjust(action) {
+    setAdjustMsg(null);
+    try {
+      const r = await adjustEconomyBalance(guildId, adjust.userId, action, Number(adjust.amount));
+      setTop(r.top);
+      setAdjustMsg({ ok: true, text: `Gotowe — nowe saldo: ${r.balance.toLocaleString('pl-PL')}.` });
+    } catch (err) {
+      setAdjustMsg({ ok: false, text: err.message });
+    }
+  }
   const updateRow = (section, list, key, patch) =>
     setSection(section, { [list]: form[section][list].map((r) => (r.key === key ? { ...r, ...patch } : r)) });
   const removeRow = (section, list, key) =>
@@ -430,6 +449,97 @@ export default function Economy() {
         </div>
 
         <div className="v2-group">
+          <h2 className="v2-group-title">Nagrody za aktywność</h2>
+          <p className="v2-field-hint">
+            Monety za samą obecność. Każde źródło ma opcjonalny dzienny limit na członka (0 = bez limitu).
+          </p>
+          <div className="v2-field">
+            <label className="v2-check">
+              <input
+                type="checkbox"
+                checked={activity.messages.enabled}
+                onChange={(e) => setActivity('messages', { enabled: e.target.checked })}
+              />
+              Monety za pisanie na czacie
+            </label>
+          </div>
+          <div className="v2-field">
+            <label htmlFor="msgAmount">Monet za wypłatę</label>
+            <input
+              id="msgAmount"
+              type="number"
+              min={1}
+              max={100000}
+              style={{ maxWidth: '140px' }}
+              value={activity.messages.amount}
+              onChange={(e) => setActivity('messages', { amount: num(e.target.value) })}
+            />
+          </div>
+          <div className="v2-field">
+            <label htmlFor="msgCooldown">Sekund między wypłatami</label>
+            <input
+              id="msgCooldown"
+              type="number"
+              min={5}
+              max={3600}
+              style={{ maxWidth: '140px' }}
+              value={activity.messages.cooldownSeconds}
+              onChange={(e) => setActivity('messages', { cooldownSeconds: num(e.target.value) })}
+            />
+          </div>
+          <div className="v2-field">
+            <label htmlFor="msgCap">Dzienny limit z pisania</label>
+            <input
+              id="msgCap"
+              type="number"
+              min={0}
+              max={1000000000}
+              style={{ maxWidth: '140px' }}
+              value={activity.messages.dailyCap}
+              onChange={(e) => setActivity('messages', { dailyCap: num(e.target.value) })}
+            />
+          </div>
+          <div className="v2-field">
+            <label className="v2-check">
+              <input
+                type="checkbox"
+                checked={activity.voice.enabled}
+                onChange={(e) => setActivity('voice', { enabled: e.target.checked })}
+              />
+              Monety za czas na kanałach głosowych
+            </label>
+          </div>
+          <div className="v2-field">
+            <label htmlFor="voiceRate">Monet na minutę</label>
+            <input
+              id="voiceRate"
+              type="number"
+              min={1}
+              max={100000}
+              style={{ maxWidth: '140px' }}
+              value={activity.voice.perMinute}
+              onChange={(e) => setActivity('voice', { perMinute: num(e.target.value) })}
+            />
+          </div>
+          <div className="v2-field">
+            <label htmlFor="voiceCap">Dzienny limit z głosowego</label>
+            <input
+              id="voiceCap"
+              type="number"
+              min={0}
+              max={1000000000}
+              style={{ maxWidth: '140px' }}
+              value={activity.voice.dailyCap}
+              onChange={(e) => setActivity('voice', { dailyCap: num(e.target.value) })}
+            />
+            <p className="v2-field-hint">
+              Czas na głosowym liczy się, gdy członek nie jest sam, nie ma wyciszonego słuchania i nie jest na
+              kanale AFK. Dzienne limity zerują się po restarcie bota.
+            </p>
+          </div>
+        </div>
+
+        <div className="v2-group">
           <h2 className="v2-group-title">Gry</h2>
           <p className="v2-field-hint">
             Gry za wirtualne monety pod <code>/gry</code>: coinflip, zgadnij, kamień-papier-nożyce, kostka,
@@ -500,6 +610,83 @@ export default function Economy() {
           {saved ? <span className="v2-field-hint"> Zapisano.</span> : null}
         </div>
       </form>
+      <div className="v2-group">
+        <h2 className="v2-group-title">Zarządzaj monetami</h2>
+        <p className="v2-field-hint">
+          Dodaj, odejmij lub ustaw saldo członka ręcznie — przydatne do testów. Zmiany trafiają do dziennika
+          audytu.
+        </p>
+        <div className="v2-field">
+          <label htmlFor="adjUser">ID członka lub @wzmianka</label>
+          <input
+            id="adjUser"
+            value={adjust.userId}
+            onChange={(e) => setAdjust((a) => ({ ...a, userId: e.target.value }))}
+          />
+        </div>
+        <div className="v2-field">
+          <label htmlFor="adjAmount">Kwota</label>
+          <input
+            id="adjAmount"
+            type="number"
+            min={0}
+            max={1000000000}
+            style={{ maxWidth: '160px' }}
+            value={adjust.amount}
+            onChange={(e) => setAdjust((a) => ({ ...a, amount: e.target.value }))}
+          />
+        </div>
+        <div className="v2-section-gap">
+          <button type="button" className="v2-btn-primary" onClick={() => onAdjust('add')}>
+            Dodaj
+          </button>{' '}
+          <button type="button" className="v2-btn-ghost" onClick={() => onAdjust('remove')}>
+            Odejmij
+          </button>{' '}
+          <button
+            type="button"
+            className="v2-btn-ghost"
+            onClick={() => {
+              if (window.confirm('Zastąpić saldo tego członka podaną kwotą?')) onAdjust('set');
+            }}
+          >
+            Ustaw saldo
+          </button>
+          {adjustMsg ? (
+            <p className="v2-field-hint" role="status">
+              {adjustMsg.text}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="v2-group">
+        <h2 className="v2-group-title">Najbogatsi</h2>
+        {top.length ? (
+          <table className="v2-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Członek</th>
+                <th>Monety</th>
+              </tr>
+            </thead>
+            <tbody>
+              {top.map((row) => (
+                <tr key={row.userId}>
+                  <td>{row.rank}</td>
+                  <td>{row.name}</td>
+                  <td>
+                    {row.balance.toLocaleString('pl-PL')} {form.currencyEmoji}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="v2-field-hint">Nikt jeszcze nie ma monet.</p>
+        )}
+      </div>
     </>
   );
 }

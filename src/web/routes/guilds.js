@@ -70,7 +70,7 @@ import {
 } from '../../modules/autoresponder.js';
 import { normaliseAutoThreads } from '../../modules/autoThreads.js';
 import { normaliseMusic } from '../../modules/music.js';
-import { normaliseEconomy } from '../../modules/economy.js';
+import { normaliseEconomy, adjustBalance, richestMembers } from '../../modules/economy.js';
 import { normaliseAutoReact, AUTO_REACT_MODES, AUTO_REACT_ROLE_ACTIONS } from '../../modules/autoReact.js';
 import {
   normaliseVerificationConfig,
@@ -808,10 +808,12 @@ async function moduleViewLocals(mod, req, configOverride) {
   const viewConfig = mod.id === 'temp-voice' ? normaliseTempVoiceConfig(config) : config;
   const cleanupRows = mod.id === 'channel-cleanup' ? await listCleanupSchedules(req.guild.id) : [];
   const githubRows = mod.id === 'github' ? await listGithubWatches(req.guild.id) : [];
+  const economyTop = mod.id === 'economy' ? await richestMembers(req.guild, 10) : [];
   const levelingOverrides = mod.id === 'leveling' ? await getCommandOverrides(req.guild.id) : null;
   return {
     ...(await baseContext(req.guild, `m/${mod.id}`)),
     activeModule: mod,
+    economyTop,
     moduleIconName: moduleIcon(mod.id),
     moduleEnabled: enabled,
     moduleTestable: enabled && TESTABLE.has(mod.id),
@@ -1366,6 +1368,19 @@ router.post(
           cooldownSeconds: req.body.games_cooldownSeconds,
           channelIds: list(req.body.gameChannels),
         },
+        activity: {
+          messages: {
+            enabled: checked(req.body.msg_enabled),
+            amount: req.body.msg_amount,
+            cooldownSeconds: req.body.msg_cooldownSeconds,
+            dailyCap: req.body.msg_dailyCap,
+          },
+          voice: {
+            enabled: checked(req.body.voice_enabled),
+            perMinute: req.body.voice_perMinute,
+            dailyCap: req.body.voice_dailyCap,
+          },
+        },
       });
     } else if (mod.id === 'music') {
       config = normaliseMusic({ ...req.body, allowUrls: req.body.allowUrls === 'on' });
@@ -1707,6 +1722,33 @@ router.post(
       });
     }
     res.redirect(`${back}?msg=saved`);
+  })
+);
+
+// Economy: add, remove or set a member's coins by hand (testing, fixing mistakes).
+router.post(
+  '/:guildId/m/economy/adjust',
+  asyncHandler(async (req, res) => {
+    const back = `/guilds/${req.guild.id}/m/economy`;
+    const userId = parseUserId(req.body.userId);
+    const action = String(req.body.action ?? '');
+    const amount = Number(req.body.amount);
+    if (!userId || !Number.isInteger(amount)) return res.redirect(`${back}?msg=eco-bad`);
+    const member = await req.guild.members.fetch(userId).catch(() => null);
+    if (!member || member.user.bot) return res.redirect(`${back}?msg=eco-nomember`);
+
+    const { config } = await getGuildModule(req.guild.id, 'economy');
+    const eco = normaliseEconomy(config);
+    const r = await adjustBalance(req.guild.id, userId, action, amount, eco.startingBalance);
+    if (!r.ok) return res.redirect(`${back}?msg=eco-bad`);
+    await recordAudit(req.guild.id, {
+      actor: moderatorDisplayName(req),
+      action: 'economy:adjust',
+      detail: `${action} ${amount} for ${userId} (balance ${r.balance})`,
+    });
+    res.redirect(
+      `${back}?msg=${action === 'add' ? 'eco-added' : action === 'remove' ? 'eco-removed' : 'eco-set'}`
+    );
   })
 );
 

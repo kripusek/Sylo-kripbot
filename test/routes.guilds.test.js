@@ -395,6 +395,13 @@ test('economy settings render and save the nested config in V1', async () => {
     ['lvl_amount', '15'],
     ['ms_level', '10'],
     ['ms_amount', '500'],
+    ['msg_enabled', 'on'],
+    ['msg_amount', '4'],
+    ['msg_cooldownSeconds', '30'],
+    ['msg_dailyCap', '100'],
+    ['voice_enabled', 'on'],
+    ['voice_perMinute', '3'],
+    ['voice_dailyCap', '0'],
     ['games_enabled', 'on'],
     ['games_minBet', '5'],
     ['games_maxBet', '200'],
@@ -411,6 +418,46 @@ test('economy settings render and save the nested config in V1', async () => {
   assert.equal(config.daily.loop, false); // unticked checkbox stays off
   assert.equal(config.levelRewards.mode, 'scaled');
   assert.deepEqual(config.levelRewards.milestones, [{ level: 10, amount: 500 }]);
+  assert.deepEqual(config.activity.messages, {
+    enabled: true,
+    amount: 4,
+    cooldownSeconds: 30,
+    dailyCap: 100,
+  });
+  assert.deepEqual(config.activity.voice, { enabled: true, perMinute: 3, dailyCap: 0 });
   assert.equal(config.games.enabled, true);
   assert.deepEqual(config.games.channelIds, [CH.general]);
+});
+
+test('economy page lists the richest members and the manual adjust form', async () => {
+  const { credit } = await import('../src/db/economy.js');
+  await credit(GID, '123456789012345678', 777);
+  const html = await (await get(`/guilds/${GID}/m/economy`)).text();
+  assert.match(html, /Richest members/);
+  assert.match(html, /777/);
+  assert.match(html, /m\/economy\/adjust/);
+});
+
+test('economy adjust rejects bad input and unknown members', async () => {
+  const bad = await post(app.base, `/guilds/${GID}/m/economy/adjust`, {
+    userId: 'abc',
+    action: 'add',
+    amount: '5',
+  });
+  assert.equal(bad.status, 302);
+  assert.match(bad.headers.get('location'), /msg=eco-bad/);
+  const ok = await post(app.base, `/guilds/${GID}/m/economy/adjust`, {
+    userId: '222222222222222222',
+    action: 'add',
+    amount: '250',
+  });
+  assert.match(ok.headers.get('location'), /msg=eco-added/);
+  const { getAccount } = await import('../src/db/economy.js');
+  assert.equal((await getAccount(GID, '222222222222222222')).balance, 250);
+  const zero = await post(app.base, `/guilds/${GID}/m/economy/adjust`, {
+    userId: '222222222222222222',
+    action: 'add',
+    amount: '0',
+  });
+  assert.match(zero.headers.get('location'), /msg=eco-bad/);
 });
