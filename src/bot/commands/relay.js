@@ -47,6 +47,21 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((s) => s.setName('stop').setDescription('Stop the voice relay.'))
   .addSubcommand((s) => s.setName('status').setDescription('Show whether the relay is running.'));
 
+/** How much speech each side has received, so "nobody is heard" can be diagnosed. */
+function heardText(st) {
+  const line = (label, seconds, lastAt, listening) =>
+    listening
+      ? `${label}: ${seconds} s${lastAt ? ` (ostatnio <t:${Math.floor(lastAt / 1000)}:R>)` : ' — jeszcze nic nie usłyszano'}`
+      : null;
+  return [
+    line('Usłyszano na wejściu', st.heard.input, st.heard.inputLastAt, true),
+    line('Usłyszano na wyjściu', st.heard.output, st.heard.outputLastAt, st.twoWay),
+    `Odtwarzacze: wejście ${st.players.input ?? '—'}, wyjście ${st.players.output ?? '—'}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 const reply = (content) => ({ content, flags: MessageFlags.Ephemeral });
 
 /** @param {import('discord.js').ChatInputCommandInteraction} interaction */
@@ -64,7 +79,7 @@ export async function execute(interaction) {
       .setTitle('🔁 Relay głosowy')
       .setDescription(
         st.running
-          ? `Działa ${st.twoWay ? 'dwukierunkowo' : 'jednokierunkowo'}.\nWejście: <#${st.inputChannelId}>\nWyjście: <#${st.outputChannelId}>\nMówi teraz: ${st.speakers}\nOd <t:${Math.floor(st.since / 1000)}:R>`
+          ? `Działa ${st.twoWay ? 'dwukierunkowo' : 'jednokierunkowo'}.\nWejście: <#${st.inputChannelId}>\nWyjście: <#${st.outputChannelId}>\nMówi teraz: ${st.speakers}\nOd <t:${Math.floor(st.since / 1000)}:R>\n${heardText(st)}`
           : `Zatrzymany.${relayBotConfigured() ? '' : '\n⚠️ Brak drugiego bota (RELAY_BOT_TOKEN).'}${
               runtime.relayClient?.guilds.cache.has(guildId) || !relayBotConfigured()
                 ? ''

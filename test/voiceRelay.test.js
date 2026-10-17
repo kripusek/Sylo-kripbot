@@ -5,7 +5,8 @@ import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import prism from 'prism-media';
 import { ChannelType } from 'discord.js';
-import { PcmMixer, FRAME_BYTES } from '../src/modules/lib/pcmMixer.js';
+import { PcmMixer, MixerPlayback, FRAME_BYTES } from '../src/modules/lib/pcmMixer.js';
+import { createAudioPlayer, createAudioResource, StreamType, AudioPlayerStatus } from '@discordjs/voice';
 import { relayActive } from '../src/modules/lib/relayState.js';
 import {
   normaliseVoiceRelay,
@@ -51,47 +52,119 @@ const frame = (value) => {
 const sample = (buf, i = 0) => buf.readInt16LE(i * 2);
 
 test('PcmMixer: sums speakers, clips to 16-bit and stays silent when nobody talks', () => {
-  const m = new PcmMixer({ autostart: false });
-  assert.equal(m.tick(), false);
+  const m = new PcmMixer({ prebufferFrames: 1 });
+  assert.equal(m.mix(), null);
   m.write('a', frame(1000));
   m.write('b', frame(-300));
-  assert.equal(m.tick(), true);
-  assert.equal(sample(m.read()), 700);
+  assert.equal(sample(m.mix()), 700);
+  assert.equal(m.mix(), null);
 
   m.write('a', frame(30000));
   m.write('b', frame(30000));
-  m.tick();
-  assert.equal(sample(m.read()), 32767); // clipped, not wrapped
+  assert.equal(sample(m.mix()), 32767); // clipped, not wrapped
   m.write('a', frame(-30000));
   m.write('b', frame(-30000));
-  m.tick();
-  assert.equal(sample(m.read()), -32768);
+  assert.equal(sample(m.mix()), -32768);
   m.destroy();
 });
 
 test('PcmMixer: re-frames unaligned chunks and drops old audio past the queue cap', () => {
-  const m = new PcmMixer({ autostart: false, maxQueueFrames: 3 });
+  const m = new PcmMixer({ maxQueueFrames: 3, prebufferFrames: 1 });
   const one = frame(5);
   m.write('a', one.subarray(0, 1000)); // not a whole frame yet
-  assert.equal(m.tick(), false);
+  assert.equal(m.mix(), null);
   m.write('a', one.subarray(1000));
-  assert.equal(m.tick(), true);
+  assert.equal(sample(m.mix()), 5);
 
   for (let i = 1; i <= 6; i += 1) m.write('b', frame(i));
   assert.equal(m.sources.get('b').queue.length, 3);
-  m.tick();
-  assert.equal(sample(m.read(), 0) >= 4, true); // the newest frames survived
+  assert.equal(sample(m.mix()), 4); // the newest frames survived
   m.destroy();
 });
 
-test('PcmMixer: a finished speaker plays out its queue, then disappears', () => {
-  const m = new PcmMixer({ autostart: false });
+test('PcmMixer: waits for a small head start, then plays a speaker out and forgets them', () => {
+  const m = new PcmMixer({ prebufferFrames: 2 });
   m.write('a', frame(1));
-  m.finish('a');
-  assert.equal(m.tick(), true);
-  assert.equal(m.tick(), false);
-  assert.equal(m.sources.has('a'), false);
+  assert.equal(m.mix(), null); // one frame is not enough to start smoothly
+  m.write('a', frame(2));
+  assert.equal(sample(m.mix()), 1);
+  assert.equal(sample(m.mix()), 2);
+  assert.equal(m.mix(), null);
+
+  m.write('b', frame(9)); // a short burst that ends before the head start fills
+  m.finish('b');
+  assert.equal(sample(m.mix()), 9);
+  m.mix();
+  assert.equal(m.sources.has('b'), false);
   m.destroy();
+});
+
+// ----------------------------------- the real player, across pauses in speech ----
+
+const waitFor = async (cond, ms = 3000) => {
+  const end = Date.now() + ms;
+  while (!cond()) {
+    if (Date.now() > end) throw new Error('timed out');
+    await new Promise((r) => setTimeout(r, 10));
+  }
+};
+
+test('MixerPlayback keeps working across pauses that would kill a single long stream', async () => {
+  const mixer = new PcmMixer({ prebufferFrames: 1 });
+  const player = createAudioPlayer({ behaviors: { noSubscriber: 'play' } });
+  player.on('error', () => {});
+  const playback = new MixerPlayback({
+    mixer,
+    player,
+    createResource: createAudioResource,
+    rawType: StreamType.Raw,
+    hangoverFrames: 6,
+  });
+  try {
+    // Nobody has spoken yet: nothing may be created, and nothing may die.
+    await new Promise((r) => setTimeout(r, 250));
+    assert.equal(playback.opened, 0);
+    assert.equal(player.state.status, AudioPlayerStatus.Idle);
+
+    // First sentence.
+    for (let i = 0; i < 10; i += 1) mixer.write('u', frame(2000));
+    await waitFor(() => playback.opened === 1 && player.state.status === AudioPlayerStatus.Playing);
+
+    // A pause far longer than the player's own 5-frame tolerance.
+    await waitFor(() => playback.stream === null && player.state.status === AudioPlayerStatus.Idle);
+
+    // The next sentence must still come through, on a fresh stream.
+    for (let i = 0; i < 10; i += 1) mixer.write('u', frame(2000));
+    await waitFor(() => playback.opened === 2 && player.state.status === AudioPlayerStatus.Playing);
+  } finally {
+    playback.destroy();
+    player.stop(true);
+  }
+});
+
+test('MixerPlayback bridges short gaps inside a sentence without opening a new stream', async () => {
+  const mixer = new PcmMixer({ prebufferFrames: 1 });
+  const opened = [];
+  const playback = new MixerPlayback({
+    mixer,
+    player: { play: (r) => opened.push(r) },
+    createResource: (stream) => ({ stream }),
+    rawType: 'raw',
+    hangoverFrames: 10,
+    autostart: false,
+  });
+  mixer.write('u', frame(100));
+  playback.tick();
+  for (let i = 0; i < 5; i += 1) playback.tick(); // a 100 ms gap
+  mixer.write('u', frame(100));
+  playback.tick();
+  assert.equal(opened.length, 1);
+  for (let i = 0; i < 12; i += 1) playback.tick(); // longer than the hangover
+  assert.equal(playback.stream, null);
+  mixer.write('u', frame(100));
+  playback.tick();
+  assert.equal(opened.length, 2);
+  playback.destroy();
 });
 
 // ------------------------------------------------- real Opus round trip ----
@@ -212,10 +285,9 @@ test('one-way relay: input speech reaches the output mixer, bots are ignored', a
   assert.equal(inConn.subscribed.length, 0);
   assert.equal(outConn.subscribed.length, 1);
 
-  speak(inConn, HUMAN, frame(900));
+  speak(inConn, HUMAN, Buffer.concat([frame(900), frame(900)]));
   await new Promise((r) => setImmediate(r));
-  assert.equal(session.output.mixer.tick(), true);
-  assert.equal(sample(session.output.mixer.read()), 900);
+  assert.equal(sample(session.output.mixer.mix()), 900);
 
   speak(inConn, BOT, frame(900)); // a bot in the channel is never relayed
   assert.equal(inConn.streams.has(BOT), false);
@@ -240,13 +312,11 @@ test('two-way relay: both channels hear each other', async () => {
   assert.equal(inConn.subscribed.length, 1); // main bot speaks into the input channel too
   assert.equal(outConn.opts.selfDeaf, false);
 
-  speak(inConn, HUMAN, frame(100));
-  speak(outConn, HUMAN2, frame(250));
+  speak(inConn, HUMAN, Buffer.concat([frame(100), frame(100)]));
+  speak(outConn, HUMAN2, Buffer.concat([frame(250), frame(250)]));
   await new Promise((r) => setImmediate(r));
-  session.output.mixer.tick();
-  session.input.mixer.tick();
-  assert.equal(sample(session.output.mixer.read()), 100);
-  assert.equal(sample(session.input.mixer.read()), 250);
+  assert.equal(sample(session.output.mixer.mix()), 100);
+  assert.equal(sample(session.input.mixer.mix()), 250);
   session.stop();
 });
 
@@ -323,4 +393,27 @@ test('relayInviteUrl: derived from the token, with only the permissions the rela
   assert.ok(!relayInviteUrl(token).includes('secretpart')); // never leaks the token
   assert.equal(relayInviteUrl(''), null);
   assert.equal(relayInviteUrl('not-a-token'), null);
+});
+
+test('a speaker who talks again after a pause is not dropped', () => {
+  const m = new PcmMixer();
+  m.write('a', frame(1));
+  m.finish('a');
+  m.write('a', frame(2)); // new burst arrives before the old queue is gone
+  assert.equal(m.sources.get('a').finished, false);
+  m.destroy();
+});
+
+test('status reports how much speech each side has heard', async () => {
+  const { deps, session } = await setup({ ...CFG, twoWay: true });
+  const [inConn] = deps.connections;
+  assert.equal(relayStatus(G).heard.input, 0);
+  speak(inConn, HUMAN, Buffer.alloc(192_000)); // one second of audio
+  await new Promise((r) => setImmediate(r));
+  const st = relayStatus(G);
+  assert.equal(st.heard.input, 1);
+  assert.equal(st.heard.output, 0);
+  assert.ok(st.heard.inputLastAt > 0);
+  assert.equal(st.players.output, null); // fake player has no state, the field is just present
+  session.stop();
 });

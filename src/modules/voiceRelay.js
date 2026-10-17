@@ -26,7 +26,7 @@ import { runtime } from '../runtime.js';
 import { config as appConfig } from '../config.js';
 import { isModuleEnabled, getGuildModule } from '../db/modules.js';
 import { log } from '../lib/log.js';
-import { PcmMixer } from './lib/pcmMixer.js';
+import { PcmMixer, MixerPlayback } from './lib/pcmMixer.js';
 import { markRelay } from './lib/relayState.js';
 import { getSession as getMusicSession } from './music.js';
 import { soundboardStatus } from './soundboard.js';
@@ -124,12 +124,26 @@ async function openLeg({ guild, channelId, group, listen, speak, deps }) {
     connection.destroy();
     throw new RelayError('Nie udało się dołączyć do kanału głosowego.', 503);
   }
-  const leg = { guild, channelId, connection, listening: new Set(), detach: null, mixer: null, player: null };
+  const leg = {
+    guild,
+    channelId,
+    connection,
+    listening: new Set(),
+    detach: null,
+    mixer: null,
+    player: null,
+    heard: { bytes: 0, lastAt: 0 }, // audio received from this channel's members
+  };
   if (speak) {
     leg.mixer = new PcmMixer();
     leg.player = v.createAudioPlayer({ behaviors: { noSubscriber: v.NoSubscriberBehavior.Play } });
     leg.player.on('error', (err) => log.warn('module:voice-relay', 'player error:', err.message));
-    leg.player.play(v.createAudioResource(leg.mixer, { inputType: v.StreamType.Raw }));
+    leg.playback = new MixerPlayback({
+      mixer: leg.mixer,
+      player: leg.player,
+      createResource: v.createAudioResource,
+      rawType: v.StreamType.Raw,
+    });
     connection.subscribe(leg.player);
   }
   return leg;
@@ -151,7 +165,11 @@ function pipeSpeech(leg, target, deps) {
       decoder.destroy();
       opus.destroy();
     };
-    decoder.on('data', (pcm) => target.write(userId, pcm));
+    decoder.on('data', (pcm) => {
+      leg.heard.bytes += pcm.length;
+      leg.heard.lastAt = Date.now();
+      target.write(userId, pcm);
+    });
     decoder.on('error', done); // a corrupt packet only ends that burst of speech
     opus.on('error', done);
     opus.once('end', done);
@@ -242,6 +260,18 @@ export class RelaySession {
       twoWay: this.twoWay,
       since: this.startedAt,
       speakers: this.input.listening.size + (this.twoWay ? this.output.listening.size : 0),
+      // Seconds of speech actually received per channel — tells "the bot hears
+      // nobody" (stays 0) apart from "it hears but playback is silent".
+      heard: {
+        input: Math.round(this.input.heard.bytes / 192_000),
+        output: Math.round(this.output.heard.bytes / 192_000),
+        inputLastAt: this.input.heard.lastAt,
+        outputLastAt: this.output.heard.lastAt,
+      },
+      players: {
+        input: this.input.player?.state?.status ?? null,
+        output: this.output.player?.state?.status ?? null,
+      },
     };
   }
 
@@ -251,7 +281,7 @@ export class RelaySession {
     for (const leg of this.legs) {
       leg.detach?.();
       leg.player?.stop(true);
-      leg.mixer?.destroy();
+      leg.playback?.destroy();
       if (leg.connection.state.status !== this.deps.voice.VoiceConnectionStatus.Destroyed)
         leg.connection.destroy();
     }
