@@ -157,6 +157,7 @@ import {
   reconcileGuild,
   relayStatus,
   relayBotConfigured,
+  relayInviteUrl,
 } from '../../modules/voiceRelay.js';
 import { normaliseAutoReact, AUTO_REACT_MODES, AUTO_REACT_ROLE_ACTIONS } from '../../modules/autoReact.js';
 import { LOG_EVENTS } from '../../modules/logging.js';
@@ -830,6 +831,7 @@ router.get(
       config: normaliseVoiceRelay(config),
       voiceChannels: guildVoiceChannels(req.guild),
       botConfigured: relayBotConfigured(),
+      inviteUrl: relayInviteUrl(),
       botInGuild: Boolean(runtime.relayClient?.guilds.cache.has(req.guild.id)),
       status: relayStatus(req.guild.id),
     });

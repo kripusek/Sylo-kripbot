@@ -2197,5 +2197,9 @@
   "Regular voice channels only (not stages). The main bot needs Connect on the input channel and the relay bot needs Connect and Speak on the output channel.": "Tylko zwykłe kanały głosowe (nie sceny). Główny bot potrzebuje Łączenia na wejściu, a bot relay Łączenia i Mówienia na wyjściu.",
   "Tick and save to start; untick and save to stop. Music and the soundboard can't be used on this server while the relay runs.": "Zaznacz i zapisz, aby uruchomić; odznacz i zapisz, aby zatrzymać. Gdy relay działa, na serwerze nie da się używać muzyki ani soundboardu.",
   "Swap the input and output channels (reverses the direction).": "Zamień kanał wejściowy z wyjściowym (odwraca kierunek).",
-  "⇅ Swap input and output": "⇅ Zamień wejście z wyjściem"
+  "⇅ Swap input and output": "⇅ Zamień wejście z wyjściem",
+  "The relay bot is not on this server yet.": "Bota relay nie ma jeszcze na tym serwerze.",
+  "Invite the relay bot": "Zaproś bota relay",
+  "(you need the Manage Server permission), then reload this page.": "(potrzebujesz uprawnienia Zarządzanie serwerem), a potem odśwież stronę.",
+  "Invite it, then reload this page.": "Zaproś go i odśwież stronę."
 }

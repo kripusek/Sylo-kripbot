@@ -12,6 +12,7 @@ import {
   startRelay,
   relays,
   relayStatus,
+  relayInviteUrl,
   RelayError,
 } from '../src/modules/voiceRelay.js';
 
@@ -308,4 +309,18 @@ test('losing a connection stops the whole relay', async () => {
   deps.connections[1].emit('destroyed');
   assert.equal(session.stopped, true);
   assert.equal(relayActive(G), false);
+});
+
+test('relayInviteUrl: derived from the token, with only the permissions the relay needs', () => {
+  const id = '123456789012345678';
+  const token = `${Buffer.from(id).toString('base64')}.AbCdEf.secretpart`;
+  const url = new URL(relayInviteUrl(token));
+  assert.equal(url.origin + url.pathname, 'https://discord.com/oauth2/authorize');
+  assert.equal(url.searchParams.get('client_id'), id);
+  assert.equal(url.searchParams.get('scope'), 'bot');
+  // View Channel + Connect + Speak, nothing more
+  assert.equal(BigInt(url.searchParams.get('permissions')), 0x400n + 0x100000n + 0x200000n);
+  assert.ok(!relayInviteUrl(token).includes('secretpart')); // never leaks the token
+  assert.equal(relayInviteUrl(''), null);
+  assert.equal(relayInviteUrl('not-a-token'), null);
 });

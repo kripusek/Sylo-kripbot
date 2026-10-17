@@ -83,7 +83,19 @@ export default function VoiceRelay() {
           <code>RELAY_BOT_TOKEN</code>, zaproś ją na ten serwer i zrestartuj bota.
         </p>
       ) : !data.botInGuild ? (
-        <p className="v2-error">Bot relay nie jest jeszcze na tym serwerze. Zaproś go i zapisz ponownie.</p>
+        <p className="v2-error">
+          Bot relay nie jest jeszcze na tym serwerze.{' '}
+          {data.inviteUrl ? (
+            <>
+              <a href={data.inviteUrl} target="_blank" rel="noopener noreferrer">
+                Zaproś bota relay
+              </a>{' '}
+              (potrzebujesz uprawnienia Zarządzanie serwerem), a potem odśwież stronę.
+            </>
+          ) : (
+            'Zaproś go i odśwież stronę.'
+          )}
+        </p>
       ) : (
         <p className="v2-field-hint">
           Status:{' '}

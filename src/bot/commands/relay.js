@@ -13,6 +13,7 @@ import {
   reconcileGuild,
   relayStatus,
   relayBotConfigured,
+  relayInviteUrl,
   RelayError,
 } from '../../modules/voiceRelay.js';
 import { runtime } from '../../runtime.js';
@@ -67,7 +68,7 @@ export async function execute(interaction) {
           : `Zatrzymany.${relayBotConfigured() ? '' : '\n⚠️ Brak drugiego bota (RELAY_BOT_TOKEN).'}${
               runtime.relayClient?.guilds.cache.has(guildId) || !relayBotConfigured()
                 ? ''
-                : '\n⚠️ Bot relay nie jest na tym serwerze.'
+                : `\n⚠️ Bot relay nie jest na tym serwerze.${relayInviteUrl() ? ` [Zaproś go](${relayInviteUrl()})` : ''}`
             }`
       );
     return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

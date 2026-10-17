@@ -13,7 +13,13 @@
 <% if (typeof relayBotConfigured !== 'undefined' && !relayBotConfigured) { %>
   <div class="banner bad">The relay needs a second bot: create another application in the Discord Developer Portal, put its token in <code>RELAY_BOT_TOKEN</code>, invite it to this server and restart.</div>
 <% } else if (typeof relayBotInGuild !== 'undefined' && !relayBotInGuild) { %>
-  <div class="banner bad">The relay bot is not on this server yet. Invite it, then save again.</div>
+  <div class="banner bad">The relay bot is not on this server yet.
+    <% if (typeof relayInviteUrl !== 'undefined' && relayInviteUrl) { %>
+      <a href="<%= relayInviteUrl %>" target="_blank" rel="noopener">Invite the relay bot</a> (you need the Manage Server permission), then reload this page.
+    <% } else { %>
+      Invite it, then reload this page.
+    <% } %>
+  </div>
 <% } else { %>
   <p class="small">
     Status:

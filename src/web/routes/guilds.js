@@ -76,6 +76,7 @@ import {
   reconcileGuild,
   relayStatus,
   relayBotConfigured,
+  relayInviteUrl,
 } from '../../modules/voiceRelay.js';
 import { normaliseAutoReact, AUTO_REACT_MODES, AUTO_REACT_ROLE_ACTIONS } from '../../modules/autoReact.js';
 import {
@@ -831,6 +832,7 @@ async function moduleViewLocals(mod, req, configOverride) {
     honeypotActions: HONEYPOT_ACTIONS,
     relayStatus: mod.id === 'voice-relay' ? relayStatus(req.guild.id) : null,
     relayBotConfigured: relayBotConfigured(),
+    relayInviteUrl: relayInviteUrl(),
     relayBotInGuild: Boolean(runtime.relayClient?.guilds.cache.has(req.guild.id)),
     welcomePlaceholders: WELCOME_PLACEHOLDERS,
     thresholdActions: THRESHOLD_ACTIONS,

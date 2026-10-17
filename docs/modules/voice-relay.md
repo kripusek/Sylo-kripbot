@@ -18,6 +18,18 @@ W trybie **dwukierunkowym** oba boty robią też drugą robotę, więc oba kana�
 3. Zaproś bota relay na serwer. Dla jego kanału potrzebuje uprawnień **Wyświetlanie kanału, Łączenie i Mówienie**. Główny bot potrzebuje **Łączenia** na kanale wejściowym (w trybie dwukierunkowym także **Mówienia**).
 4. Włącz moduł **Relay głosowy**, wybierz kanały i zaznacz **Relay włączony**, a następnie zapisz.
 
+## Nie mogę zaprosić drugiego bota
+
+Gdy bota relay nie ma jeszcze na serwerze, panel (V1 i V2) i `/relay status` pokazują gotowy **link zaproszenia** z odpowiednimi uprawnieniami (Wyświetlanie kanału, Łączenie, Mówienie). Link powstaje z `RELAY_BOT_TOKEN`, więc działa nawet wtedy, gdy bot nie może się zalogować.
+
+Jeśli zaproszenie nadal nie działa, sprawdź w Developer Portal (druga aplikacja):
+
+- **Bot → Requires OAuth2 Code Grant** musi być **wyłączone**. Przy włączonym zaproszenie kończy się błędem.
+- **Installation → Install Link**: wybierz „Discord Provided Link", a w Guild Install dodaj zakres `bot`. Przy ustawieniu „None" Discord potrafi odrzucić link.
+- **Bot → Public Bot**: zaproszenie działa dla właściciela aplikacji, ale dla innych osób ta opcja musi być włączona.
+- Na docelowym serwerze musisz mieć uprawnienie **Zarządzanie serwerem** (albo Administrator). Bez niego serwer nie pojawi się na liście.
+- Token w `RELAY_BOT_TOKEN` musi pochodzić z **drugiej** aplikacji (Bot → Reset Token), a nie z głównej.
+
 ## Sterowanie
 
 W panelu (V1 i V2):

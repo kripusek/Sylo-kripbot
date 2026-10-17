@@ -71,6 +71,22 @@ const defaultDeps = {
 /** Whether a second bot account is configured at all. */
 export const relayBotConfigured = () => Boolean(appConfig.relayBotToken);
 
+// View Channel + Connect + Speak: all the relay bot needs on its output channel.
+const RELAY_INVITE_PERMISSIONS = '3146752';
+
+/**
+ * Invite link for the relay bot. A bot token starts with the base64 of the bot's
+ * user id, which equals its application id, so the link works even when the
+ * bot could not log in (wrong token, offline) — exactly when you need it.
+ * @returns {string|null}
+ */
+export function relayInviteUrl(token = appConfig.relayBotToken) {
+  const first = String(token ?? '').split('.')[0];
+  const clientId = Buffer.from(first, 'base64').toString('utf8');
+  if (!/^\d{17,20}$/.test(clientId)) return null;
+  return `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot&permissions=${RELAY_INVITE_PERMISSIONS}`;
+}
+
 const P = PermissionFlagsBits;
 
 function checkChannel(guild, channelId, { speak }) {
