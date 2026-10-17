@@ -49,6 +49,16 @@ export const MODULES = [
     beta: true,
   },
   {
+    id: 'voice-relay',
+    name: 'Voice relay',
+    description: 'Carry the talk of one voice channel into another, live (needs a second bot account).',
+    icon: '🔁',
+    requiredIntents: [],
+    defaultEnabled: false,
+    configurable: true,
+    beta: true,
+  },
+  {
     id: 'moderation',
     name: 'Moderation',
     description: 'Mod-log channel, warning thresholds, mute role, ban manager.',

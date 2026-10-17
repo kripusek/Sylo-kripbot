@@ -35,6 +35,8 @@ This fork extends the upstream bot with features configured from the dashboard:
   names and archive durations. [Setup](docs/modules/auto-threads.md).
 - **Music** from direct audio links and radio stations, with a queue, DJ role and
   per-server station list (no YouTube/Spotify). [Setup](docs/modules/music.md).
+- **Voice relay** that carries one voice channel into another, live, using a second bot account.
+  [Setup](docs/modules/voice-relay.md).
 - **Economy** with daily rewards and streaks, level-up payouts, mini-games, transfers and a role
   shop, all configurable from the panel. [Setup](docs/modules/economy.md).
 - **Discord channel tickets** with an Open ticket button, a private topic

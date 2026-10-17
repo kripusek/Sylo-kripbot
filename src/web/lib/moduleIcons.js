@@ -31,6 +31,7 @@ export const MODULE_ICONS = {
   afk: 'moon',
   'server-stats': 'activity',
   'temp-voice': 'mic',
+  'voice-relay': 'mic',
   'free-games': 'gamepad',
   reminders: 'bell',
   giveaways: 'gift',

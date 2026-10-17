@@ -32,6 +32,8 @@ export const runtime = {
   /** @type {number[]} Gateway ping in ms, oldest first, capped. */
   pingHistory: [],
   client: null,
+  /** @type {import('discord.js').Client | null} Second bot account used by the voice relay. */
+  relayClient: null,
 };
 
 /**

@@ -178,6 +178,8 @@ export const config = Object.freeze({
   // Discord
   discordToken: required('DISCORD_TOKEN'),
   discordClientId: required('DISCORD_CLIENT_ID'),
+  // Optional second bot account, used by the voice relay as the "output" bot.
+  relayBotToken: optional('RELAY_BOT_TOKEN', ''),
   // Optional: register slash commands to these guild(s) for instant availability
   // during development (one id, or a comma/space-separated list). When empty,
   // commands are registered globally (can take up to ~1 hour to propagate).

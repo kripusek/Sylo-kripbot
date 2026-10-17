@@ -1,0 +1,76 @@
+<%
+  var cfg = moduleConfig || {};
+  var st = typeof relayStatus !== 'undefined' && relayStatus ? relayStatus : { running: false };
+%>
+
+<p class="muted small">
+  Carries what members say in the <strong>input</strong> voice channel into the <strong>output</strong> channel, live.
+  A bot can sit in only one voice channel per server, so this uses a second bot account (the relay bot):
+  the main bot listens in the input channel and the relay bot speaks in the output channel. Two-way mode
+  connects both channels to each other.
+</p>
+
+<% if (typeof relayBotConfigured !== 'undefined' && !relayBotConfigured) { %>
+  <div class="banner bad">The relay needs a second bot: create another application in the Discord Developer Portal, put its token in <code>RELAY_BOT_TOKEN</code>, invite it to this server and restart.</div>
+<% } else if (typeof relayBotInGuild !== 'undefined' && !relayBotInGuild) { %>
+  <div class="banner bad">The relay bot is not on this server yet. Invite it, then save again.</div>
+<% } else { %>
+  <p class="small">
+    Status:
+    <% if (st.running) { %>
+      <strong>running</strong> — <%= st.twoWay ? 'two-way' : 'one-way' %>, <%= st.speakers %> speaking now
+    <% } else { %>
+      <strong>stopped</strong>
+    <% } %>
+  </p>
+<% } %>
+
+<form method="POST" action="/guilds/<%= guild.id %>/m/voice-relay/config"
+      hx-post="/guilds/<%= guild.id %>/m/voice-relay/config" hx-target="#module-config" hx-swap="outerHTML"
+      class="stack u-mw-lg">
+  <label>Input channel <span class="muted">— the main bot listens here</span></label>
+  <select name="inputChannelId">
+    <option value="">— choose —</option>
+    <% voiceChannels.forEach(function (ch) { %>
+      <option value="<%= ch.id %>" <%= ch.id === cfg.inputChannelId ? 'selected' : '' %>>🔊 <%= ch.name %></option>
+    <% }) %>
+  </select>
+
+  <label class="u-mt-2">Output channel <span class="muted">— the relay bot speaks here</span></label>
+  <select name="outputChannelId">
+    <option value="">— choose —</option>
+    <% voiceChannels.forEach(function (ch) { %>
+      <option value="<%= ch.id %>" <%= ch.id === cfg.outputChannelId ? 'selected' : '' %>>🔊 <%= ch.name %></option>
+    <% }) %>
+  </select>
+  <div><button type="button" class="secondary" id="relay-swap">⇅ Swap input and output</button></div>
+  <p class="muted small">Regular voice channels only (not stages). The main bot needs Connect on the input channel and the relay bot needs Connect and Speak on the output channel.</p>
+
+  <label class="check u-mt-2">
+    <input type="checkbox" name="twoWay" <%= cfg.twoWay ? 'checked' : '' %> />
+    Two-way (both channels hear each other)
+  </label>
+  <label class="check">
+    <input type="checkbox" name="announce" <%= cfg.announce !== false ? 'checked' : '' %> />
+    Post a notice in both channels' chat when the relay starts
+  </label>
+  <p class="muted small">Leave the notice on so members know their voice is being passed to another channel.</p>
+
+  <label class="check u-mt-2">
+    <input type="checkbox" name="active" <%= cfg.active ? 'checked' : '' %> />
+    Relay running
+  </label>
+  <p class="muted small">Tick and save to start; untick and save to stop. Music and the soundboard can't be used on this server while the relay runs.</p>
+
+  <div class="u-mt-4"><button type="submit">Save</button></div>
+</form>
+<script>
+  document.getElementById('relay-swap')?.addEventListener('click', function () {
+    var a = document.querySelector('select[name="inputChannelId"]');
+    var b = document.querySelector('select[name="outputChannelId"]');
+    if (!a || !b) return;
+    var t = a.value;
+    a.value = b.value;
+    b.value = t;
+  });
+</script>

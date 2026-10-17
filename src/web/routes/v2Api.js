@@ -152,6 +152,12 @@ import { listCountingPenalties, clearCountingPenalty } from '../../db/countingPe
 import { normaliseAutoThreads } from '../../modules/autoThreads.js';
 import { normaliseMusic, stationsToText } from '../../modules/music.js';
 import { normaliseEconomy, adjustBalance, richestMembers } from '../../modules/economy.js';
+import {
+  normaliseVoiceRelay,
+  reconcileGuild,
+  relayStatus,
+  relayBotConfigured,
+} from '../../modules/voiceRelay.js';
 import { normaliseAutoReact, AUTO_REACT_MODES, AUTO_REACT_ROLE_ACTIONS } from '../../modules/autoReact.js';
 import { LOG_EVENTS } from '../../modules/logging.js';
 import {
@@ -813,6 +819,34 @@ router.post(
       detail: `${req.body.action} ${amount} for ${userId} (balance ${result.balance})`,
     });
     res.json({ balance: result.balance, top: await richestMembers(req.guild, 10) });
+  })
+);
+
+router.get(
+  '/guilds/:guildId/modules/voice-relay/config',
+  asyncHandler(async (req, res) => {
+    const { config } = await getGuildModule(req.guild.id, 'voice-relay');
+    res.json({
+      config: normaliseVoiceRelay(config),
+      voiceChannels: guildVoiceChannels(req.guild),
+      botConfigured: relayBotConfigured(),
+      botInGuild: Boolean(runtime.relayClient?.guilds.cache.has(req.guild.id)),
+      status: relayStatus(req.guild.id),
+    });
+  })
+);
+router.post(
+  '/guilds/:guildId/modules/voice-relay/config',
+  asyncHandler(async (req, res) => {
+    const config = normaliseVoiceRelay(req.body);
+    await setGuildModule(req.guild.id, 'voice-relay', { config });
+    await recordAudit(req.guild.id, {
+      actor: moderatorDisplayName(req),
+      action: 'module:voice-relay',
+      detail: config.active ? 'relay started' : 'settings saved',
+    });
+    const error = await reconcileGuild(req.guild.id, { startIfNeeded: true });
+    res.json({ config, status: relayStatus(req.guild.id), error });
   })
 );
 

@@ -7,6 +7,7 @@
 // at connect time, so DNS rebinding cannot reach the LAN) and pipes the body
 // into a sandboxed FFmpeg (stdin only, no protocols) that emits Ogg/Opus, which
 // @discordjs/voice can send without any native Opus encoder.
+import { relayActive } from './lib/relayState.js';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import dns from 'node:dns';
@@ -588,6 +589,11 @@ export function getOrCreateSession(guild, channelId, limits, deps = defaultDeps)
   const job = (async () => {
     if (sessions.size >= MAX_SESSIONS)
       throw new MusicError('Bot gra już na zbyt wielu serwerach. Spróbuj za chwilę.', 409);
+    if (relayActive(guild.id))
+      throw new MusicError(
+        'Relay głosowy używa teraz kanałów na tym serwerze. Zatrzymaj go i spróbuj ponownie.',
+        409
+      );
     const sb = soundboardStatus(guild.id);
     if (sb.playing || sb.connected || sb.joining)
       throw new MusicError(

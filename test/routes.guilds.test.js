@@ -489,3 +489,24 @@ test('honeypot saves the cleanup option in V1', async () => {
   const { config } = await getGuildModule(GID, 'honeypot');
   assert.deepEqual(config.cleanup, { enabled: true, minutes: 30 });
 });
+
+test('voice relay settings render and save in V1 without a second bot', async () => {
+  const page = await get(`/guilds/${GID}/m/voice-relay`);
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.match(html, /RELAY_BOT_TOKEN/); // the second-bot warning
+  assert.match(html, /Swap input and output/);
+  const saved = await post(app.base, `/guilds/${GID}/m/voice-relay/config`, {
+    inputChannelId: CH.general,
+    outputChannelId: '999999999999999999',
+    twoWay: 'on',
+    announce: 'on',
+    active: 'on',
+  });
+  assert.equal(saved.status, 302);
+  const { getGuildModule } = await import('../src/db/modules.js');
+  const { config } = await getGuildModule(GID, 'voice-relay');
+  assert.equal(config.inputChannelId, CH.general);
+  assert.equal(config.twoWay, true);
+  assert.equal(config.active, true);
+});

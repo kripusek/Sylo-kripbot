@@ -73,6 +73,7 @@ const LAYOUT = [
       'server-stats',
       'insights',
       'temp-voice',
+      'voice-relay',
       'free-games',
       'game-stats',
       'channel-cleanup',
@@ -346,6 +347,13 @@ async function moduleLines(id, guild, cfg) {
       return [
         stations ? on('Radio stations', String(stations)) : neutral('Radio stations', 'none'),
         cfg.djRoleId ? on('DJ role', 'required') : neutral('DJ role', 'not required'),
+      ];
+    }
+    case 'voice-relay': {
+      const ready = Boolean(cfg.inputChannelId && cfg.outputChannelId);
+      return [
+        cfg.active ? on('Relay', cfg.twoWay ? 'two-way' : 'one-way') : off('Relay', 'stopped'),
+        ready ? neutral('Channels', 'set') : off('Channels', 'not set'),
       ];
     }
     case 'afk': {

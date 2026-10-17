@@ -15,6 +15,7 @@ import './autoReact.js';
 import './autoThreads.js';
 import './music.js';
 import './economy.js';
+import './voiceRelay.js';
 import './verification.js';
 import './afk.js';
 import './serverStats.js';

@@ -71,6 +71,12 @@ import {
 import { normaliseAutoThreads } from '../../modules/autoThreads.js';
 import { normaliseMusic } from '../../modules/music.js';
 import { normaliseEconomy, adjustBalance, richestMembers } from '../../modules/economy.js';
+import {
+  normaliseVoiceRelay,
+  reconcileGuild,
+  relayStatus,
+  relayBotConfigured,
+} from '../../modules/voiceRelay.js';
 import { normaliseAutoReact, AUTO_REACT_MODES, AUTO_REACT_ROLE_ACTIONS } from '../../modules/autoReact.js';
 import {
   normaliseVerificationConfig,
@@ -181,6 +187,7 @@ const CONFIG_VIEWS = new Set([
   'auto-threads',
   'music',
   'economy',
+  'voice-relay',
   'moderation',
   'logging',
   'welcome',
@@ -822,6 +829,9 @@ async function moduleViewLocals(mod, req, configOverride) {
     configPartialRel: hasView ? `modules/${mod.id}` : 'modules/stub',
     logEvents: LOG_EVENTS,
     honeypotActions: HONEYPOT_ACTIONS,
+    relayStatus: mod.id === 'voice-relay' ? relayStatus(req.guild.id) : null,
+    relayBotConfigured: relayBotConfigured(),
+    relayBotInGuild: Boolean(runtime.relayClient?.guilds.cache.has(req.guild.id)),
     welcomePlaceholders: WELCOME_PLACEHOLDERS,
     thresholdActions: THRESHOLD_ACTIONS,
     modlogChannelId: (await getGuildSettings(req.guild.id))?.modlog_channel_id ?? '',
@@ -873,7 +883,9 @@ async function moduleViewLocals(mod, req, configOverride) {
     ytVideoMessage: YT_VIDEO_MSG,
     ytLiveMessage: YT_LIVE_MSG,
     dashboardUrlSet: Boolean(appConfig.dashboardUrl),
-    voiceChannels: ['server-stats', 'temp-voice'].includes(mod.id) ? guildVoiceChannels(req.guild) : [],
+    voiceChannels: ['server-stats', 'temp-voice', 'voice-relay'].includes(mod.id)
+      ? guildVoiceChannels(req.guild)
+      : [],
     categories: ['temp-voice', 'tickets'].includes(mod.id) ? guildCategories(req.guild) : [],
     statTypes: STAT_TYPES,
     countingState: mod.id === 'counting' ? await getCounting(req.guild.id) : null,
@@ -1383,6 +1395,14 @@ router.post(
           },
         },
       });
+    } else if (mod.id === 'voice-relay') {
+      config = normaliseVoiceRelay({
+        inputChannelId: req.body.inputChannelId,
+        outputChannelId: req.body.outputChannelId,
+        twoWay: req.body.twoWay === 'on',
+        active: req.body.active === 'on',
+        announce: req.body.announce === 'on',
+      });
     } else if (mod.id === 'music') {
       config = normaliseMusic({ ...req.body, allowUrls: req.body.allowUrls === 'on' });
     } else if (mod.id === 'auto-react') {
@@ -1657,6 +1677,13 @@ router.post(
     }
     let nativeNote = '';
     let nativeWarned = false;
+    if (mod.id === 'voice-relay') {
+      const relayError = await reconcileGuild(req.guild.id, { startIfNeeded: true });
+      if (relayError) {
+        nativeNote = ` - relay not started: ${relayError}`;
+        nativeWarned = true;
+      }
+    }
     if (mod.id === 'automod') {
       const r = await syncGuildAutomod(req.guild, config);
       if (r.skipped === 'missing-permission') {

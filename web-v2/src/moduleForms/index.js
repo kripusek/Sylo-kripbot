@@ -14,6 +14,7 @@ import Counting from './Counting.jsx';
 import AutoThreads from './AutoThreads.jsx';
 import Music from './Music.jsx';
 import Economy from './Economy.jsx';
+import VoiceRelay from './VoiceRelay.jsx';
 import AutoReact from './AutoReact.jsx';
 import Logging from './Logging.jsx';
 import Tickets from './Tickets.jsx';
@@ -76,6 +77,7 @@ export const MODULE_FORMS = {
   'auto-threads': AutoThreads,
   music: Music,
   economy: Economy,
+  'voice-relay': VoiceRelay,
   logging: Logging,
   tickets: Tickets,
   appeals: Appeals,

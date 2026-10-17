@@ -10,6 +10,8 @@ import { loadCommands } from './loadCommands.js';
 import { registerCommands } from './registerCommands.js';
 import { resolveShardOptions } from './lib/shards.js';
 import { log } from '../lib/log.js';
+import { startRelayClient } from '../relayClient.js';
+import { resumeRelays } from '../modules/voiceRelay.js';
 
 /** Build the gateway intent list from config. */
 function buildIntents() {
@@ -98,5 +100,13 @@ export async function startBot() {
     throw err;
   }
   setClient(client);
+  startRelayClient()
+    .then(() =>
+      setTimeout(
+        () => resumeRelays().catch((e) => log.error('bot', 'relay resume failed', e)),
+        15_000
+      ).unref()
+    )
+    .catch((err) => log.error('bot', 'relay bot failed to start', err));
   return client;
 }

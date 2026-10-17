@@ -95,6 +95,7 @@ const CATEGORIES = [
       { module: 'afk' },
       { module: 'server-stats' },
       { module: 'temp-voice' },
+      { module: 'voice-relay', label: 'Voice relay' },
       { module: 'free-games' },
       { module: 'game-stats', label: 'Game stats' },
     ],

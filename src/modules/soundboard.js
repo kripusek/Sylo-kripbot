@@ -1,4 +1,5 @@
 // Local, per-guild sound library. Decode once on upload, stream Opus on playback.
+import { relayActive } from './lib/relayState.js';
 import { mkdir, readFile, writeFile, rename, rm, stat } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -290,6 +291,8 @@ async function connectHeld(guild, channelId, voice) {
       throw new SoundboardError('Bot jeszcze się łączy. Spróbuj za chwilę.', 409);
     return existing.connection;
   }
+  if (relayActive(guild.id))
+    throw new SoundboardError('Relay głosowy używa teraz kanałów na tym serwerze.', 409);
   if (voice.getVoiceConnection(guild.id))
     throw new SoundboardError('Bot ma już inne połączenie głosowe.', 409);
   if (atConnectionLimit(guild.id))
@@ -329,6 +332,8 @@ export async function joinSoundboard(guild, channelId, voice = voiceApi) {
 }
 export async function playSound(guild, id, channelId, voice = voiceApi, keepConnected = false) {
   if (sessions.has(guild.id)) throw new SoundboardError('Bot już odtwarza klip na tym serwerze.', 409);
+  if (relayActive(guild.id))
+    throw new SoundboardError('Relay głosowy używa teraz kanałów na tym serwerze.', 409);
   if (atConnectionLimit(guild.id))
     throw new SoundboardError('Bot odtwarza już na trzech serwerach. Spróbuj za chwilę.', 409);
   if (Date.now() - (lastPlay.get(guild.id) ?? 0) < 2000)

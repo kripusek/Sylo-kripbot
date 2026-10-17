@@ -72,6 +72,7 @@ export const GROUPS = [
   },
   { name: 'Aktywność', commands: ['giveaway', 'poll', 'poll-end', 'freegames'] },
   { name: 'Muzyka', commands: ['music'] },
+  { name: 'Głos', commands: ['relay'] },
   { name: 'Prywatność', commands: ['mydata', 'forget'] },
 ];
 
