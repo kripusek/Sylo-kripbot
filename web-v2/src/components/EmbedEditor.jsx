@@ -30,6 +30,7 @@ function initialState(spec, { footerKey, defaultColor }) {
     [footerKey]: String(s[footerKey] || s.footer || s.footerText || ''),
     footerIcon: String(s.footerIcon || ''),
     timestamp: Boolean(s.timestamp),
+    fieldsBeside: s.fieldsBeside === true,
     fields: (Array.isArray(s.fields) ? s.fields : []).map((f) => ({
       key: newKey('f'),
       name: String(f.name || ''),
@@ -52,6 +53,7 @@ function serialize(e, opts) {
   if (opts.footerIcon) out.footerIcon = e.footerIcon;
   if (opts.timestamp) out.timestamp = e.timestamp;
   if (opts.fields) {
+    out.fieldsBeside = e.fieldsBeside === true;
     out.fields = e.fields
       .map((f) => ({ name: f.name, value: f.value, inline: f.inline }))
       .filter((f) => f.name || f.value);

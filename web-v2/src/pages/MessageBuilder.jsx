@@ -19,6 +19,7 @@ function normEmbed(e = {}) {
     thumbnail: String(e.thumbnail || ''),
     footerText: String(e.footerText || ''),
     footerIcon: String(e.footerIcon || ''),
+    fieldsBeside: e.fieldsBeside === true,
     fields: (Array.isArray(e.fields) ? e.fields : []).map((f) => ({
       key: newKey('f'),
       name: String(f.name || ''),
@@ -60,6 +61,7 @@ function formToSpec(form) {
     thumbnail: e.thumbnail,
     footerText: e.footerText,
     footerIcon: e.footerIcon,
+    fieldsBeside: e.fieldsBeside === true,
     fields: e.fields
       .map((f) => ({ name: f.name, value: f.value, inline: Boolean(f.inline) }))
       .filter((f) => f.name || f.value),

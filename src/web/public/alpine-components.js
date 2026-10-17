@@ -367,6 +367,7 @@ document.addEventListener('alpine:init', function () {
         thumbnail: String(e.thumbnail || ''),
         footerText: String(e.footerText || ''),
         footerIcon: String(e.footerIcon || ''),
+        fieldsBeside: e.fieldsBeside === true,
         fields: (Array.isArray(e.fields) ? e.fields : []).map(function (f) {
           return {
             id: 'f' + uid++,
@@ -461,6 +462,7 @@ document.addEventListener('alpine:init', function () {
               thumbnail: e.thumbnail,
               footerText: e.footerText,
               footerIcon: e.footerIcon,
+              fieldsBeside: !!e.fieldsBeside,
               fields: e.fields
                 .map(function (f) {
                   return { name: f.name, value: f.value, inline: !!f.inline };

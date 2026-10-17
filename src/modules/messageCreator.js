@@ -28,6 +28,40 @@ const trimOr = (v, max, fallback = undefined) => {
 };
 const isUrl = (v) => /^https?:\/\/\S+$/i.test(String(v ?? ''));
 
+/**
+ * Turn name/value fields into "**name** value" lines that fit `room` characters
+ * of description. Whatever does not fit goes into blank-named fields (up to
+ * 1024 characters each), so a long rule list keeps its layout.
+ * @returns {{ text: string, rest: { name: string, value: string, inline: boolean }[] }}
+ */
+export function foldFieldsBeside(fields, room) {
+  const lines = fields.map((f) => `**${f.name}** ${f.value}`);
+  const used = [];
+  let length = 0;
+  let i = 0;
+  for (; i < lines.length; i += 1) {
+    const add = lines[i].length + (used.length ? 1 : 0);
+    if (length + add > room) break;
+    used.push(lines[i]);
+    length += add;
+  }
+  const rest = [];
+  let chunk = [];
+  let size = 0;
+  for (; i < lines.length; i += 1) {
+    const line = lines[i].slice(0, 1024);
+    if (chunk.length && size + line.length + 1 > 1024) {
+      rest.push({ name: '\u200b', value: chunk.join('\n'), inline: false });
+      chunk = [];
+      size = 0;
+    }
+    chunk.push(line);
+    size += line.length + (chunk.length > 1 ? 1 : 0);
+  }
+  if (chunk.length) rest.push({ name: '\u200b', value: chunk.join('\n'), inline: false });
+  return { text: used.join('\n'), rest };
+}
+
 /** Build one embed from a spec object, or null if it would be empty. */
 export function buildEmbed(e) {
   const eb = new EmbedBuilder();
@@ -65,7 +99,14 @@ export function buildEmbed(e) {
     .map((f) => ({ name: trimOr(f.name, 256), value: trimOr(f.value, 1024), inline: Boolean(f.inline) }))
     .filter((f) => f.name && f.value)
     .slice(0, 25);
-  if (fields.length) (eb.addFields(fields), (hasContent = true));
+  if (fields.length && e.fieldsBeside === true) {
+    // Discord always stacks a field's name above its value, so to put e.g. a rule
+    // number NEXT to its text the pairs are written as lines of the description.
+    const { text, rest } = foldFieldsBeside(fields, 4096 - (desc ? desc.length + 2 : 0));
+    if (text) eb.setDescription(desc ? `${desc}\n\n${text}` : text);
+    if (rest.length) eb.addFields(rest);
+    hasContent = true;
+  } else if (fields.length) (eb.addFields(fields), (hasContent = true));
 
   return hasContent ? eb : null;
 }

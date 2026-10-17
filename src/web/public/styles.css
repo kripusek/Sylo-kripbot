@@ -932,6 +932,7 @@ label.checkline input { width: auto; }
 .wc-x { background: transparent; border: 0; color: var(--muted); cursor: pointer; font-size: 14px; }
 .wc-x:hover { color: var(--bad); }
 .wc-addfield { align-self: flex-start; background: transparent; border: 0; color: var(--accent); font-size: 12px; padding: 2px 0; cursor: pointer; }
+.wc-beside { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted, #949ba4); cursor: pointer; }
 
 .wc-image {
   margin-top: 8px; width: 100%; min-height: 90px; cursor: pointer; padding: 0;

@@ -61,6 +61,10 @@
         </template>
       </div>
       <button type="button" class="wc-addfield" @click="addField(row)">+ Add new field</button>
+      <label class="wc-beside" title="Discord puts a field's name above its text. This writes each name and text on one line instead.">
+        <input type="checkbox" x-model="row.fieldsBeside" />
+        <span>Show field names next to their text (e.g. rule numbers)</span>
+      </label>
       <button type="button" class="wc-image" :class="{ has: row.image }" @click="pickImg(row, 'image')">
         <template x-if="row.image"><img :src="row.image" alt="" /></template>
         <template x-if="!row.image"><span>＋ Add an image</span></template>

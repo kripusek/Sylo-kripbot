@@ -2201,5 +2201,6 @@
   "The relay bot is not on this server yet.": "Bota relay nie ma jeszcze na tym serwerze.",
   "Invite the relay bot": "Zaproś bota relay",
   "(you need the Manage Server permission), then reload this page.": "(potrzebujesz uprawnienia Zarządzanie serwerem), a potem odśwież stronę.",
-  "Invite it, then reload this page.": "Zaproś go i odśwież stronę."
+  "Invite it, then reload this page.": "Zaproś go i odśwież stronę.",
+  "Show field names next to their text (e.g. rule numbers)": "Pokaż nazwy pól obok ich tekstu (np. numery regulaminu)"
 }

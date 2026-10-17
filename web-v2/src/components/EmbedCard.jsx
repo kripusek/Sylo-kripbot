@@ -215,6 +215,17 @@ export default function EmbedCard({
                 <button type="button" className="v2-embed-addfield" onClick={addField}>
                   + Add field
                 </button>
+                <label
+                  className="v2-check"
+                  title="Discord puts a field's name above its text. This writes each name and text on one line instead."
+                >
+                  <input
+                    type="checkbox"
+                    checked={embed.fieldsBeside === true}
+                    onChange={(ev) => onChange({ ...embed, fieldsBeside: ev.target.checked })}
+                  />
+                  Show field names next to their text (e.g. rule numbers)
+                </label>
               </>
             ) : null}
           </div>

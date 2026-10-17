@@ -106,6 +106,7 @@ export function normaliseEmbedSpec(e = {}) {
     footerText: String(e.footerText ?? '').slice(0, 2048),
     footerIcon: url(e.footerIcon),
     timestamp: Boolean(e.timestamp),
+    fieldsBeside: e.fieldsBeside === true,
     fields: (Array.isArray(e.fields) ? e.fields : [])
       .map((f) => ({
         name: String(f.name ?? '').slice(0, 256),
@@ -151,6 +152,7 @@ export function resolveWelcomeSpec(cfg, guild) {
       footerText: s(e.footerText),
       footerIcon: e.footerIcon || '',
       timestamp: Boolean(e.timestamp),
+      fieldsBeside: e.fieldsBeside === true,
       fields: (Array.isArray(e.fields) ? e.fields : []).map((f) => ({
         name: s(f.name),
         value: s(f.value),
