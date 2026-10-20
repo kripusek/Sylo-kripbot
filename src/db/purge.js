@@ -69,6 +69,8 @@ export const GUILD_TABLES = [
   'leveling',
   'leveling_periods',
   'economy_accounts',
+  'dm_threads',
+  'dm_messages',
   'config_audit',
   'afk',
   'posted_keys',

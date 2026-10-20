@@ -3,6 +3,8 @@
 // enabled module's handler for that guild.
 import { Events } from 'discord.js';
 import { dispatch } from '../../modules/dispatch.js';
+import { recordIncomingDm } from '../../modules/dmInbox.js';
+import { log } from '../../lib/log.js';
 import '../../modules/index.js'; // side-effect: registers module handlers
 
 /** @param {import('discord.js').Client} client */
@@ -31,7 +33,12 @@ export function register(client) {
     if (newMsg.guildId) dispatch('messageUpdate', newMsg.guildId, { old: oldMsg, new: newMsg });
   });
   client.on(Events.MessageCreate, (message) => {
-    if (!message.guildId) return;
+    if (!message.guildId) {
+      recordIncomingDm(message).catch((err) =>
+        log.error('dm-inbox', 'could not store a DM reply:', err.message)
+      );
+      return;
+    }
     // `messageCreateAny` also carries bot / app / webhook messages — only the
     // sticky module opts into those. `messageCreate` stays human-only.
     dispatch('messageCreateAny', message.guildId, message);

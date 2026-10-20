@@ -836,6 +836,29 @@ export const MIGRATIONS = [
       CREATE INDEX idx_economy_balance ON economy_accounts (guild_id, balance DESC);
     `);
   },
+  // DM inbox: conversations an admin started from the dashboard, plus the replies.
+  (database) => {
+    database.exec(`
+      CREATE TABLE dm_threads (
+        guild_id TEXT NOT NULL,
+        user_id  TEXT NOT NULL,
+        last_at  INTEGER NOT NULL,
+        unread   INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (guild_id, user_id)
+      );
+      CREATE INDEX idx_dm_threads_user ON dm_threads (user_id, last_at DESC);
+      CREATE TABLE dm_messages (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id   TEXT NOT NULL,
+        user_id    TEXT NOT NULL,
+        direction  TEXT NOT NULL,
+        author     TEXT NOT NULL DEFAULT '',
+        content    TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX idx_dm_messages_thread ON dm_messages (guild_id, user_id, id);
+    `);
+  },
 ];
 
 /** Highest schema version this build knows how to run. */

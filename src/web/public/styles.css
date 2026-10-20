@@ -1167,3 +1167,20 @@ label.checkline input { width: auto; }
 /* Krip-bot identity: the same mark on desktop and mobile. */
 .sb-mark { width: 32px; height: 32px; background: none; border-radius: 0; }
 .brand { display: inline-flex; align-items: center; gap: 8px; }
+
+/* DM inbox */
+.dm-layout { display: grid; grid-template-columns: minmax(200px, 280px) 1fr; gap: 1rem; align-items: start; }
+@media (max-width: 800px) { .dm-layout { grid-template-columns: 1fr; } }
+.dm-side { display: flex; flex-direction: column; gap: 0.75rem; }
+.dm-new { display: flex; flex-direction: column; gap: 0.5rem; }
+.dm-threads { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.dm-thread { width: 100%; text-align: left; background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 0.5rem 0.6rem; color: inherit; cursor: pointer; }
+.dm-thread:hover, .dm-thread.active { background: var(--panel-2, rgba(255, 255, 255, 0.06)); }
+.dm-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+.dm-log { min-height: 240px; max-height: 55vh; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.25rem 0; }
+.dm-msg { max-width: 80%; padding: 0.5rem 0.7rem; border-radius: 10px; background: rgba(255, 255, 255, 0.06); }
+.dm-msg.out { align-self: flex-end; background: rgba(88, 101, 242, 0.25); }
+.dm-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.dm-send { display: flex; gap: 0.5rem; align-items: flex-end; margin-top: 0.5rem; }
+.dm-send textarea { flex: 1; }
+#dm-status[data-error="true"] { color: var(--bad, #ed4245); }

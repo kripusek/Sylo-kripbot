@@ -1,0 +1,30 @@
+<%- include('partials/header', { title: `Sylo — Wiadomości DM — ${guild.name}` }) %>
+<section id="dm-inbox" data-base="/guilds/<%= guild.id %>/dm" data-max="<%= maxLength %>" hx-boost="false">
+  <div class="mod-hero"><%- include('guild/_hero-inner', { icon: 'message-circle', title: 'Wiadomości DM', lg: true }) %></div>
+  <p class="muted">Napisz do członka serwera z konta bota i czytaj jego odpowiedzi. Odpowiedzi zapisują się tylko od osób, z którymi zaczęłaś/zacząłeś rozmowę tutaj.</p>
+  <div class="dm-layout">
+    <aside class="panel dm-side">
+      <form id="dm-new" class="dm-new">
+        <label>Nowa rozmowa — ID użytkownika
+          <input name="userId" type="text" inputmode="numeric" pattern="[0-9]{17,20}" placeholder="123456789012345678" required>
+        </label>
+        <button type="submit" class="btn">Otwórz</button>
+      </form>
+      <ul id="dm-threads" class="dm-threads"></ul>
+      <p id="dm-empty" class="muted small">Brak rozmów.</p>
+    </aside>
+    <div class="panel dm-main">
+      <header class="dm-head"><strong id="dm-title">Wybierz rozmowę</strong>
+        <button type="button" class="btn danger" id="dm-delete" hidden>Usuń rozmowę</button>
+      </header>
+      <div id="dm-log" class="dm-log" aria-live="polite"></div>
+      <form id="dm-send" class="dm-send" hidden>
+        <textarea name="content" rows="3" maxlength="<%= maxLength %>" placeholder="Napisz wiadomość…" required></textarea>
+        <button type="submit" class="btn btn-primary">Wyślij</button>
+      </form>
+      <p id="dm-status" role="status" aria-live="polite" class="small"></p>
+    </div>
+  </div>
+</section>
+<script src="/dm.js"></script>
+<%- include('partials/footer') %>
