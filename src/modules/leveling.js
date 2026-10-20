@@ -5,11 +5,14 @@
 //   { cooldownSeconds, xpRate, announce: 'channel'|'reply'|'dm'|'off',
 //     announceChannel, announceMessage, noXpChannels: [], noXpRoles: [],
 //     noDmUsers: [], noDmRoles: [] (no level-up DM for these members),
+//     dmOptOutRoleId, dmOptOutNote (DM button that gives members that role),
 //     stackRewards, removeRewardsOnXpLoss, publicLeaderboard,
 //     voiceXpEnabled, voiceXpPerMin, voiceAfkExcluded,
 //     multipliers: [ { type: 'role'|'channel', id, factor } ],
 //     rewards: [ { level, roleId } ] }
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { on, dispatch } from './dispatch.js';
+import { registerComponent } from '../bot/lib/components.js';
 import { runtime } from '../runtime.js';
 import { isModuleEnabled, getGuildModule } from '../db/modules.js';
 import { addXp, prunePeriods } from '../db/leveling.js';
@@ -19,6 +22,7 @@ import { log } from '../lib/log.js';
 export const ANNOUNCE_MODES = ['channel', 'reply', 'dm', 'off'];
 export const XP_RATES = [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3];
 export const MULTIPLIER_TYPES = ['role', 'channel'];
+export const DEFAULT_OPT_OUT_NOTE = 'To turn off level-up messages, click the button below.';
 const DEFAULT_MESSAGE = 'GG {player}, you just advanced to level {level}!';
 const XP_MIN = 15;
 const XP_MAX = 25;
@@ -48,6 +52,11 @@ export function normaliseLevelingConfig(raw = {}) {
     noXpRolesMode: raw.noXpRolesMode === 'deny' ? 'deny' : 'allow',
     noDmUsers: userIdList(raw.noDmUsers),
     noDmRoles: idList(raw.noDmRoles),
+    dmOptOutRoleId: /^\d{17,20}$/.test(raw.dmOptOutRoleId ?? '') ? raw.dmOptOutRoleId : '',
+    dmOptOutNote:
+      String(raw.dmOptOutNote ?? '')
+        .trim()
+        .slice(0, 200) || DEFAULT_OPT_OUT_NOTE,
     stackRewards: raw.stackRewards !== false,
     removeRewardsOnXpLoss: Boolean(raw.removeRewardsOnXpLoss),
     publicLeaderboard: raw.publicLeaderboard !== false,
@@ -110,8 +119,62 @@ export function levelUpDmBlocked(config, member) {
   if (!member) return false;
   if ((config.noDmUsers ?? []).includes(member.id)) return true;
   const roles = member.roles?.cache;
-  return Boolean(roles && (config.noDmRoles ?? []).some((r) => roles.has(r)));
+  const blocking = [...(config.noDmRoles ?? []), ...(config.dmOptOutRoleId ? [config.dmOptOutRoleId] : [])];
+  return Boolean(roles && blocking.some((r) => roles.has(r)));
 }
+
+const OPT_OUT_PREFIX = 'lvl-dm-off:';
+
+/** The DM payload: the message, a small note, and (if configured) the opt-out button. */
+export function buildLevelUpDm(config, text, guild) {
+  const payload = { content: `${text} (in ${guild.name})` };
+  if (config.dmOptOutRoleId) {
+    payload.content += `\n-# ${config.dmOptOutNote || DEFAULT_OPT_OUT_NOTE}`;
+    payload.components = [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`${OPT_OUT_PREFIX}${guild.id}`)
+          .setEmoji('🔕')
+          .setStyle(ButtonStyle.Secondary)
+      ),
+    ];
+  }
+  return payload;
+}
+
+// Clicking the DM button toggles the opt-out role (second click turns DMs back on).
+registerComponent('leveling', OPT_OUT_PREFIX, async (interaction) => {
+  const guildId = interaction.customId.slice(OPT_OUT_PREFIX.length);
+  const guild = /^\d{17,20}$/.test(guildId) ? interaction.client.guilds.cache.get(guildId) : null;
+  const cfg =
+    guild && (await isModuleEnabled(guildId, 'leveling'))
+      ? normaliseLevelingConfig((await getGuildModule(guildId, 'leveling')).config)
+      : null;
+  if (!guild || !cfg?.dmOptOutRoleId) {
+    await interaction.reply({ content: 'This option is no longer available.' });
+    return;
+  }
+  const member = await guild.members.fetch(interaction.user.id).catch(() => null);
+  if (!member) {
+    await interaction.reply({ content: 'You are no longer a member of that server.' });
+    return;
+  }
+  try {
+    if (member.roles.cache.has(cfg.dmOptOutRoleId)) {
+      await member.roles.remove(cfg.dmOptOutRoleId, 'Level-up DMs turned back on');
+      await interaction.reply({ content: `Level-up messages from ${guild.name} are back on.` });
+    } else {
+      await member.roles.add(cfg.dmOptOutRoleId, 'Level-up DMs turned off');
+      await interaction.reply({
+        content: `Done — you won't get level-up messages from ${guild.name} any more. Click the button again to turn them back on.`,
+      });
+    }
+  } catch {
+    await interaction.reply({
+      content: 'I could not change your role. Ask a server admin to check my permissions.',
+    });
+  }
+});
 
 /** Announce a level-up. `channel` is where it happened (null for voice). */
 async function announceLevelUp(config, member, level, { message, channel } = {}) {
@@ -125,7 +188,7 @@ async function announceLevelUp(config, member, level, { message, channel } = {})
       });
     } else if (config.announce === 'dm') {
       if (levelUpDmBlocked(config, member)) return;
-      await member.user.send({ content: `${text} (in ${member.guild.name})` }).catch(() => {});
+      await member.user.send(buildLevelUpDm(config, text, member.guild)).catch(() => {});
     } else if (config.announce === 'channel' || config.announce === 'reply') {
       const target = config.announceChannel || channel;
       if (target) {

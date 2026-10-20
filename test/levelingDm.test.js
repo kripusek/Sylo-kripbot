@@ -21,3 +21,15 @@ test('levelUpDmBlocked matches users and roles only', () => {
   assert.equal(levelUpDmBlocked(config, member(U2, [R1])), true);
   assert.equal(levelUpDmBlocked(config, member(U2, [])), false);
 });
+
+test('opt-out role blocks the DM and adds a button + note', async () => {
+  const { buildLevelUpDm } = await import('../src/modules/leveling.js');
+  const config = normaliseLevelingConfig({ dmOptOutRoleId: R1 });
+  assert.equal(levelUpDmBlocked(config, { id: U2, roles: { cache: new Set([R1]) } }), true);
+  const dm = buildLevelUpDm(config, 'GG', { id: '444444444444444444', name: 'Srv' });
+  assert.match(dm.content, /^GG \(in Srv\)\n-# /);
+  assert.equal(dm.components[0].components[0].data.custom_id, 'lvl-dm-off:444444444444444444');
+  const plain = buildLevelUpDm(normaliseLevelingConfig({}), 'GG', { id: '4', name: 'Srv' });
+  assert.equal(plain.components, undefined);
+  assert.equal(plain.content, 'GG (in Srv)');
+});

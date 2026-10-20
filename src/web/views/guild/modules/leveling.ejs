@@ -141,6 +141,13 @@
     <p class="muted small">Only applies when the announcement is a "Direct message". These members and roles never get the level-up DM (they still level up).</p>
     <label class="small">Roles</label>
     <%- include('../../partials/chip-picker', { field: 'noDmRoles', kind: 'role', items: roles, selected: noDmR }) %>
+    <label class="small u-mt-2">Opt-out button role <span class="muted">— the level-up DM gets a 🔕 button; clicking it gives the member this role (and stops the DMs). Blank = no button.</span></label>
+    <select name="dmOptOutRoleId">
+      <option value="">— no button —</option>
+      <% roles.forEach(function (role) { %><option value="<%= role.id %>" <%= role.id === (cfg.dmOptOutRoleId || '') ? 'selected' : '' %>>@<%= role.name %></option><% }) %>
+    </select>
+    <label class="small u-mt-2">Note under the DM</label>
+    <input type="text" name="dmOptOutNote" maxlength="200" value="<%= cfg.dmOptOutNote || '' %>" placeholder="To turn off level-up messages, click the button below." />
     <label class="small u-mt-2">Members <span class="muted">— user IDs, one per line</span></label>
     <textarea name="noDmUsers" rows="3" placeholder="123456789012345678"><%= noDmU.join('\n') %></textarea>
   </details>

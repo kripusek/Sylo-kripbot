@@ -372,6 +372,32 @@ export default function Leveling() {
           />
           <div className="v2-field">
             <label>
+              Opt-out button role{' '}
+              <span className="v2-field-hint">
+                — the DM gets a 🔕 button; clicking it gives the member this role and stops the DMs
+              </span>
+            </label>
+            <select value={form.dmOptOutRoleId} onChange={(e) => set({ dmOptOutRoleId: e.target.value })}>
+              <option value="">— no button —</option>
+              {data.roles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  @{r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="v2-field">
+            <label>Note under the DM</label>
+            <input
+              type="text"
+              maxLength={200}
+              placeholder="To turn off level-up messages, click the button below."
+              value={form.dmOptOutNote}
+              onChange={(e) => set({ dmOptOutNote: e.target.value })}
+            />
+          </div>
+          <div className="v2-field">
+            <label>
               Members <span className="v2-field-hint">— user IDs, one per line</span>
             </label>
             <textarea

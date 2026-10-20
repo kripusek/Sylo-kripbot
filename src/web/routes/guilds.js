@@ -1302,6 +1302,8 @@ router.post(
         noXpRolesMode: req.body.noXpRolesMode,
         noDmUsers: req.body.noDmUsers,
         noDmRoles: [].concat(req.body.noDmRoles ?? []),
+        dmOptOutRoleId: req.body.dmOptOutRoleId,
+        dmOptOutNote: req.body.dmOptOutNote,
         stackRewards: req.body.stackRewards === 'on',
         removeRewardsOnXpLoss: req.body.removeRewardsOnXpLoss === 'on',
         voiceXpEnabled: req.body.voiceXpEnabled === 'on',
