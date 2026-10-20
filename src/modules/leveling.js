@@ -4,6 +4,7 @@
 // config shape (see normaliseLevelingConfig):
 //   { cooldownSeconds, xpRate, announce: 'channel'|'reply'|'dm'|'off',
 //     announceChannel, announceMessage, noXpChannels: [], noXpRoles: [],
+//     noDmUsers: [], noDmRoles: [] (no level-up DM for these members),
 //     stackRewards, removeRewardsOnXpLoss, publicLeaderboard,
 //     voiceXpEnabled, voiceXpPerMin, voiceAfkExcluded,
 //     multipliers: [ { type: 'role'|'channel', id, factor } ],
@@ -31,6 +32,8 @@ const clampFactor = (v) => {
   return Number.isFinite(n) ? Math.max(0.1, Math.min(5, n)) : 1;
 };
 const idList = (v) => [...new Set((Array.isArray(v) ? v : [v]).filter((x) => /^\d{17,20}$/.test(x)))];
+// User IDs may arrive as an array or as free text (one per line / comma separated).
+const userIdList = (v) => idList(Array.isArray(v) ? v : String(v ?? '').split(/[^0-9]+/)).slice(0, 200);
 
 export function normaliseLevelingConfig(raw = {}) {
   return {
@@ -43,6 +46,8 @@ export function normaliseLevelingConfig(raw = {}) {
     noXpChannelsMode: raw.noXpChannelsMode === 'deny' ? 'deny' : 'allow',
     noXpRoles: idList(raw.noXpRoles),
     noXpRolesMode: raw.noXpRolesMode === 'deny' ? 'deny' : 'allow',
+    noDmUsers: userIdList(raw.noDmUsers),
+    noDmRoles: idList(raw.noDmRoles),
     stackRewards: raw.stackRewards !== false,
     removeRewardsOnXpLoss: Boolean(raw.removeRewardsOnXpLoss),
     publicLeaderboard: raw.publicLeaderboard !== false,
@@ -100,6 +105,14 @@ function fillMessage(template, member, level) {
     .replaceAll('{level}', String(level));
 }
 
+/** True when this member must not get the level-up direct message. */
+export function levelUpDmBlocked(config, member) {
+  if (!member) return false;
+  if ((config.noDmUsers ?? []).includes(member.id)) return true;
+  const roles = member.roles?.cache;
+  return Boolean(roles && (config.noDmRoles ?? []).some((r) => roles.has(r)));
+}
+
 /** Announce a level-up. `channel` is where it happened (null for voice). */
 async function announceLevelUp(config, member, level, { message, channel } = {}) {
   const text = fillMessage(config.announceMessage, member, level);
@@ -111,6 +124,7 @@ async function announceLevelUp(config, member, level, { message, channel } = {})
         allowedMentions: { repliedUser: false, users: [member.id] },
       });
     } else if (config.announce === 'dm') {
+      if (levelUpDmBlocked(config, member)) return;
       await member.user.send({ content: `${text} (in ${member.guild.name})` }).catch(() => {});
     } else if (config.announce === 'channel' || config.announce === 'reply') {
       const target = config.announceChannel || channel;

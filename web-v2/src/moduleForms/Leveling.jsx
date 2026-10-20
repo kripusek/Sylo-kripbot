@@ -30,6 +30,7 @@ export default function Leveling() {
     if (data) {
       setForm({
         ...data.config,
+        noDmUsers: (data.config.noDmUsers || []).join('\n'),
         rewards: data.config.rewards.map((r) => ({ key: newKey(), ...r })),
         multipliers: data.config.multipliers.map((m) => ({ key: newKey(), ...m })),
       });
@@ -80,6 +81,7 @@ export default function Leveling() {
       const { config } = await saveModuleConfig(guildId, 'leveling', body);
       setForm({
         ...config,
+        noDmUsers: (config.noDmUsers || []).join('\n'),
         rewards: config.rewards.map((r) => ({ key: newKey(), ...r })),
         multipliers: config.multipliers.map((m) => ({ key: newKey(), ...m })),
       });
@@ -354,6 +356,31 @@ export default function Leveling() {
           <button type="button" className="v2-btn-ghost" onClick={addMultiplier}>
             + Add multiplier
           </button>
+        </div>
+
+        <div className="v2-group">
+          <h2 className="v2-group-title">No level-up DMs</h2>
+          <p className="v2-field-hint">
+            Only applies when the announcement is a &quot;Direct message&quot;. These members and roles never
+            get the level-up DM (they still level up).
+          </p>
+          <ChipPicker
+            kind="role"
+            items={data.roles}
+            value={form.noDmRoles}
+            onChange={(noDmRoles) => set({ noDmRoles })}
+          />
+          <div className="v2-field">
+            <label>
+              Members <span className="v2-field-hint">— user IDs, one per line</span>
+            </label>
+            <textarea
+              rows={3}
+              placeholder="123456789012345678"
+              value={form.noDmUsers}
+              onChange={(e) => set({ noDmUsers: e.target.value })}
+            />
+          </div>
         </div>
 
         <div className="v2-group">

@@ -1300,6 +1300,8 @@ router.post(
         noXpChannelsMode: req.body.noXpChannelsMode,
         noXpRoles: [].concat(req.body.noXpRoles ?? []),
         noXpRolesMode: req.body.noXpRolesMode,
+        noDmUsers: req.body.noDmUsers,
+        noDmRoles: [].concat(req.body.noDmRoles ?? []),
         stackRewards: req.body.stackRewards === 'on',
         removeRewardsOnXpLoss: req.body.removeRewardsOnXpLoss === 'on',
         voiceXpEnabled: req.body.voiceXpEnabled === 'on',

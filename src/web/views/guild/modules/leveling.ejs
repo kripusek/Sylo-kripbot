@@ -6,6 +6,8 @@
   var rates = (typeof xpRates !== 'undefined' && xpRates.length) ? xpRates : [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3];
   var board = levelingBoard || { total: 0, rows: [] };
   var chMode = cfg.noXpChannelsMode === 'deny' ? 'deny' : 'allow';
+  var noDmU = Array.isArray(cfg.noDmUsers) ? cfg.noDmUsers : [];
+  var noDmR = Array.isArray(cfg.noDmRoles) ? cfg.noDmRoles : [];
   var rMode = cfg.noXpRolesMode === 'deny' ? 'deny' : 'allow';
 %>
 
@@ -132,6 +134,15 @@
       </tbody>
     </table>
     <div><button type="button" class="secondary" id="mult-add">＋ Add multiplier</button></div>
+  </details>
+
+  <details class="lvl-sec" open>
+    <summary>No level-up DMs<span class="lvl-chev">▾</span></summary>
+    <p class="muted small">Only applies when the announcement is a "Direct message". These members and roles never get the level-up DM (they still level up).</p>
+    <label class="small">Roles</label>
+    <%- include('../../partials/chip-picker', { field: 'noDmRoles', kind: 'role', items: roles, selected: noDmR }) %>
+    <label class="small u-mt-2">Members <span class="muted">— user IDs, one per line</span></label>
+    <textarea name="noDmUsers" rows="3" placeholder="123456789012345678"><%= noDmU.join('\n') %></textarea>
   </details>
 
   <details class="lvl-sec" open>
