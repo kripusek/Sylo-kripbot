@@ -154,7 +154,9 @@ document.addEventListener('alpine:init', function () {
         if (id && this.byId[id] && this.selectedIds.indexOf(id) === -1) this.selectedIds.push(id);
         this.pick = '';
         this.query = '';
-        this.$dispatch('change');
+        // Dispatch on the picker root: this.$el here is the <select> whose own
+        // @change calls add(), so dispatching on it recursed forever.
+        this.$root.dispatchEvent(new CustomEvent('change', { bubbles: true }));
       },
       remove(id) {
         id = String(id);
