@@ -150,13 +150,19 @@ document.addEventListener('alpine:init', function () {
         });
       },
       add() {
-        var id = String(this.pick || '');
-        if (id && this.byId[id] && this.selectedIds.indexOf(id) === -1) this.selectedIds.push(id);
-        this.pick = '';
-        this.query = '';
-        // Dispatch on the picker root: this.$el here is the <select> whose own
-        // @change calls add(), so dispatching on it recursed forever.
-        this.$root.dispatchEvent(new CustomEvent('change', { bubbles: true }));
+        // $dispatch fires on the <select> whose own @change calls add(); the
+        // guard stops that re-entry from recursing forever.
+        if (this.adding) return;
+        this.adding = true;
+        try {
+          var id = String(this.pick || '');
+          if (id && this.byId[id] && this.selectedIds.indexOf(id) === -1) this.selectedIds.push(id);
+          this.pick = '';
+          this.query = '';
+          this.$dispatch('change');
+        } finally {
+          this.adding = false;
+        }
       },
       remove(id) {
         id = String(id);
