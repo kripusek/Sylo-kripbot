@@ -160,3 +160,45 @@ test('VS mode is saved, needs two entries to publish, and DMs the pair on click'
   await handleDropClick(hit.interaction);
   assert.match(hit.out.dms[0].content, /^\*\*[ab]\*\* vs \*\*[ab]\*\*\n\*kto lepszy\?\*$/);
 });
+
+test('Embed messages: a random row becomes a button, and a click uses the saved list', async () => {
+  const { buildPayload } = await import('../src/modules/messageCreator.js');
+  const { createComposed } = await import('../src/db/composedMessages.js');
+  const { handleComposedDropClick } = await import('../src/modules/randomDrops.js');
+
+  const row = {
+    type: 'random',
+    label: 'Losuj!',
+    vsMode: true,
+    pool: ['a', 'b'],
+    categories: ['kto lepszy?'],
+  };
+  const { payload } = buildPayload({ content: 'x', embeds: [], rows: [row] });
+  assert.equal(payload.components[0].components[0].data.custom_id, 'rdrop:msg');
+  assert.equal(payload.components[0].components[0].data.label, 'Losuj!');
+  assert.throws(() => buildPayload({ content: 'x', rows: [{ ...row, pool: ['solo'] }] }), /dwie linie/);
+  assert.throws(
+    () => buildPayload({ content: 'x', rows: [{ type: 'random', pool: [] }] }),
+    /przynajmniej jedną/
+  );
+
+  const rec = await createComposed(GUILD, {
+    name: 'r',
+    channelId: '800000000000000099',
+    messageId: 'm-777',
+    spec: { content: 'x', embeds: [], rows: [row] },
+  });
+  const run = (userId, messageId = 'm-777') => {
+    const { out, interaction } = click(0, userId);
+    interaction.message = { id: messageId };
+    return handleComposedDropClick(interaction).then(() => out);
+  };
+  const first = await run(U1);
+  assert.match(first.dms[0].content, /^\*\*[ab]\*\* vs \*\*[ab]\*\*\n\*kto lepszy\?\*$/);
+  const second = await run(U1);
+  assert.equal(second.dms.length, 0);
+  assert.match(second.replies[0].content, /tylko raz/);
+  assert.equal((await run(U2)).dms.length, 1); // another member can still click
+  assert.match((await run(U1, 'm-unknown')).replies[0].content, /nie jest już aktywna/);
+  assert.ok(rec.id > 0);
+});

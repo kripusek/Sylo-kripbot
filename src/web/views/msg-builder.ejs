@@ -72,6 +72,25 @@
     </div>
     <button type="button" class="secondary" @click="addLink()" :disabled="links.length >= maxLinks">＋ Add link button</button>
   </section>
+
+  <% if (!oneOff) { %>
+  <section class="card stack">
+    <h2 class="u-m0 u-mb-2">Losowy przycisk (DM) <span class="muted small">— opcjonalnie</span></h2>
+    <p class="muted small">Pod wiadomością pojawi się przycisk. Każdy może kliknąć raz i dostaje w DM losową linię z Twojej listy. Działa po opublikowaniu wiadomości na kanale.</p>
+    <label class="rr-mode"><input type="checkbox" x-model="random.enabled"> <span><strong>Dodaj losowy przycisk</strong></span></label>
+    <div class="stack" x-show="random.enabled">
+      <label class="small">Napis na przycisku</label>
+      <input type="text" class="u-mw-md" maxlength="80" placeholder="Losuj" x-model="random.label" />
+      <label class="rr-mode"><input type="checkbox" x-model="random.vsMode"> <span><strong>Tryb VS</strong> — bot losuje dwie różne pozycje z listy i pokazuje je jako „A vs B"</span></label>
+      <label class="small">Lista do losowania <span class="muted">— jedna linia = jedna możliwość (słowo lub zdanie)</span></label>
+      <textarea rows="6" x-model="random.pool" placeholder="kot&#10;Dzisiaj będzie dobry dzień&#10;banan"></textarea>
+      <div x-show="random.vsMode" class="stack">
+        <label class="small">Kategorie do trybu VS <span class="muted">— opcjonalnie, jedna linia = jedna kategoria, np. „kto lepszy?"</span></label>
+        <textarea rows="3" x-model="random.categories" placeholder="kto lepszy?&#10;kto wygra w walce?"></textarea>
+      </div>
+    </div>
+  </section>
+  <% } %>
 </form>
 
 <%- include('partials/footer') %>

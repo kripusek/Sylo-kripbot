@@ -343,6 +343,7 @@ document.addEventListener('alpine:init', function () {
     // Keep every component row that isn't purely link buttons; the link editor
     // owns the rest.
     var keepRows = specRows.filter(function (r) {
+      if (r.type === 'random') return false; // edited in the "random button" card
       return (
         r.type !== 'buttons' ||
         (r.buttons || []).some(function (b) {
@@ -350,6 +351,25 @@ document.addEventListener('alpine:init', function () {
         })
       );
     });
+    var randomRow =
+      specRows.find(function (r) {
+        return r.type === 'random';
+      }) || null;
+    var randomSeed = {
+      enabled: !!randomRow,
+      label: String((randomRow && randomRow.label) || ''),
+      vsMode: !!(randomRow && randomRow.vsMode),
+      pool: ((randomRow && randomRow.pool) || []).join('\n'),
+      categories: ((randomRow && randomRow.categories) || []).join('\n'),
+    };
+    function lines(text) {
+      return String(text || '')
+        .split(/\r?\n/)
+        .map(function (l) {
+          return l.trim();
+        })
+        .filter(Boolean);
+    }
     var linkSeed = specRows
       .flatMap(function (r) {
         return r.type === 'buttons' ? r.buttons || [] : [];
@@ -395,6 +415,7 @@ document.addEventListener('alpine:init', function () {
       content: String(spec.content || ''),
       items: (Array.isArray(spec.embeds) ? spec.embeds : []).map(normEmbed),
       links: linkSeed,
+      random: randomSeed,
       _form: null,
       init() {
         this._form =
@@ -407,6 +428,7 @@ document.addEventListener('alpine:init', function () {
           this.$watch('items', () => this.serialize());
           this.$watch('content', () => this.serialize());
           this.$watch('links', () => this.serialize());
+          this.$watch('random', () => this.serialize());
         }
       },
       get full() {
@@ -496,7 +518,16 @@ document.addEventListener('alpine:init', function () {
             });
           out.rows = buttons.length
             ? this.keepRows.concat([{ type: 'buttons', buttons: buttons }])
-            : this.keepRows;
+            : this.keepRows.slice();
+          if (this.random.enabled) {
+            out.rows.push({
+              type: 'random',
+              label: String(this.random.label || '').trim(),
+              vsMode: !!this.random.vsMode,
+              pool: lines(this.random.pool),
+              categories: lines(this.random.categories),
+            });
+          }
         }
         return out;
       },

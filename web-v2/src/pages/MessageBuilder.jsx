@@ -35,8 +35,9 @@ function normEmbed(e = {}) {
 function specToForm(spec) {
   const rows = Array.isArray(spec?.rows) ? spec.rows : [];
   const keepRows = rows.filter(
-    (r) => r.type !== 'buttons' || (r.buttons || []).some((b) => b.style !== 'link')
+    (r) => r.type !== 'random' && (r.type !== 'buttons' || (r.buttons || []).some((b) => b.style !== 'link'))
   );
+  const randomRow = rows.find((r) => r.type === 'random');
   const links = rows
     .flatMap((r) => (r.type === 'buttons' ? r.buttons || [] : []))
     .filter((b) => b.style === 'link' || b.url)
@@ -46,8 +47,21 @@ function specToForm(spec) {
     embeds: (Array.isArray(spec?.embeds) ? spec.embeds : []).map(normEmbed),
     links,
     keepRows,
+    random: {
+      enabled: Boolean(randomRow),
+      label: String(randomRow?.label || ''),
+      vsMode: Boolean(randomRow?.vsMode),
+      pool: (randomRow?.pool || []).join('\n'),
+      categories: (randomRow?.categories || []).join('\n'),
+    },
   };
 }
+
+const toLines = (text) =>
+  String(text || '')
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
 
 function formToSpec(form) {
   const embeds = form.embeds.map((e) => ({
@@ -74,7 +88,16 @@ function formToSpec(form) {
       url: String(b.url || '').trim(),
     }))
     .filter((b) => b.url && (b.label || b.emoji));
-  const rows = buttons.length ? [...form.keepRows, { type: 'buttons', buttons }] : form.keepRows;
+  const rows = buttons.length ? [...form.keepRows, { type: 'buttons', buttons }] : [...form.keepRows];
+  if (form.random.enabled) {
+    rows.push({
+      type: 'random',
+      label: form.random.label.trim(),
+      vsMode: form.random.vsMode,
+      pool: toLines(form.random.pool),
+      categories: toLines(form.random.categories),
+    });
+  }
   return { content: form.content, embeds, rows };
 }
 
@@ -159,6 +182,7 @@ export default function MessageBuilder() {
   const updateLink = (i, patch) =>
     setForm((f) => ({ ...f, links: f.links.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) }));
   const removeLink = (i) => setForm((f) => ({ ...f, links: f.links.filter((_, idx) => idx !== i) }));
+  const setRandom = (patch) => setForm((f) => ({ ...f, random: { ...f.random, ...patch } }));
 
   async function submit(action) {
     setBusy(true);
@@ -326,6 +350,72 @@ export default function MessageBuilder() {
       >
         + Add link button
       </button>
+
+      <h2 className="v2-group-title v2-section-gap">
+        Losowy przycisk (DM) <span className="v2-field-hint">— opcjonalnie</span>
+      </h2>
+      <p className="v2-field-hint">
+        Pod wiadomością pojawi się przycisk. Każdy może kliknąć raz i dostaje w DM losową linię z Twojej
+        listy. Działa po opublikowaniu wiadomości na kanale.
+      </p>
+      <label className="v2-check">
+        <input
+          type="checkbox"
+          checked={form.random.enabled}
+          onChange={(e) => setRandom({ enabled: e.target.checked })}
+        />
+        Dodaj losowy przycisk
+      </label>
+      {form.random.enabled ? (
+        <>
+          <div className="v2-field">
+            <label>Napis na przycisku</label>
+            <input
+              type="text"
+              maxLength={80}
+              placeholder="Losuj"
+              value={form.random.label}
+              onChange={(e) => setRandom({ label: e.target.value })}
+            />
+          </div>
+          <label className="v2-check">
+            <input
+              type="checkbox"
+              checked={form.random.vsMode}
+              onChange={(e) => setRandom({ vsMode: e.target.checked })}
+            />
+            Tryb VS — bot losuje dwie różne pozycje z listy i pokazuje je jako „A vs B"
+          </label>
+          <div className="v2-field">
+            <label>
+              Lista do losowania{' '}
+              <span className="v2-field-hint">— jedna linia = jedna możliwość (słowo lub zdanie)</span>
+            </label>
+            <textarea
+              rows={6}
+              placeholder={'kot\nDzisiaj będzie dobry dzień\nbanan'}
+              value={form.random.pool}
+              onChange={(e) => setRandom({ pool: e.target.value })}
+            />
+          </div>
+          {form.random.vsMode ? (
+            <div className="v2-field">
+              <label>
+                Kategorie do trybu VS{' '}
+                <span className="v2-field-hint">
+                  — opcjonalnie, jedna linia = jedna kategoria, np. „kto lepszy?"
+                </span>
+              </label>
+              <textarea
+                rows={3}
+                placeholder={'kto lepszy?\nkto wygra w walce?'}
+                value={form.random.categories}
+                onChange={(e) => setRandom({ categories: e.target.value })}
+              />
+            </div>
+          ) : null}
+        </>
+      ) : null}
     </form>
   );
 }

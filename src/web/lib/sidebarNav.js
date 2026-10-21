@@ -87,7 +87,6 @@ const CATEGORIES = [
       { page: 'messages/send', label: 'Wyślij wiadomość' },
       { page: 'soundboard', label: 'Dźwięki na VC' },
       { page: 'dm', label: 'Wiadomości DM' },
-      { page: 'drops', label: 'Losowe wiadomości' },
       { module: 'counting' },
       { module: 'polls' },
       { module: 'giveaways' },

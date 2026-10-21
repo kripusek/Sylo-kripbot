@@ -3,6 +3,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { registerComponent } from '../bot/lib/components.js';
 import { getDrop, claimDrop, setDropMessage } from '../db/randomDrops.js';
+import { getComposedByMessage } from '../db/composedMessages.js';
 import { postToChannel } from './lib/send.js';
 
 export const POOL_MAX_LINES = 200;
@@ -50,19 +51,26 @@ export function rollResult(drop, rng = Math.random) {
   return `**${drop.pool[first]}** vs **${second}**${category ? `\n*${category}*` : ''}`;
 }
 
-const minimum = (drop) => (drop.vs_mode ? 2 : 1);
+const minimum = (drop) => (drop.vs_mode || drop.vsMode ? 2 : 1);
+
+/** A Polish reason why this drop can't be posted yet, or '' when it is fine. */
+export function dropTooShort(drop) {
+  if (drop.pool.length >= minimum(drop)) return '';
+  return minimum(drop) === 2
+    ? 'W trybie VS dodaj przynajmniej dwie linie do losowania.'
+    : 'Dodaj przynajmniej jedną linię do losowania.';
+}
+
+export const dropButton = (customId, label) =>
+  new ButtonBuilder()
+    .setCustomId(customId)
+    .setLabel(label || DEFAULT_BUTTON)
+    .setStyle(ButtonStyle.Primary);
 
 export function buildDropPayload(drop) {
   return {
     embeds: [{ color: 0x5865f2, description: drop.text }],
-    components: [
-      new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`${PREFIX}${drop.id}`)
-          .setLabel(drop.button_label || DEFAULT_BUTTON)
-          .setStyle(ButtonStyle.Primary)
-      ),
-    ],
+    components: [new ActionRowBuilder().addComponents(dropButton(`${PREFIX}${drop.id}`, drop.button_label))],
   };
 }
 
@@ -72,12 +80,8 @@ export function buildDropPayload(drop) {
  */
 export async function publishDrop(guild, drop) {
   if (!drop.channel_id) throw new Error('Wybierz kanał, na który wysłać wiadomość.');
-  if (drop.pool.length < minimum(drop))
-    throw new Error(
-      drop.vs_mode
-        ? 'W trybie VS dodaj przynajmniej dwie linie do losowania.'
-        : 'Dodaj przynajmniej jedną linię do losowania.'
-    );
+  const problem = dropTooShort(drop);
+  if (problem) throw new Error(problem);
   const payload = buildDropPayload(drop);
   if (drop.message_id) {
     const channel = guild.channels.cache.get(drop.channel_id);
@@ -95,13 +99,11 @@ export async function publishDrop(guild, drop) {
 
 const say = (interaction, content) => interaction.reply({ content, flags: MessageFlags.Ephemeral });
 
-export async function handleDropClick(interaction) {
-  const drop = await getDrop(Number(interaction.customId.slice(PREFIX.length)));
-  if (!drop || drop.guild_id !== interaction.guildId)
-    return say(interaction, 'Ta wiadomość nie jest już aktywna.');
-  if (drop.pool.length < minimum(drop)) return say(interaction, 'Lista do losowania jest za krótka.');
+async function deliver(interaction, drop, claimId) {
+  if (dropTooShort({ ...drop, vsMode: drop.vs_mode }))
+    return say(interaction, 'Lista do losowania jest za krótka.');
   const result = rollResult(drop);
-  if (!(await claimDrop(drop.id, interaction.user.id, drop.guild_id, result)))
+  if (!(await claimDrop(claimId, interaction.user.id, interaction.guildId, result)))
     return say(interaction, 'Już odebrałeś/aś swoją wiadomość — można kliknąć tylko raz.');
   try {
     await interaction.user.send({ content: result, allowedMentions: { parse: [] } });
@@ -111,4 +113,26 @@ export async function handleDropClick(interaction) {
   return say(interaction, 'Wysłałem Ci wiadomość w DM ✅');
 }
 
+/** Button from the standalone "Losowe wiadomości" page (customId rdrop:<id>). */
+export async function handleDropClick(interaction) {
+  const drop = await getDrop(Number(interaction.customId.slice(PREFIX.length)));
+  if (!drop || drop.guild_id !== interaction.guildId)
+    return say(interaction, 'Ta wiadomość nie jest już aktywna.');
+  return deliver(interaction, drop, drop.id);
+}
+
+/**
+ * Button from an Embed message (customId rdrop:msg): the list lives in the saved
+ * message's `random` row. Claims use the negated message id so they can never
+ * collide with the standalone drops' ids in the same table.
+ */
+export async function handleComposedDropClick(interaction) {
+  const rec = await getComposedByMessage(interaction.guildId, interaction.message.id);
+  const row = (rec?.spec?.rows ?? []).find((r) => r.type === 'random');
+  if (!row) return say(interaction, 'Ta wiadomość nie jest już aktywna.');
+  const drop = normaliseDrop({ ...row, buttonLabel: row.label });
+  return deliver(interaction, { ...drop, vs_mode: drop.vsMode }, -rec.id);
+}
+
 registerComponent('random-drops', PREFIX, handleDropClick);
+registerComponent('random-drops', 'rdrop:msg', handleComposedDropClick);

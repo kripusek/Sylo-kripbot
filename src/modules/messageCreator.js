@@ -9,6 +9,7 @@ import {
   StringSelectMenuBuilder,
 } from 'discord.js';
 import { getComposedByMessage } from '../db/composedMessages.js';
+import { normaliseDrop, dropButton, dropTooShort } from './randomDrops.js';
 import { registerComponent } from '../bot/lib/components.js';
 
 const BUTTON_STYLE = {
@@ -132,6 +133,14 @@ function buildComponents(spec) {
         .setMaxValues(Math.max(1, Math.min(Number(row.max) || opts.length, opts.length)))
         .addOptions(opts);
       rows.push(new ActionRowBuilder().addComponents(menu));
+      continue;
+    }
+    if (row.type === 'random') {
+      // One-click "random DM" button; the list lives in this row of the saved spec.
+      const drop = normaliseDrop({ ...row, buttonLabel: row.label });
+      const problem = dropTooShort(drop);
+      if (problem) throw new Error(problem);
+      rows.push(new ActionRowBuilder().addComponents(dropButton('rdrop:msg', drop.buttonLabel)));
       continue;
     }
     // button row
