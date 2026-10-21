@@ -15,6 +15,7 @@ import AutoThreads from './AutoThreads.jsx';
 import Music from './Music.jsx';
 import Economy from './Economy.jsx';
 import VoiceRelay from './VoiceRelay.jsx';
+import RandomDrops from './RandomDrops.jsx';
 import AutoReact from './AutoReact.jsx';
 import Logging from './Logging.jsx';
 import Tickets from './Tickets.jsx';
@@ -78,6 +79,7 @@ export const MODULE_FORMS = {
   music: Music,
   economy: Economy,
   'voice-relay': VoiceRelay,
+  'random-drops': RandomDrops,
   logging: Logging,
   tickets: Tickets,
   appeals: Appeals,

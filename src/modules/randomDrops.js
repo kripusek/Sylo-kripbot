@@ -2,8 +2,9 @@
 // gets a random line from the drop's list in a DM.
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { registerComponent } from '../bot/lib/components.js';
-import { getDrop, claimDrop, setDropMessage } from '../db/randomDrops.js';
-import { getComposedByMessage } from '../db/composedMessages.js';
+import { getDrop, claimDrop, setDropMessage, countClaims, listDrops } from '../db/randomDrops.js';
+import { getComposedByMessage, listComposed } from '../db/composedMessages.js';
+import { isModuleEnabled } from '../db/modules.js';
 import { postToChannel } from './lib/send.js';
 
 export const POOL_MAX_LINES = 200;
@@ -97,9 +98,32 @@ export async function publishDrop(guild, drop) {
   return 'sent';
 }
 
+/** Overview for the module page: every Embed message that has a random button, plus the older standalone drops. */
+export async function randomDropOverview(guildId) {
+  const messages = [];
+  for (const rec of await listComposed(guildId, 200)) {
+    const row = (rec.spec?.rows ?? []).find((r) => r.type === 'random');
+    if (!row) continue;
+    const drop = normaliseDrop({ ...row, buttonLabel: row.label });
+    messages.push({
+      id: rec.id,
+      name: rec.name || 'Bez nazwy',
+      channelId: rec.channel_id,
+      published: Boolean(rec.message_id),
+      vsMode: drop.vsMode,
+      entries: drop.pool.length,
+      claims: await countClaims(-rec.id),
+    });
+  }
+  const standalone = (await listDrops(guildId)).map((d) => ({ id: d.id, name: d.name, claims: d.claims }));
+  return { messages, standalone };
+}
+
 const say = (interaction, content) => interaction.reply({ content, flags: MessageFlags.Ephemeral });
 
 async function deliver(interaction, drop, claimId) {
+  if (!(await isModuleEnabled(interaction.guildId, 'random-drops')))
+    return say(interaction, 'Losowe wiadomości są teraz wyłączone na tym serwerze.');
   if (dropTooShort({ ...drop, vsMode: drop.vs_mode }))
     return say(interaction, 'Lista do losowania jest za krótka.');
   const result = rollResult(drop);

@@ -1,0 +1,40 @@
+<% var ov = randomOverview || { messages: [], standalone: [] };
+   var chName = function (id) { var c = (channels || []).find(function (x) { return x.id === id; }); return c ? '#' + c.name : '—'; }; %>
+
+<p class="muted small">
+  Wiadomość z przyciskiem na kanale: każdy może kliknąć raz i dostaje w DM losowe słowo lub zdanie z Twojej listy.
+  Wiadomość budujesz pełnym kreatorem embedów (jak w „Embed messages"), a pod nią włączasz sekcję
+  <strong>„Losowy przycisk (DM)"</strong>. Tryb VS losuje dwie pozycje i kategorię („A vs B — kto lepszy?").
+  Wyłączenie modułu wyłącza też wszystkie przyciski.
+</p>
+
+<p><a class="btn btn-primary" href="/guilds/<%= guild.id %>/messages/new?random=1">＋ Nowa losowa wiadomość</a></p>
+
+<% if (!ov.messages.length) { %>
+  <p class="muted">Nie masz jeszcze losowych wiadomości.</p>
+<% } else { %>
+  <table class="table">
+    <thead><tr><th>Wiadomość</th><th>Kanał</th><th>Stan</th><th>Pozycji</th><th>Tryb</th><th>Odebrano</th><th></th></tr></thead>
+    <tbody>
+      <% ov.messages.forEach(function (m) { %>
+        <tr>
+          <td><%= m.name %></td>
+          <td><%= chName(m.channelId) %></td>
+          <td><%= m.published ? 'Na kanale' : 'Szkic' %></td>
+          <td><%= m.entries %></td>
+          <td><%= m.vsMode ? 'VS' : 'Losowa linia' %></td>
+          <td><%= m.claims %></td>
+          <td><a href="/guilds/<%= guild.id %>/messages/<%= m.id %>">Edytuj</a></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } %>
+
+<% if (ov.standalone.length) { %>
+  <h3 class="u-mt-4">Starsze wiadomości (osobna strona)</h3>
+  <p class="muted small">Utworzone wcześniej na osobnej stronie. Nadal działają — <a href="/guilds/<%= guild.id %>/drops">otwórz edytor</a>.</p>
+  <ul>
+    <% ov.standalone.forEach(function (d) { %><li><%= d.name %> — odebrano: <%= d.claims %></li><% }) %>
+  </ul>
+<% } %>

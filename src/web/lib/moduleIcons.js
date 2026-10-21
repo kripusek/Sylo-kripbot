@@ -32,6 +32,7 @@ export const MODULE_ICONS = {
   'server-stats': 'activity',
   'temp-voice': 'mic',
   'voice-relay': 'mic',
+  'random-drops': 'sparkle',
   'free-games': 'gamepad',
   reminders: 'bell',
   giveaways: 'gift',

@@ -74,6 +74,7 @@ const LAYOUT = [
       'insights',
       'temp-voice',
       'voice-relay',
+      'random-drops',
       'free-games',
       'game-stats',
       'channel-cleanup',

@@ -49,6 +49,16 @@ export const MODULES = [
     beta: true,
   },
   {
+    id: 'random-drops',
+    name: 'Random messages',
+    description: 'Messages with a one-click button that DMs each member a random word or sentence.',
+    icon: '🎲',
+    requiredIntents: [],
+    defaultEnabled: true,
+    configurable: true,
+    beta: true,
+  },
+  {
     id: 'voice-relay',
     name: 'Voice relay',
     description: 'Carry the talk of one voice channel into another, live (needs a second bot account).',

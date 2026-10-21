@@ -99,6 +99,7 @@ const CATEGORIES = [
       { module: 'server-stats' },
       { module: 'temp-voice' },
       { module: 'voice-relay', label: 'Voice relay' },
+      { module: 'random-drops', label: 'Losowe wiadomości' },
       { module: 'free-games' },
       { module: 'game-stats', label: 'Game stats' },
     ],

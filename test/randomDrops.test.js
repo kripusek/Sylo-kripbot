@@ -202,3 +202,40 @@ test('Embed messages: a random row becomes a button, and a click uses the saved 
   assert.match((await run(U1, 'm-unknown')).replies[0].content, /nie jest już aktywna/);
   assert.ok(rec.id > 0);
 });
+
+test('Random messages is a registered module: listed, on by default, switchable, and gates clicks', async () => {
+  const { getModule } = await import('../src/modules/registry.js');
+  const { setGuildModule } = await import('../src/db/modules.js');
+  const { createComposed } = await import('../src/db/composedMessages.js');
+  const { handleComposedDropClick, randomDropOverview } = await import('../src/modules/randomDrops.js');
+  const mod = getModule('random-drops');
+  assert.equal(mod.defaultEnabled, true);
+  assert.equal(mod.configurable, true);
+
+  const g = '800000000000000555';
+  await createComposed(g, {
+    name: 'Moja losowa',
+    channelId: '800000000000000099',
+    messageId: 'm-555',
+    spec: { rows: [{ type: 'random', pool: ['a', 'b', 'c'], vsMode: true }] },
+  });
+  await createComposed(g, { name: 'Zwykła', channelId: '1', messageId: null, spec: { rows: [] } });
+  const ov = await randomDropOverview(g);
+  assert.equal(ov.messages.length, 1);
+  assert.deepEqual(
+    {
+      name: ov.messages[0].name,
+      entries: ov.messages[0].entries,
+      vs: ov.messages[0].vsMode,
+      pub: ov.messages[0].published,
+    },
+    { name: 'Moja losowa', entries: 3, vs: true, pub: true }
+  );
+
+  const { out, interaction } = click(0, U1, { guildId: g });
+  interaction.message = { id: 'm-555' };
+  await setGuildModule(g, 'random-drops', { enabled: false });
+  await handleComposedDropClick(interaction);
+  assert.match(out.replies[0].content, /wyłączone/);
+  assert.equal(out.dms.length, 0);
+});

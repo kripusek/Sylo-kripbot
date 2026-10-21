@@ -107,3 +107,7 @@ export async function deleteDrop(guildId, id) {
   await delClaims.run(id, guildId);
   return (await delDrop.run(id, guildId)).changes === 1;
 }
+
+export async function countClaims(dropId) {
+  return Number((await countStmt.get(dropId))?.n ?? 0);
+}

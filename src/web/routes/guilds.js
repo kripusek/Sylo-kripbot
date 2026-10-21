@@ -132,6 +132,7 @@ import {
 } from '../../modules/scheduledMessages.js';
 import { sendComposed } from '../../modules/messageCreator.js';
 import { syncGuildCustomCommands } from '../../bot/lib/customCommandSync.js';
+import { randomDropOverview } from '../../modules/randomDrops.js';
 import { normaliseLevelingConfig, ANNOUNCE_MODES, XP_RATES, syncRewards } from '../../modules/leveling.js';
 import { levelFromXp } from '../../modules/lib/levels.js';
 import {
@@ -189,6 +190,7 @@ const CONFIG_VIEWS = new Set([
   'music',
   'economy',
   'voice-relay',
+  'random-drops',
   'moderation',
   'logging',
   'welcome',
@@ -830,6 +832,7 @@ async function moduleViewLocals(mod, req, configOverride) {
     configPartialRel: hasView ? `modules/${mod.id}` : 'modules/stub',
     logEvents: LOG_EVENTS,
     honeypotActions: HONEYPOT_ACTIONS,
+    randomOverview: mod.id === 'random-drops' ? await randomDropOverview(req.guild.id) : null,
     relayStatus: mod.id === 'voice-relay' ? relayStatus(req.guild.id) : null,
     relayBotConfigured: relayBotConfigured(),
     relayInviteUrl: relayInviteUrl(),

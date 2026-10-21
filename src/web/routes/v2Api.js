@@ -45,6 +45,7 @@ import {
 import { mdToHtml } from '../lib/markdown.js';
 import { voteLimit as roadmapVoteLimit, suggestLimit as roadmapSuggestLimit } from './roadmap.js';
 import { getGuildModule, setGuildModule } from '../../db/modules.js';
+import { randomDropOverview } from '../../modules/randomDrops.js';
 import { normaliseLevelingConfig, ANNOUNCE_MODES, XP_RATES, syncRewards } from '../../modules/leveling.js';
 import { levelFromXp } from '../../modules/lib/levels.js';
 import {
@@ -820,6 +821,17 @@ router.post(
       detail: `${req.body.action} ${amount} for ${userId} (balance ${result.balance})`,
     });
     res.json({ balance: result.balance, top: await richestMembers(req.guild, 10) });
+  })
+);
+
+router.get(
+  '/guilds/:guildId/modules/random-drops/config',
+  asyncHandler(async (req, res) => {
+    res.json({
+      config: {},
+      channels: guildTextChannels(req.guild),
+      overview: await randomDropOverview(req.guild.id),
+    });
   })
 );
 

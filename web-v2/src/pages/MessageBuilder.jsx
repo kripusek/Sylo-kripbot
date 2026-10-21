@@ -123,7 +123,11 @@ export default function MessageBuilder() {
         setName(d.rec.name);
         setChannelId(d.rec.channelId);
         setMessageId(d.rec.messageId);
-        setForm(specToForm(d.rec.spec));
+        const initial = specToForm(d.rec.spec);
+        // "+ New random message" on the Random messages module opens a draft with the button on.
+        if (isNew && new URLSearchParams(window.location.search).get('random') === '1')
+          initial.random.enabled = true;
+        setForm(initial);
         setChannels(d.channels);
         setState({ loading: false, error: null });
       })

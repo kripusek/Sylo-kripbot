@@ -72,12 +72,20 @@ async function renderBuilder(req, res, rec) {
     roles: assignableRoles(req.guild),
     guildId: req.guild.id,
     isNew: !rec,
+    // "+ New random message" on the Random messages module opens a draft with the button on.
     rec: rec || {
       id: '',
       name: '',
       channel_id: '',
       message_id: null,
-      spec: { content: '', embeds: [], rows: [] },
+      spec: {
+        content: '',
+        embeds: [],
+        rows:
+          req.query.random === '1'
+            ? [{ type: 'random', label: '', vsMode: false, pool: [], categories: [] }]
+            : [],
+      },
     },
   });
 }
