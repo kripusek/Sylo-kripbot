@@ -2202,5 +2202,7 @@
   "Invite the relay bot": "Zaproś bota relay",
   "(you need the Manage Server permission), then reload this page.": "(potrzebujesz uprawnienia Zarządzanie serwerem), a potem odśwież stronę.",
   "Invite it, then reload this page.": "Zaproś go i odśwież stronę.",
-  "Show field names next to their text (e.g. rule numbers)": "Pokaż nazwy pól obok ich tekstu (np. numery regulaminu)"
+  "Show field names next to their text (e.g. rule numbers)": "Pokaż nazwy pól obok ich tekstu (np. numery regulaminu)",
+  "Random messages": "Losowe wiadomości",
+  "Messages with a one-click button that DMs each member a random word or sentence.": "Wiadomości z przyciskiem, który jednym kliknięciem wysyła członkowi w DM losowe słowo lub zdanie."
 }
