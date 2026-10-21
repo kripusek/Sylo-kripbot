@@ -239,3 +239,41 @@ test('Random messages is a registered module: listed, on by default, switchable,
   assert.match(out.replies[0].content, /wyłączone/);
   assert.equal(out.dms.length, 0);
 });
+
+test('VS mode appends the chosen number of different categories', async () => {
+  const { rollResult } = await import('../src/modules/randomDrops.js');
+  const base = { vs_mode: true, pool: ['a', 'b', 'c'], categories: ['k1', 'k2', 'k3', 'k4'] };
+  assert.equal(
+    rollResult({ ...base, categoryCount: 1 }, () => 0),
+    '**a** vs **b**\n*k1*'
+  );
+  assert.equal(
+    rollResult({ ...base, categoryCount: 3 }, () => 0),
+    '**a** vs **b**\n*k1*\n*k2*\n*k3*'
+  );
+  assert.equal(
+    rollResult(base, () => 0),
+    '**a** vs **b**\n*k1*'
+  ); // default is one
+  for (let i = 0; i < 100; i++) {
+    const cats = rollResult({ ...base, categoryCount: 3 })
+      .split('\n')
+      .slice(1);
+    assert.equal(cats.length, 3);
+    assert.equal(new Set(cats).size, 3);
+  }
+  // asking for more than exist gives all of them, once each
+  assert.equal(rollResult({ ...base, categories: ['k1', 'k2'], categoryCount: 5 }).split('\n').length, 3);
+  assert.equal(rollResult({ ...base, categories: [], categoryCount: 3 }).includes('\n'), false);
+});
+
+test('categoryCount is clamped to 1-10 and kept in the published message row', async () => {
+  const { buildPayload } = await import('../src/modules/messageCreator.js');
+  assert.equal(normaliseDrop({}).categoryCount, 1);
+  assert.equal(normaliseDrop({ categoryCount: '3' }).categoryCount, 3);
+  assert.equal(normaliseDrop({ categoryCount: 99 }).categoryCount, 10);
+  assert.equal(normaliseDrop({ categoryCount: -4 }).categoryCount, 1);
+  assert.equal(normaliseDrop({ categoryCount: 'abc' }).categoryCount, 1);
+  const row = { type: 'random', pool: ['a', 'b'], vsMode: true, categories: ['k'], categoryCount: 2 };
+  assert.ok(buildPayload({ rows: [row] }).payload.components.length === 1);
+});

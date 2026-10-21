@@ -87,6 +87,8 @@
       <div x-show="random.vsMode" class="stack">
         <label class="small">Kategorie do trybu VS <span class="muted">— opcjonalnie, jedna linia = jedna kategoria, np. „kto lepszy?"</span></label>
         <textarea rows="3" x-model="random.categories" placeholder="kto lepszy?&#10;kto wygra w walce?"></textarea>
+        <label class="small">Ile kategorii wylosować <span class="muted">— bot dopisze tyle różnych kategorii (1–10, nie więcej niż masz na liście)</span></label>
+        <input type="number" class="u-mw-sm" min="1" max="10" step="1" x-model.number="random.categoryCount" />
       </div>
     </div>
   </section>

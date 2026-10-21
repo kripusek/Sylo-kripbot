@@ -361,6 +361,7 @@ document.addEventListener('alpine:init', function () {
       vsMode: !!(randomRow && randomRow.vsMode),
       pool: ((randomRow && randomRow.pool) || []).join('\n'),
       categories: ((randomRow && randomRow.categories) || []).join('\n'),
+      categoryCount: Number(randomRow && randomRow.categoryCount) || 1,
     };
     function lines(text) {
       return String(text || '')
@@ -526,6 +527,7 @@ document.addEventListener('alpine:init', function () {
               vsMode: !!this.random.vsMode,
               pool: lines(this.random.pool),
               categories: lines(this.random.categories),
+              categoryCount: Math.max(1, Math.min(10, Math.floor(Number(this.random.categoryCount)) || 1)),
             });
           }
         }

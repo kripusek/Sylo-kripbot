@@ -53,6 +53,7 @@ function specToForm(spec) {
       vsMode: Boolean(randomRow?.vsMode),
       pool: (randomRow?.pool || []).join('\n'),
       categories: (randomRow?.categories || []).join('\n'),
+      categoryCount: Number(randomRow?.categoryCount) || 1,
     },
   };
 }
@@ -96,6 +97,7 @@ function formToSpec(form) {
       vsMode: form.random.vsMode,
       pool: toLines(form.random.pool),
       categories: toLines(form.random.categories),
+      categoryCount: Math.max(1, Math.min(10, Math.floor(Number(form.random.categoryCount)) || 1)),
     });
   }
   return { content: form.content, embeds, rows };
@@ -415,6 +417,24 @@ export default function MessageBuilder() {
                 placeholder={'kto lepszy?\nkto wygra w walce?'}
                 value={form.random.categories}
                 onChange={(e) => setRandom({ categories: e.target.value })}
+              />
+            </div>
+          ) : null}
+          {form.random.vsMode ? (
+            <div className="v2-field">
+              <label>
+                Ile kategorii wylosować{' '}
+                <span className="v2-field-hint">
+                  — bot dopisze tyle różnych kategorii (1–10, nie więcej niż masz na liście)
+                </span>
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                step={1}
+                value={form.random.categoryCount}
+                onChange={(e) => setRandom({ categoryCount: e.target.value })}
               />
             </div>
           ) : null}

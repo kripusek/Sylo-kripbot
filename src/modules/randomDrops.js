@@ -9,6 +9,7 @@ import { postToChannel } from './lib/send.js';
 
 export const POOL_MAX_LINES = 200;
 export const POOL_MAX_LINE = 1000;
+export const CATEGORY_COUNT_MAX = 10;
 export const DEFAULT_TEXT = 'Kliknij przycisk, a dostaniesz ode mnie wiadomość w DM.';
 export const DEFAULT_BUTTON = 'Losuj';
 const PREFIX = 'rdrop:';
@@ -37,19 +38,31 @@ export function normaliseDrop(raw = {}) {
     pool: toLines(raw.pool, POOL_MAX_LINES),
     vsMode: raw.vsMode === true || raw.vsMode === 'on' || raw.vsMode === 'true' || raw.vsMode === 1,
     categories: toLines(raw.categories, POOL_MAX_LINES),
+    categoryCount: Math.max(1, Math.min(CATEGORY_COUNT_MAX, Math.floor(Number(raw.categoryCount)) || 1)),
   };
 }
 
 export const pickRandom = (pool, rng = Math.random) => pool[Math.floor(rng() * pool.length)];
 
-/** What a click produces: one random line, or in VS mode "A vs B" plus a random category. */
+/** `count` different entries of `list`, in random order. */
+function pickMany(list, count, rng) {
+  const pool = [...list];
+  const out = [];
+  while (out.length < count && pool.length) out.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+  return out;
+}
+
+/**
+ * What a click produces: one random line, or in VS mode "A vs B" plus
+ * `categoryCount` different random categories (as many as exist).
+ */
 export function rollResult(drop, rng = Math.random) {
   if (!drop.vs_mode) return pickRandom(drop.pool, rng);
   const first = Math.floor(rng() * drop.pool.length);
   const rest = drop.pool.filter((_, i) => i !== first);
   const second = pickRandom(rest, rng);
-  const category = drop.categories.length ? pickRandom(drop.categories, rng) : '';
-  return `**${drop.pool[first]}** vs **${second}**${category ? `\n*${category}*` : ''}`;
+  const categories = pickMany(drop.categories, drop.categoryCount ?? 1, rng);
+  return `**${drop.pool[first]}** vs **${second}**${categories.map((c) => `\n*${c}*`).join('')}`;
 }
 
 const minimum = (drop) => (drop.vs_mode || drop.vsMode ? 2 : 1);
