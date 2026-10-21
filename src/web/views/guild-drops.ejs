@@ -18,8 +18,12 @@
       </label>
       <label>Treść wiadomości na kanale<textarea name="text" rows="3" maxlength="1500" placeholder="Kliknij przycisk, a dostaniesz ode mnie wiadomość w DM."></textarea></label>
       <label>Napis na przycisku<input name="buttonLabel" type="text" maxlength="80" placeholder="Losuj"></label>
+      <label class="rr-mode"><input type="checkbox" name="vsMode"> <span><strong>Tryb VS</strong> — po kliknięciu bot losuje dwie różne pozycje z listy i pokazuje je jako „A vs B"</span></label>
       <label>Lista do losowania <span class="muted small">— jedna linia = jedna możliwość (maks. <%= maxLines %>)</span>
         <textarea name="pool" rows="8" placeholder="kot&#10;Dzisiaj będzie dobry dzień&#10;banan"></textarea>
+      </label>
+      <label id="dr-cats">Kategorie do trybu VS <span class="muted small">— opcjonalnie, jedna linia = jedna kategoria, np. „kto lepszy?". Bot dopisze losową pod wynikiem.</span>
+        <textarea name="categories" rows="4" placeholder="kto lepszy?&#10;kto wygra w walce?"></textarea>
       </label>
       <p id="dr-claims" class="muted small"></p>
       <div class="dm-send">

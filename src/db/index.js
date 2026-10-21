@@ -885,6 +885,13 @@ export const MIGRATIONS = [
       );
     `);
   },
+  // Random drops: "VS" mode (two random entries plus a random category).
+  (database) => {
+    database.exec(`
+      ALTER TABLE random_drops ADD COLUMN vs_mode INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE random_drops ADD COLUMN categories TEXT NOT NULL DEFAULT '[]';
+    `);
+  },
 ];
 
 /** Highest schema version this build knows how to run. */

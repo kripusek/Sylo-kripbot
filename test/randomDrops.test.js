@@ -119,3 +119,44 @@ test('dashboard saves, publishes and deletes a drop', async () => {
     app.close();
   }
 });
+
+test('VS mode rolls two different entries plus a random category', async () => {
+  const { rollResult } = await import('../src/modules/randomDrops.js');
+  const drop = { vs_mode: true, pool: ['kot', 'pies', 'ryba'], categories: ['kto lepszy?', 'kto wygra?'] };
+  assert.equal(
+    rollResult(drop, () => 0),
+    '**kot** vs **pies**\n*kto lepszy?*'
+  );
+  assert.equal(
+    rollResult(drop, () => 0.99),
+    '**ryba** vs **pies**\n*kto wygra?*'
+  );
+  for (let i = 0; i < 200; i++) {
+    const [, a, b] = /^\*\*(.+)\*\* vs \*\*(.+)\*\*/.exec(rollResult(drop)) ?? [];
+    assert.ok(a && b && a !== b);
+  }
+  assert.equal(
+    rollResult({ ...drop, categories: [] }, () => 0),
+    '**kot** vs **pies**'
+  );
+  assert.equal(rollResult({ vs_mode: false, pool: ['x'], categories: [] }), 'x');
+});
+
+test('VS mode is saved, needs two entries to publish, and DMs the pair on click', async () => {
+  const d = normaliseDrop({ vsMode: 'on', pool: 'a\nb', categories: 'kto lepszy?' });
+  assert.equal(d.vsMode, true);
+  assert.deepEqual(d.categories, ['kto lepszy?']);
+  assert.equal(normaliseDrop({}).vsMode, false);
+
+  const id = await saveDrop(GUILD, null, normaliseDrop({ vsMode: true, pool: 'solo' }));
+  assert.equal((await getDrop(id)).vs_mode, true);
+  const tooShort = click(id, U1);
+  await handleDropClick(tooShort.interaction);
+  assert.match(tooShort.out.replies[0].content, /za krótka/);
+  assert.equal(tooShort.out.dms.length, 0);
+
+  const ok = await saveDrop(GUILD, null, d);
+  const hit = click(ok, U1);
+  await handleDropClick(hit.interaction);
+  assert.match(hit.out.dms[0].content, /^\*\*[ab]\*\* vs \*\*[ab]\*\*\n\*kto lepszy\?\*$/);
+});

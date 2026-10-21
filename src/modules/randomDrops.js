@@ -13,7 +13,11 @@ const PREFIX = 'rdrop:';
 
 /** Clean the editable fields of a drop. `pool` may be an array or one-per-line text. */
 export function normaliseDrop(raw = {}) {
-  const lines = Array.isArray(raw.pool) ? raw.pool : String(raw.pool ?? '').split(/\r?\n/);
+  const toLines = (v, max) =>
+    (Array.isArray(v) ? v : String(v ?? '').split(/\r?\n/))
+      .map((l) => String(l).trim().slice(0, POOL_MAX_LINE))
+      .filter(Boolean)
+      .slice(0, max);
   return {
     name:
       String(raw.name ?? '')
@@ -28,14 +32,25 @@ export function normaliseDrop(raw = {}) {
       String(raw.buttonLabel ?? '')
         .trim()
         .slice(0, 80) || DEFAULT_BUTTON,
-    pool: lines
-      .map((l) => String(l).trim().slice(0, POOL_MAX_LINE))
-      .filter(Boolean)
-      .slice(0, POOL_MAX_LINES),
+    pool: toLines(raw.pool, POOL_MAX_LINES),
+    vsMode: raw.vsMode === true || raw.vsMode === 'on' || raw.vsMode === 'true' || raw.vsMode === 1,
+    categories: toLines(raw.categories, POOL_MAX_LINES),
   };
 }
 
 export const pickRandom = (pool, rng = Math.random) => pool[Math.floor(rng() * pool.length)];
+
+/** What a click produces: one random line, or in VS mode "A vs B" plus a random category. */
+export function rollResult(drop, rng = Math.random) {
+  if (!drop.vs_mode) return pickRandom(drop.pool, rng);
+  const first = Math.floor(rng() * drop.pool.length);
+  const rest = drop.pool.filter((_, i) => i !== first);
+  const second = pickRandom(rest, rng);
+  const category = drop.categories.length ? pickRandom(drop.categories, rng) : '';
+  return `**${drop.pool[first]}** vs **${second}**${category ? `\n*${category}*` : ''}`;
+}
+
+const minimum = (drop) => (drop.vs_mode ? 2 : 1);
 
 export function buildDropPayload(drop) {
   return {
@@ -57,7 +72,12 @@ export function buildDropPayload(drop) {
  */
 export async function publishDrop(guild, drop) {
   if (!drop.channel_id) throw new Error('Wybierz kanał, na który wysłać wiadomość.');
-  if (!drop.pool.length) throw new Error('Dodaj przynajmniej jedną linię do losowania.');
+  if (drop.pool.length < minimum(drop))
+    throw new Error(
+      drop.vs_mode
+        ? 'W trybie VS dodaj przynajmniej dwie linie do losowania.'
+        : 'Dodaj przynajmniej jedną linię do losowania.'
+    );
   const payload = buildDropPayload(drop);
   if (drop.message_id) {
     const channel = guild.channels.cache.get(drop.channel_id);
@@ -79,8 +99,8 @@ export async function handleDropClick(interaction) {
   const drop = await getDrop(Number(interaction.customId.slice(PREFIX.length)));
   if (!drop || drop.guild_id !== interaction.guildId)
     return say(interaction, 'Ta wiadomość nie jest już aktywna.');
-  if (!drop.pool.length) return say(interaction, 'Lista do losowania jest pusta.');
-  const result = pickRandom(drop.pool);
+  if (drop.pool.length < minimum(drop)) return say(interaction, 'Lista do losowania jest za krótka.');
+  const result = rollResult(drop);
   if (!(await claimDrop(drop.id, interaction.user.id, drop.guild_id, result)))
     return say(interaction, 'Już odebrałeś/aś swoją wiadomość — można kliknąć tylko raz.');
   try {

@@ -39,6 +39,9 @@
     form.elements.text.value = drop?.text ?? '';
     form.elements.buttonLabel.value = drop?.buttonLabel ?? '';
     form.elements.pool.value = (drop?.pool ?? []).join('\n');
+    form.elements.categories.value = (drop?.categories ?? []).join('\n');
+    form.elements.vsMode.checked = Boolean(drop?.vsMode);
+    syncVs();
     del.hidden = !drop;
     $('dr-claims').textContent = drop
       ? `Odebrano: ${drop.claims}. ${drop.published ? 'Wiadomość jest na kanale.' : 'Jeszcze nie wysłano na kanał.'}`
@@ -69,7 +72,14 @@
     else renderList();
   }
 
-  const payload = () => Object.fromEntries(new FormData(form).entries());
+  const payload = () => ({
+    ...Object.fromEntries(new FormData(form).entries()),
+    vsMode: form.elements.vsMode.checked,
+  });
+  function syncVs() {
+    $('dr-cats').hidden = !form.elements.vsMode.checked;
+  }
+  form.elements.vsMode.addEventListener('change', syncVs);
 
   async function save() {
     const { drop } = await api('/save', payload());

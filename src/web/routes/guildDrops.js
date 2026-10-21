@@ -26,6 +26,8 @@ const json = (d) => ({
   text: d.text,
   buttonLabel: d.button_label,
   pool: d.pool,
+  vsMode: d.vs_mode,
+  categories: d.categories,
   claims: d.claims ?? 0,
 });
 const ownDrop = async (req) => {

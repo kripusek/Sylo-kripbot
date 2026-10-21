@@ -12,8 +12,12 @@ registerPostgresBootstrap(`
     text         TEXT NOT NULL DEFAULT '',
     button_label TEXT NOT NULL DEFAULT '',
     pool         TEXT NOT NULL DEFAULT '[]',
-    updated_at   BIGINT NOT NULL
+    updated_at   BIGINT NOT NULL,
+    vs_mode      INTEGER NOT NULL DEFAULT 0,
+    categories   TEXT NOT NULL DEFAULT '[]'
   );
+  ALTER TABLE random_drops ADD COLUMN IF NOT EXISTS vs_mode INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE random_drops ADD COLUMN IF NOT EXISTS categories TEXT NOT NULL DEFAULT '[]';
   CREATE INDEX IF NOT EXISTS idx_random_drops_guild ON random_drops (guild_id, id);
   CREATE TABLE IF NOT EXISTS random_drop_claims (
     drop_id    INTEGER NOT NULL,
@@ -28,13 +32,14 @@ registerPostgresBootstrap(`
 const listStmt = prepare('SELECT * FROM random_drops WHERE guild_id = ? ORDER BY id');
 const getStmt = prepare('SELECT * FROM random_drops WHERE id = ?');
 const insertStmt = prepare(
-  `INSERT INTO random_drops (guild_id, name, channel_id, text, button_label, pool, updated_at)
-   VALUES (@guildId, @name, @channelId, @text, @buttonLabel, @pool, @now)`,
+  `INSERT INTO random_drops (guild_id, name, channel_id, text, button_label, pool, vs_mode, categories, updated_at)
+   VALUES (@guildId, @name, @channelId, @text, @buttonLabel, @pool, @vsMode, @categories, @now)`,
   { returningId: true }
 );
 const updateStmt = prepare(
   `UPDATE random_drops SET name = @name, channel_id = @channelId, text = @text,
-     button_label = @buttonLabel, pool = @pool, updated_at = @now
+     button_label = @buttonLabel, pool = @pool, vs_mode = @vsMode, categories = @categories,
+     updated_at = @now
    WHERE id = @id AND guild_id = @guildId`
 );
 const messageStmt = prepare('UPDATE random_drops SET channel_id = ?, message_id = ? WHERE id = ?');
@@ -47,17 +52,18 @@ const countStmt = prepare('SELECT COUNT(*) AS n FROM random_drop_claims WHERE dr
 const delClaims = prepare('DELETE FROM random_drop_claims WHERE drop_id = ? AND guild_id = ?');
 const delDrop = prepare('DELETE FROM random_drops WHERE id = ? AND guild_id = ?');
 
-const parse = (row) => {
-  if (!row) return null;
-  let pool = [];
+const lines = (json) => {
   try {
-    const raw = JSON.parse(row.pool);
-    if (Array.isArray(raw)) pool = raw.map(String);
+    const raw = JSON.parse(json);
+    return Array.isArray(raw) ? raw.map(String) : [];
   } catch {
-    /* corrupt pool reads as empty */
+    return []; // a corrupt list reads as empty
   }
-  return { ...row, pool };
 };
+const parse = (row) =>
+  row
+    ? { ...row, pool: lines(row.pool), categories: lines(row.categories), vs_mode: Number(row.vs_mode) === 1 }
+    : null;
 
 export async function listDrops(guildId) {
   const rows = (await listStmt.all(guildId)).map(parse);
@@ -66,8 +72,22 @@ export async function listDrops(guildId) {
 }
 export const getDrop = async (id) => parse(await getStmt.get(id));
 
-export async function saveDrop(guildId, id, { name, channelId, text, buttonLabel, pool }) {
-  const values = { guildId, name, channelId, text, buttonLabel, pool: JSON.stringify(pool), now: Date.now() };
+export async function saveDrop(
+  guildId,
+  id,
+  { name, channelId, text, buttonLabel, pool, vsMode, categories }
+) {
+  const values = {
+    guildId,
+    name,
+    channelId,
+    text,
+    buttonLabel,
+    pool: JSON.stringify(pool),
+    vsMode: vsMode ? 1 : 0,
+    categories: JSON.stringify(categories ?? []),
+    now: Date.now(),
+  };
   if (id) {
     await updateStmt.run({ ...values, id });
     return id;
