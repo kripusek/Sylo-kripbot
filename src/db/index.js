@@ -859,6 +859,32 @@ export const MIGRATIONS = [
       CREATE INDEX idx_dm_messages_thread ON dm_messages (guild_id, user_id, id);
     `);
   },
+  // Random drops: a channel message with a button; each member can click it once
+  // and gets a random line from the drop's list in a DM.
+  (database) => {
+    database.exec(`
+      CREATE TABLE random_drops (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id     TEXT NOT NULL,
+        name         TEXT NOT NULL DEFAULT '',
+        channel_id   TEXT NOT NULL DEFAULT '',
+        message_id   TEXT NOT NULL DEFAULT '',
+        text         TEXT NOT NULL DEFAULT '',
+        button_label TEXT NOT NULL DEFAULT '',
+        pool         TEXT NOT NULL DEFAULT '[]',
+        updated_at   INTEGER NOT NULL
+      );
+      CREATE INDEX idx_random_drops_guild ON random_drops (guild_id, id);
+      CREATE TABLE random_drop_claims (
+        drop_id    INTEGER NOT NULL,
+        user_id    TEXT NOT NULL,
+        guild_id   TEXT NOT NULL,
+        result     TEXT NOT NULL DEFAULT '',
+        claimed_at INTEGER NOT NULL,
+        PRIMARY KEY (drop_id, user_id)
+      );
+    `);
+  },
 ];
 
 /** Highest schema version this build knows how to run. */

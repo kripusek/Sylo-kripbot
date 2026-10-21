@@ -21,6 +21,7 @@ import settingsRouter from './routes/settings.js';
 import guildsRouter from './routes/guilds.js';
 import guildTicketsRouter from './routes/guildTickets.js';
 import guildDmRouter from './routes/guildDm.js';
+import guildDropsRouter from './routes/guildDrops.js';
 import guildMessagesRouter from './routes/guildMessages.js';
 import guildSoundboardRouter from './routes/guildSoundboard.js';
 import githubWebhookRouter from './routes/githubWebhook.js';
@@ -96,6 +97,7 @@ export function createApp() {
   app.use('/guilds/:guildId/messages', guildMessagesRouter);
   app.use('/guilds/:guildId/soundboard', guildSoundboardRouter);
   app.use('/guilds/:guildId/dm', guildDmRouter);
+  app.use('/guilds/:guildId/drops', guildDropsRouter);
   app.use('/guilds', guildsRouter);
   // V2 dashboard (opt-in, side-by-side with the routes above — see
   // internal/dashboard-v2-plan.md). Purely additive: neither router touches

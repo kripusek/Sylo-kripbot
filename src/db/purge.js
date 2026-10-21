@@ -71,6 +71,8 @@ export const GUILD_TABLES = [
   'economy_accounts',
   'dm_threads',
   'dm_messages',
+  'random_drops',
+  'random_drop_claims',
   'config_audit',
   'afk',
   'posted_keys',

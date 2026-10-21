@@ -24,6 +24,7 @@ const ICONS = {
   audit: 'list',
   soundboard: 'mic',
   dm: 'message-circle',
+  drops: 'gift',
 };
 
 // Top group — special pages, no dot.
@@ -86,6 +87,7 @@ const CATEGORIES = [
       { page: 'messages/send', label: 'Wyślij wiadomość' },
       { page: 'soundboard', label: 'Dźwięki na VC' },
       { page: 'dm', label: 'Wiadomości DM' },
+      { page: 'drops', label: 'Losowe wiadomości' },
       { module: 'counting' },
       { module: 'polls' },
       { module: 'giveaways' },

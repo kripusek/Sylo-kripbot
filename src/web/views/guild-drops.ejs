@@ -1,0 +1,35 @@
+<%- include('partials/header', { title: `Sylo — Losowe wiadomości — ${guild.name}` }) %>
+<section id="drops" data-base="/guilds/<%= guild.id %>/drops" hx-boost="false">
+  <div class="mod-hero"><%- include('guild/_hero-inner', { icon: 'gift', title: 'Losowe wiadomości', lg: true }) %></div>
+  <p class="muted">Wiadomość z przyciskiem na wybranym kanale. Każdy może kliknąć raz i dostaje w DM losową linię z Twojej listy (słowo, zdanie, cokolwiek).</p>
+  <div class="dm-layout">
+    <aside class="panel dm-side">
+      <button type="button" class="btn" id="dr-new">＋ Nowa wiadomość</button>
+      <ul id="dr-list" class="dm-threads"></ul>
+      <p id="dr-empty" class="muted small">Brak wiadomości.</p>
+    </aside>
+    <form id="dr-form" class="panel dm-main" hidden>
+      <input type="hidden" name="id">
+      <label>Nazwa (tylko w panelu)<input name="name" type="text" maxlength="60" placeholder="Np. Losowe słowo"></label>
+      <label>Kanał
+        <select name="channelId"><option value="">Wybierz kanał…</option>
+        <% channels.forEach(function (c) { %><option value="<%= c.id %>">#<%= c.name %></option><% }) %>
+        </select>
+      </label>
+      <label>Treść wiadomości na kanale<textarea name="text" rows="3" maxlength="1500" placeholder="Kliknij przycisk, a dostaniesz ode mnie wiadomość w DM."></textarea></label>
+      <label>Napis na przycisku<input name="buttonLabel" type="text" maxlength="80" placeholder="Losuj"></label>
+      <label>Lista do losowania <span class="muted small">— jedna linia = jedna możliwość (maks. <%= maxLines %>)</span>
+        <textarea name="pool" rows="8" placeholder="kot&#10;Dzisiaj będzie dobry dzień&#10;banan"></textarea>
+      </label>
+      <p id="dr-claims" class="muted small"></p>
+      <div class="dm-send">
+        <button type="submit" class="btn">Zapisz</button>
+        <button type="button" class="btn btn-primary" id="dr-publish">Zapisz i wyślij na kanał</button>
+        <button type="button" class="btn danger" id="dr-delete" hidden>Usuń</button>
+      </div>
+      <p id="dr-status" role="status" aria-live="polite" class="small"></p>
+    </form>
+  </div>
+</section>
+<script src="/drops.js"></script>
+<%- include('partials/footer') %>
