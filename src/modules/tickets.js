@@ -155,6 +155,8 @@ export async function ticketGuildsForDM() {
   const out = [];
   for (const guild of runtime.client.guilds.cache.values()) {
     if (!(await isModuleEnabled(guild.id, 'tickets'))) continue;
+    // Staff can switch DM tickets off while keeping panel / channel tickets.
+    if ((await getGuildModule(guild.id, 'tickets')).config.dmEnabled === false) continue;
     out.push(guild);
   }
   return out;

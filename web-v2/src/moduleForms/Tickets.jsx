@@ -192,6 +192,20 @@ export default function Tickets() {
         </div>
 
         <div className="v2-field">
+          <label className="v2-check">
+            <input
+              type="checkbox"
+              checked={form.dmEnabled !== false}
+              onChange={(e) => set({ dmEnabled: e.target.checked })}
+            />
+            <span>
+              <strong>Przyjmuj zgłoszenia przez DM</strong> — odznacz i zapisz, a wiadomości prywatne do bota
+              przestaną tworzyć tickety (panel i tickety z kanału działają dalej)
+            </span>
+          </label>
+        </div>
+
+        <div className="v2-field">
           <label htmlFor="dmCategory">Kategoria zgłoszeń z DM</label>
           <select
             id="dmCategory"

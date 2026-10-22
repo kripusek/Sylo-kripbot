@@ -75,6 +75,10 @@
   <textarea name="closeMessage" rows="2" placeholder="This ticket has been closed…"><%= cfg.closeMessage || '' %></textarea>
 
   <h3>Tickety z DM na Discordzie</h3>
+  <label class="check">
+    <input type="checkbox" name="dmEnabled" <%= cfg.dmEnabled !== false ? 'checked' : '' %> />
+    <span><strong>Przyjmuj zgłoszenia przez DM</strong> — odznacz i zapisz, a wiadomości prywatne do bota przestaną tworzyć tickety (panel i tickety z kanału działają dalej)</span>
+  </label>
   <label>Kategoria zgłoszeń z DM</label>
   <select name="dmCategory"><option value="">— kategoria kanału panelu / pierwszego tematu —</option>
   <% categories.forEach(function(c) { %><option value="<%= c.id %>" <%= c.id === cfg.dmCategory ? 'selected' : '' %>><%= c.name %></option><% }) %>

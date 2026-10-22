@@ -1552,6 +1552,7 @@ router.get(
         staffRoles: Array.isArray(cfg.staffRoles) ? cfg.staffRoles : [],
         transcriptRetentionDays: Number(cfg.transcriptRetentionDays) || 0,
         showMessageInAlert: Boolean(cfg.showMessageInAlert),
+        dmEnabled: cfg.dmEnabled !== false,
       },
       channels: guildTextChannels(req.guild),
       roles: assignableRoles(req.guild),
@@ -1572,6 +1573,7 @@ router.post(
       staffRoles: [].concat(req.body.staffRoles ?? []).filter((r) => /^\d{17,20}$/.test(r)),
       transcriptRetentionDays: clampDays(req.body.transcriptRetentionDays),
       showMessageInAlert: Boolean(req.body.showMessageInAlert),
+      dmEnabled: req.body.dmEnabled !== false,
     };
     await setGuildModule(req.guild.id, 'tickets', { config });
     if (req.body.action === 'publish') {

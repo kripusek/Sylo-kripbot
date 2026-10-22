@@ -1207,6 +1207,7 @@ router.post(
         staffRoles: [].concat(req.body.staffRoles ?? []).filter((r) => /^\d{17,20}$/.test(r)),
         transcriptRetentionDays: clampDays(req.body.transcriptRetentionDays),
         showMessageInAlert: req.body.showMessageInAlert === 'on',
+        dmEnabled: req.body.dmEnabled === 'on',
       };
     } else if (mod.id === 'automod') {
       const b = req.body;
