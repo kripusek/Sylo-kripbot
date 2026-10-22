@@ -2,8 +2,15 @@
 // gets a random line from the drop's list in a DM.
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { registerComponent } from '../bot/lib/components.js';
-import { getDrop, claimDrop, setDropMessage, countClaims, listDrops } from '../db/randomDrops.js';
-import { getComposedByMessage, listComposed } from '../db/composedMessages.js';
+import {
+  getDrop,
+  claimDrop,
+  setDropMessage,
+  countClaims,
+  listDrops,
+  resetClaims,
+} from '../db/randomDrops.js';
+import { getComposedByMessage, getComposed, listComposed } from '../db/composedMessages.js';
 import { isModuleEnabled } from '../db/modules.js';
 import { postToChannel } from './lib/send.js';
 
@@ -130,6 +137,25 @@ export async function randomDropOverview(guildId) {
   }
   const standalone = (await listDrops(guildId)).map((d) => ({ id: d.id, name: d.name, claims: d.claims }));
   return { messages, standalone };
+}
+
+/**
+ * Reset the one-click limit of a drop so people can click again.
+ * @param {'message'|'standalone'} kind  an Embed message with a random button, or an older standalone drop
+ * @param {string|null} userId  only this member, or everyone when empty
+ * @returns {Promise<number|null>} how many members were reset, or null when the drop isn't in this guild
+ */
+export async function resetDropLimit(guildId, kind, id, userId = null) {
+  const num = Number(id);
+  if (!Number.isInteger(num) || num < 1) return null;
+  if (userId && !/^\d{17,20}$/.test(userId)) return null;
+  if (kind === 'standalone') {
+    const drop = await getDrop(num);
+    return drop?.guild_id === guildId ? resetClaims(guildId, num, userId || null) : null;
+  }
+  const rec = await getComposed(guildId, num);
+  const hasRandom = (rec?.spec?.rows ?? []).some((r) => r.type === 'random');
+  return rec && hasRandom ? resetClaims(guildId, -num, userId || null) : null;
 }
 
 const say = (interaction, content) => interaction.reply({ content, flags: MessageFlags.Ephemeral });

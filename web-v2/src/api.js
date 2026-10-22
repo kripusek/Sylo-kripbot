@@ -64,6 +64,8 @@ export const getModuleConfig = (guildId, moduleId) =>
   apiFetch(`/api/v2/guilds/${guildId}/modules/${moduleId}/config`);
 export const saveModuleConfig = (guildId, moduleId, body) =>
   postJson(`/api/v2/guilds/${guildId}/modules/${moduleId}/config`, body);
+export const resetRandomDropLimit = (guildId, body) =>
+  postJson(`/api/v2/guilds/${guildId}/modules/random-drops/reset`, body);
 export const adjustEconomyBalance = (guildId, userId, action, amount) =>
   postJson(`/api/v2/guilds/${guildId}/modules/economy/adjust`, { userId, action, amount });
 export const setCountingCount = (guildId, current) =>

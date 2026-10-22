@@ -7,7 +7,8 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { guildTextChannels } from '../lib/discord.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { listDrops, getDrop, saveDrop, deleteDrop } from '../../db/randomDrops.js';
-import { normaliseDrop, publishDrop, POOL_MAX_LINES } from '../../modules/randomDrops.js';
+import { normaliseDrop, publishDrop, resetDropLimit, POOL_MAX_LINES } from '../../modules/randomDrops.js';
+import { recordAudit } from '../../db/audit.js';
 
 const router = Router({ mergeParams: true });
 router.use((req, res, next) => {
@@ -83,6 +84,24 @@ router.post(
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
+  })
+);
+
+// Let people click again: everyone (no userId) or one member.
+router.post(
+  '/reset',
+  rateLimit({ windowMs: 60_000, max: 60 }),
+  asyncHandler(async (req, res) => {
+    const userId = String(req.body.userId ?? '').trim() || null;
+    const reset = await resetDropLimit(req.guild.id, req.body.kind, req.body.id, userId);
+    if (reset === null)
+      return res.status(404).json({ error: 'Nie znaleziono wiadomości albo nieprawidłowe ID użytkownika.' });
+    await recordAudit(req.guild.id, {
+      actor: req.session?.user?.username ?? 'dashboard',
+      action: 'random-drops:reset',
+      detail: `${req.body.kind} ${req.body.id} ${userId ?? 'everyone'} (${reset})`,
+    });
+    res.json({ reset });
   })
 );
 

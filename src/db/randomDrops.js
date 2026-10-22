@@ -49,6 +49,10 @@ const claimStmt = prepare(
    ON CONFLICT (drop_id, user_id) DO NOTHING`
 );
 const countStmt = prepare('SELECT COUNT(*) AS n FROM random_drop_claims WHERE drop_id = ?');
+const resetAllStmt = prepare('DELETE FROM random_drop_claims WHERE drop_id = ? AND guild_id = ?');
+const resetOneStmt = prepare(
+  'DELETE FROM random_drop_claims WHERE drop_id = ? AND guild_id = ? AND user_id = ?'
+);
 const delClaims = prepare('DELETE FROM random_drop_claims WHERE drop_id = ? AND guild_id = ?');
 const delDrop = prepare('DELETE FROM random_drops WHERE id = ? AND guild_id = ?');
 
@@ -110,4 +114,12 @@ export async function deleteDrop(guildId, id) {
 
 export async function countClaims(dropId) {
   return Number((await countStmt.get(dropId))?.n ?? 0);
+}
+
+/** Forget who already clicked, so they can click again. Resolves to how many people were reset. */
+export async function resetClaims(guildId, dropId, userId = null) {
+  const info = userId
+    ? await resetOneStmt.run(dropId, guildId, userId)
+    : await resetAllStmt.run(dropId, guildId);
+  return info.changes;
 }

@@ -14,16 +14,17 @@
   <p class="muted">Nie masz jeszcze losowych wiadomości.</p>
 <% } else { %>
   <table class="table">
-    <thead><tr><th>Wiadomość</th><th>Kanał</th><th>Stan</th><th>Pozycji</th><th>Tryb</th><th>Odebrano</th><th></th></tr></thead>
+    <thead><tr><th>Wiadomość</th><th>Kanał</th><th>Stan</th><th>Pozycji</th><th>Tryb</th><th>Odebrano</th><th>Limit „raz na osobę"</th><th></th></tr></thead>
     <tbody>
       <% ov.messages.forEach(function (m) { %>
-        <tr>
+        <tr x-data="dropReset(<%= JSON.stringify({ base: '/guilds/' + guild.id + '/drops', kind: 'message', id: m.id, claims: m.claims }) %>)">
           <td><%= m.name %></td>
           <td><%= chName(m.channelId) %></td>
           <td><%= m.published ? 'Na kanale' : 'Szkic' %></td>
           <td><%= m.entries %></td>
           <td><%= m.vsMode ? 'VS' : 'Losowa linia' %></td>
-          <td><%= m.claims %></td>
+          <td x-text="claims"><%= m.claims %></td>
+          <td><%- include('random-drops-reset') %></td>
           <td><a href="/guilds/<%= guild.id %>/messages/<%= m.id %>">Edytuj</a></td>
         </tr>
       <% }) %>
@@ -35,6 +36,11 @@
   <h3 class="u-mt-4">Starsze wiadomości (osobna strona)</h3>
   <p class="muted small">Utworzone wcześniej na osobnej stronie. Nadal działają — <a href="/guilds/<%= guild.id %>/drops">otwórz edytor</a>.</p>
   <ul>
-    <% ov.standalone.forEach(function (d) { %><li><%= d.name %> — odebrano: <%= d.claims %></li><% }) %>
+    <% ov.standalone.forEach(function (d) { %>
+      <li x-data="dropReset(<%= JSON.stringify({ base: '/guilds/' + guild.id + '/drops', kind: 'standalone', id: d.id, claims: d.claims }) %>)">
+        <%= d.name %> — odebrano: <span x-text="claims"><%= d.claims %></span>
+        <%- include('random-drops-reset') %>
+      </li>
+    <% }) %>
   </ul>
 <% } %>

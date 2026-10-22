@@ -45,7 +45,7 @@ import {
 import { mdToHtml } from '../lib/markdown.js';
 import { voteLimit as roadmapVoteLimit, suggestLimit as roadmapSuggestLimit } from './roadmap.js';
 import { getGuildModule, setGuildModule } from '../../db/modules.js';
-import { randomDropOverview } from '../../modules/randomDrops.js';
+import { randomDropOverview, resetDropLimit } from '../../modules/randomDrops.js';
 import { normaliseLevelingConfig, ANNOUNCE_MODES, XP_RATES, syncRewards } from '../../modules/leveling.js';
 import { levelFromXp } from '../../modules/lib/levels.js';
 import {
@@ -832,6 +832,22 @@ router.get(
       channels: guildTextChannels(req.guild),
       overview: await randomDropOverview(req.guild.id),
     });
+  })
+);
+
+router.post(
+  '/guilds/:guildId/modules/random-drops/reset',
+  asyncHandler(async (req, res) => {
+    const userId = String(req.body.userId ?? '').trim() || null;
+    const reset = await resetDropLimit(req.guild.id, req.body.kind, req.body.id, userId);
+    if (reset === null)
+      return res.status(404).json({ error: 'Nie znaleziono wiadomości albo nieprawidłowe ID użytkownika.' });
+    await recordAudit(req.guild.id, {
+      actor: moderatorDisplayName(req),
+      action: 'random-drops:reset',
+      detail: `${req.body.kind} ${req.body.id} ${userId ?? 'everyone'} (${reset})`,
+    });
+    res.json({ reset });
   })
 );
 

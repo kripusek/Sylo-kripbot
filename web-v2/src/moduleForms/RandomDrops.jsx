@@ -1,10 +1,67 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { getModuleConfig, ApiError } from '../api.js';
+import { getModuleConfig, resetRandomDropLimit, ApiError } from '../api.js';
 import { useApiData } from '../useApiData.js';
+
+// "Reset the one-click limit": everyone, or one member by user ID.
+function LimitReset({ guildId, kind, id, onReset }) {
+  const [uid, setUid] = useState('');
+  const [msg, setMsg] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  async function run(everyone) {
+    if (everyone && !window.confirm('Zresetować limit wszystkim? Każdy będzie mógł kliknąć jeszcze raz.'))
+      return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { reset } = await resetRandomDropLimit(guildId, { kind, id, userId: everyone ? '' : uid.trim() });
+      onReset(everyone ? null : reset);
+      setMsg({ bad: false, text: reset ? `Zresetowano (${reset}).` : 'Nikt nie miał jeszcze kliknięcia.' });
+      if (!everyone) setUid('');
+    } catch (err) {
+      setMsg({ bad: true, text: err.message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="v2-field-row">
+      <button type="button" className="v2-btn-ghost" disabled={busy} onClick={() => run(true)}>
+        Resetuj wszystkim
+      </button>
+      <input
+        type="text"
+        inputMode="numeric"
+        maxLength={20}
+        placeholder="ID osoby"
+        aria-label="ID użytkownika do zresetowania"
+        value={uid}
+        onChange={(e) => setUid(e.target.value)}
+      />
+      <button
+        type="button"
+        className="v2-btn-ghost"
+        disabled={busy || !uid.trim()}
+        onClick={() => run(false)}
+      >
+        Resetuj osobie
+      </button>
+      {msg ? (
+        <span className="v2-field-hint" style={msg.bad ? { color: 'var(--bad, #ed4245)' } : undefined}>
+          {msg.text}
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 export default function RandomDrops() {
   const { guildId } = useParams();
   const { data, loading, error } = useApiData(() => getModuleConfig(guildId, 'random-drops'), [guildId]);
+  // Claim counts the page has changed locally after a reset: { 'message:7': 0, … }
+  const [claims, setClaims] = useState({});
 
   if (loading && !data) return <p className="v2-state">Loading…</p>;
   if (error) {
@@ -27,6 +84,12 @@ export default function RandomDrops() {
     return c ? `#${c.name}` : '—';
   };
   const { messages, standalone } = data.overview;
+  const claimsOf = (kind, item) => claims[`${kind}:${item.id}`] ?? item.claims;
+  const afterReset = (kind, item) => (removed) =>
+    setClaims((c) => ({
+      ...c,
+      [`${kind}:${item.id}`]: removed === null ? 0 : Math.max(0, claimsOf(kind, item) - removed),
+    }));
 
   return (
     <div>
@@ -53,6 +116,7 @@ export default function RandomDrops() {
               <th>Pozycji</th>
               <th>Tryb</th>
               <th>Odebrano</th>
+              <th>Limit „raz na osobę"</th>
               <th />
             </tr>
           </thead>
@@ -64,7 +128,10 @@ export default function RandomDrops() {
                 <td>{m.published ? 'Na kanale' : 'Szkic'}</td>
                 <td>{m.entries}</td>
                 <td>{m.vsMode ? 'VS' : 'Losowa linia'}</td>
-                <td>{m.claims}</td>
+                <td>{claimsOf('message', m)}</td>
+                <td>
+                  <LimitReset guildId={guildId} kind="message" id={m.id} onReset={afterReset('message', m)} />
+                </td>
                 <td>
                   <Link to={`/guilds/${guildId}/messages/${m.id}`}>Edytuj</Link>
                 </td>
@@ -84,7 +151,13 @@ export default function RandomDrops() {
           <ul>
             {standalone.map((d) => (
               <li key={d.id}>
-                {d.name} — odebrano: {d.claims}
+                {d.name} — odebrano: {claimsOf('standalone', d)}
+                <LimitReset
+                  guildId={guildId}
+                  kind="standalone"
+                  id={d.id}
+                  onReset={afterReset('standalone', d)}
+                />
               </li>
             ))}
           </ul>

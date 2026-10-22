@@ -277,3 +277,76 @@ test('categoryCount is clamped to 1-10 and kept in the published message row', a
   const row = { type: 'random', pool: ['a', 'b'], vsMode: true, categories: ['k'], categoryCount: 2 };
   assert.ok(buildPayload({ rows: [row] }).payload.components.length === 1);
 });
+
+test('reset lets members click again: everyone or one member, only inside the guild', async () => {
+  const { resetDropLimit, handleComposedDropClick } = await import('../src/modules/randomDrops.js');
+  const { createComposed } = await import('../src/db/composedMessages.js');
+  const { countClaims } = await import('../src/db/randomDrops.js');
+  const g = '800000000000000777';
+  const rec = await createComposed(g, {
+    name: 'r',
+    channelId: '1',
+    messageId: 'm-777r',
+    spec: { rows: [{ type: 'random', pool: ['x'] }] },
+  });
+  const plain = await createComposed(g, { name: 'p', channelId: '1', messageId: null, spec: { rows: [] } });
+  const run = (userId) => {
+    const { out, interaction } = click(0, userId, { guildId: g });
+    interaction.message = { id: 'm-777r' };
+    return handleComposedDropClick(interaction).then(() => out);
+  };
+  await run(U1);
+  await run(U2);
+  assert.equal(await countClaims(-rec.id), 2);
+  assert.match((await run(U1)).replies[0].content, /tylko raz/);
+
+  assert.equal(await resetDropLimit(g, 'message', rec.id, U1), 1); // one member
+  assert.equal(await countClaims(-rec.id), 1);
+  assert.equal((await run(U1)).dms.length, 1); // U1 can click again
+  assert.match((await run(U2)).replies[0].content, /tylko raz/); // U2 still can't
+  assert.equal(await resetDropLimit(g, 'message', rec.id), 2); // everyone
+  assert.equal((await run(U2)).dms.length, 1);
+
+  assert.equal(await resetDropLimit('999', 'message', rec.id), null); // another guild
+  assert.equal(await resetDropLimit(g, 'message', plain.id), null); // no random button
+  assert.equal(await resetDropLimit(g, 'message', rec.id, 'abc'), null); // bad user id
+  assert.equal(await resetDropLimit(g, 'message', 'x'), null);
+
+  const sid = await saveDrop(g, null, normaliseDrop({ pool: 'a' }));
+  await claimDrop(sid, U1, g, 'a');
+  assert.equal(await resetDropLimit('999', 'standalone', sid), null);
+  assert.equal(await resetDropLimit(g, 'standalone', sid), 1);
+});
+
+test('dashboard reset endpoint works for V1 and V2', async () => {
+  const app = await startWebApp();
+  try {
+    const { createComposed } = await import('../src/db/composedMessages.js');
+    const { claimDrop: claim, countClaims } = await import('../src/db/randomDrops.js');
+    const rec = await createComposed(GID, {
+      name: 'r',
+      channelId: CH.general,
+      messageId: 'm-web',
+      spec: { rows: [{ type: 'random', pool: ['x'] }] },
+    });
+    await claim(-rec.id, U1, GID, 'x');
+    await claim(-rec.id, U2, GID, 'x');
+    const post = (path, body) =>
+      fetch(`${app.base}${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    const v1 = await post(`/guilds/${GID}/drops/reset`, { kind: 'message', id: rec.id, userId: U1 });
+    assert.deepEqual(await v1.json(), { reset: 1 });
+    const v2 = await post(`/api/v2/guilds/${GID}/modules/random-drops/reset`, {
+      kind: 'message',
+      id: rec.id,
+    });
+    assert.deepEqual(await v2.json(), { reset: 1 });
+    assert.equal(await countClaims(-rec.id), 0);
+    assert.equal((await post(`/guilds/${GID}/drops/reset`, { kind: 'message', id: 999999 })).status, 404);
+  } finally {
+    app.close();
+  }
+});

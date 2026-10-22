@@ -116,6 +116,45 @@ document.addEventListener('alpine:init', function () {
 
   // Multi-select "chips + add dropdown" for roles / channels. Submits one hidden
   // <input name="<field>"> per selected id. Replaces the old app.js handlers.
+  // "Random messages" module page: let people click a random button again.
+  // cfg: { base, kind: 'message'|'standalone', id, claims }
+  window.Alpine.data('dropReset', function (cfg) {
+    return {
+      claims: Number(cfg.claims) || 0,
+      uid: '',
+      msg: '',
+      bad: false,
+      busy: false,
+      async reset(everyone) {
+        if (everyone && !window.confirm('Zresetować limit wszystkim? Każdy będzie mógł kliknąć jeszcze raz.'))
+          return;
+        this.busy = true;
+        this.msg = '';
+        try {
+          var csrf = document.querySelector('meta[name="csrf-token"]');
+          var res = await fetch(cfg.base + '/reset', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-csrf-token': csrf ? csrf.content : '' },
+            body: JSON.stringify({ kind: cfg.kind, id: cfg.id, userId: everyone ? '' : this.uid.trim() }),
+          });
+          var data = await res.json().catch(function () {
+            return {};
+          });
+          if (!res.ok) throw new Error(data.error || 'Nie udało się zresetować.');
+          this.bad = false;
+          this.claims = everyone ? 0 : Math.max(0, this.claims - data.reset);
+          this.msg = data.reset ? 'Zresetowano (' + data.reset + ').' : 'Nikt nie miał jeszcze kliknięcia.';
+          if (!everyone) this.uid = '';
+        } catch (e) {
+          this.bad = true;
+          this.msg = e.message;
+        } finally {
+          this.busy = false;
+        }
+      },
+    };
+  });
+
   window.Alpine.data('chipPicker', function (cfg) {
     return {
       field: cfg.field,

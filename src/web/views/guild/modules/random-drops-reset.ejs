@@ -1,0 +1,6 @@
+<div class="drop-reset">
+  <button type="button" class="secondary" :disabled="busy" @click="reset(true)">Resetuj wszystkim</button>
+  <input type="text" inputmode="numeric" maxlength="20" placeholder="ID osoby" x-model="uid" aria-label="ID użytkownika do zresetowania" />
+  <button type="button" class="secondary" :disabled="busy || !uid.trim()" @click="reset(false)">Resetuj osobie</button>
+  <span class="small" x-text="msg" :class="bad ? 'text-bad' : 'muted'"></span>
+</div>
