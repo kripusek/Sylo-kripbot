@@ -16,6 +16,7 @@ import Music from './Music.jsx';
 import Economy from './Economy.jsx';
 import VoiceRelay from './VoiceRelay.jsx';
 import RandomDrops from './RandomDrops.jsx';
+import Markets from './Markets.jsx';
 import AutoReact from './AutoReact.jsx';
 import Logging from './Logging.jsx';
 import Tickets from './Tickets.jsx';
@@ -80,6 +81,7 @@ export const MODULE_FORMS = {
   economy: Economy,
   'voice-relay': VoiceRelay,
   'random-drops': RandomDrops,
+  markets: Markets,
   logging: Logging,
   tickets: Tickets,
   appeals: Appeals,

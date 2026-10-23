@@ -71,6 +71,7 @@ import {
 import { normaliseAutoThreads } from '../../modules/autoThreads.js';
 import { normaliseMusic } from '../../modules/music.js';
 import { normaliseEconomy, adjustBalance, richestMembers } from '../../modules/economy.js';
+import { normaliseMarkets } from '../../modules/markets.js';
 import {
   normaliseVoiceRelay,
   reconcileGuild,
@@ -189,6 +190,7 @@ const CONFIG_VIEWS = new Set([
   'auto-threads',
   'music',
   'economy',
+  'markets',
   'voice-relay',
   'random-drops',
   'moderation',
@@ -1352,6 +1354,8 @@ router.post(
       });
     } else if (mod.id === 'auto-threads') {
       config = normaliseAutoThreads(req.body);
+    } else if (mod.id === 'markets') {
+      config = normaliseMarkets(req.body);
     } else if (mod.id === 'economy') {
       const list = (v) => [].concat(v ?? []);
       const checked = (v) => v === 'on';

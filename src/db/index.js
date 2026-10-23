@@ -892,6 +892,40 @@ export const MIGRATIONS = [
       ALTER TABLE random_drops ADD COLUMN categories TEXT NOT NULL DEFAULT '[]';
     `);
   },
+  // Prediction markets: questions with several options, bet on with economy coins.
+  (database) => {
+    database.exec(`
+      CREATE TABLE markets (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id    TEXT NOT NULL,
+        question    TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        source      TEXT NOT NULL DEFAULT 'custom',
+        source_ref  TEXT NOT NULL DEFAULT '',
+        options     TEXT NOT NULL DEFAULT '[]',
+        status      TEXT NOT NULL DEFAULT 'open',
+        winner      INTEGER NOT NULL DEFAULT -1,
+        closes_at   INTEGER NOT NULL DEFAULT 0,
+        channel_id  TEXT NOT NULL DEFAULT '',
+        message_id  TEXT NOT NULL DEFAULT '',
+        created_at  INTEGER NOT NULL,
+        settled_at  INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX idx_markets_guild ON markets (guild_id, status, id);
+      CREATE TABLE market_bets (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        market_id  INTEGER NOT NULL,
+        guild_id   TEXT NOT NULL,
+        user_id    TEXT NOT NULL,
+        option_idx INTEGER NOT NULL,
+        amount     INTEGER NOT NULL,
+        payout     INTEGER,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX idx_market_bets_market ON market_bets (market_id, option_idx);
+      CREATE INDEX idx_market_bets_user ON market_bets (guild_id, user_id, id);
+    `);
+  },
 ];
 
 /** Highest schema version this build knows how to run. */

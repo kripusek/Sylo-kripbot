@@ -59,6 +59,16 @@ export const MODULES = [
     beta: true,
   },
   {
+    id: 'markets',
+    name: 'Prediction markets',
+    description: 'Bet economy coins on questions: markets imported from Polymarket or made by hand.',
+    icon: '📈',
+    requiredIntents: [],
+    defaultEnabled: false,
+    configurable: true,
+    beta: true,
+  },
+  {
     id: 'voice-relay',
     name: 'Voice relay',
     description: 'Carry the talk of one voice channel into another, live (needs a second bot account).',

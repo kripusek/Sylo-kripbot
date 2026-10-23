@@ -2,6 +2,7 @@
 // Imported once from bot/events/moduleEvents.js.
 import './logging.js';
 import './randomDrops.js';
+import './markets.js';
 import './welcome.js';
 import './roles.js';
 import './sticky.js';

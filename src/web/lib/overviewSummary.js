@@ -6,6 +6,7 @@ import { config } from '../../config.js';
 import { runtime } from '../../runtime.js';
 import { MODULES, getModule, missingIntents } from '../../modules/registry.js';
 import { getGuildModules } from '../../db/modules.js';
+import { listMarkets } from '../../db/markets.js';
 import { getGuildSettings } from '../../db/guildSettings.js';
 import { getCommandOverrides } from '../../db/commandOverrides.js';
 import { openTicketCount, unreadTicketCount } from '../../db/tickets.js';
@@ -50,6 +51,7 @@ const LAYOUT = [
       'counting',
       'leveling',
       'economy',
+      'markets',
       'starboard',
       'sticky',
       'birthdays',
@@ -444,6 +446,13 @@ async function moduleLines(id, guild, cfg) {
           : off('Level-up rewards', 'off'),
         cfg.games?.enabled ? on('Games', 'on') : off('Games', 'off'),
         cfg.shop?.enabled ? on('Shop', `${items} role(s)`) : off('Shop', 'off'),
+      ];
+    }
+    case 'markets': {
+      const open = (await listMarkets(guild.id, { openOnly: true })).length;
+      return [
+        open ? on('Open markets', String(open)) : off('Open markets', 'none'),
+        neutral('Bet limits', `${cfg.minBet ?? 10}–${cfg.maxBet ?? 5000}`),
       ];
     }
     case 'automod': {

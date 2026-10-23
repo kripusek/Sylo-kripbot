@@ -28,6 +28,7 @@ export const MODULE_ICONS = {
   'auto-threads': 'message-square',
   music: 'music',
   economy: 'coins',
+  markets: 'trending-up',
   afk: 'moon',
   'server-stats': 'activity',
   'temp-voice': 'mic',

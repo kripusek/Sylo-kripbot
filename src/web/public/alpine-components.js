@@ -781,4 +781,171 @@ document.addEventListener('alpine:init', function () {
       },
     };
   });
+
+  // Prediction markets admin: list, create, import from Polymarket, publish,
+  // settle, cancel, delete. Talks to /guilds/:id/markets/* (JSON).
+  window.Alpine.data('marketsAdmin', function (cfg) {
+    return {
+      base: cfg.base,
+      markets: [],
+      channels: [],
+      currency: '🪙',
+      loading: true,
+      busy: false,
+      msg: '',
+      bad: false,
+      form: {
+        question: '',
+        description: '',
+        options: '',
+        closes: '',
+        channelId: cfg.channelId || '',
+        publish: true,
+      },
+      importUrl: '',
+      trending: [],
+      trendingLoaded: false,
+      winners: {},
+      init() {
+        this.load();
+      },
+      say(text, bad) {
+        this.msg = text;
+        this.bad = Boolean(bad);
+      },
+      async call(path, body) {
+        var csrf = document.querySelector('meta[name="csrf-token"]');
+        var res = await fetch(this.base + path, {
+          method: body === undefined ? 'GET' : 'POST',
+          headers: { 'content-type': 'application/json', 'x-csrf-token': csrf ? csrf.content : '' },
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+        var data = await res.json().catch(function () {
+          return {};
+        });
+        if (!res.ok) throw new Error(data.error || 'Nie udało się wykonać operacji.');
+        return data;
+      },
+      async load() {
+        try {
+          var data = await this.call('/overview');
+          this.markets = data.markets;
+          this.channels = data.channels;
+          this.currency = data.currency;
+        } catch (e) {
+          this.say(e.message, true);
+        } finally {
+          this.loading = false;
+        }
+      },
+      async run(fn, okText) {
+        this.busy = true;
+        this.say('', false);
+        try {
+          var data = await fn();
+          await this.load();
+          this.say((data && data.warning) || okText, Boolean(data && data.warning));
+          return data;
+        } catch (e) {
+          this.say(e.message, true);
+        } finally {
+          this.busy = false;
+        }
+      },
+      closesMs() {
+        if (!this.form.closes) return 0;
+        var t = new Date(this.form.closes).getTime();
+        return isNaN(t) ? 0 : t;
+      },
+      create() {
+        var self = this;
+        return this.run(async function () {
+          var data = await self.call('/create', {
+            question: self.form.question,
+            description: self.form.description,
+            options: self.form.options,
+            closesAt: self.closesMs(),
+            channelId: self.form.channelId,
+            publish: self.form.publish,
+          });
+          self.form.question = '';
+          self.form.description = '';
+          self.form.options = '';
+          self.form.closes = '';
+          return data;
+        }, 'Rynek utworzony.');
+      },
+      importOne(input) {
+        var self = this;
+        return this.run(async function () {
+          var data = await self.call('/import', {
+            input: input,
+            channelId: self.form.channelId,
+            publish: self.form.publish,
+          });
+          self.importUrl = '';
+          return data;
+        }, 'Rynek zaimportowany z Polymarketa.');
+      },
+      async loadTrending() {
+        this.busy = true;
+        this.say('', false);
+        try {
+          var data = await this.call('/trending');
+          this.trending = data.events;
+          this.trendingLoaded = true;
+          if (!data.events.length) this.say('Polymarket nie zwrócił żadnych rynków.', true);
+        } catch (e) {
+          this.say(e.message, true);
+        } finally {
+          this.busy = false;
+        }
+      },
+      publish(m) {
+        var self = this;
+        return this.run(
+          function () {
+            return self.call('/' + m.id + '/publish', { channelId: m.channelId || self.form.channelId });
+          },
+          m.published ? 'Wiadomość odświeżona.' : 'Rynek opublikowany.'
+        );
+      },
+      settle(m) {
+        var idx = this.winners[m.id];
+        if (idx === undefined || idx === '') return this.say('Wybierz zwycięską opcję.', true);
+        if (!window.confirm('Rozstrzygnąć rynek? Wypłaty ruszą od razu i nie da się tego cofnąć.')) return;
+        var self = this;
+        return this.run(function () {
+          return self.call('/' + m.id + '/settle', { winner: Number(idx) });
+        }, 'Rynek rozstrzygnięty, wypłaty zrobione.');
+      },
+      cancel(m) {
+        if (!window.confirm('Anulować rynek i zwrócić wszystkim zakłady?')) return;
+        var self = this;
+        return this.run(function () {
+          return self.call('/' + m.id + '/cancel', {});
+        }, 'Rynek anulowany, zakłady zwrócone.');
+      },
+      remove(m) {
+        if (!window.confirm('Usunąć rynek z historii?')) return;
+        var self = this;
+        return this.run(function () {
+          return self.call('/' + m.id + '/delete', {});
+        }, 'Rynek usunięty.');
+      },
+      statusText(m) {
+        if (m.status === 'resolved')
+          return 'Rozstrzygnięty: ' + (m.options[m.winner] ? m.options[m.winner].label : '—');
+        if (m.status === 'cancelled') return 'Anulowany';
+        if (m.closesAt && m.closesAt <= Date.now()) return 'Zakłady zamknięte — czeka na wynik';
+        return 'Otwarty';
+      },
+      chName(id) {
+        var c = this.channels.find(function (x) {
+          return x.id === id;
+        });
+        return c ? '#' + c.name : '—';
+      },
+    };
+  });
 });

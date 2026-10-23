@@ -2204,5 +2204,11 @@
   "Invite it, then reload this page.": "Zaproś go i odśwież stronę.",
   "Show field names next to their text (e.g. rule numbers)": "Pokaż nazwy pól obok ich tekstu (np. numery regulaminu)",
   "Random messages": "Losowe wiadomości",
-  "Messages with a one-click button that DMs each member a random word or sentence.": "Wiadomości z przyciskiem, który jednym kliknięciem wysyła członkowi w DM losowe słowo lub zdanie."
+  "Messages with a one-click button that DMs each member a random word or sentence.": "Wiadomości z przyciskiem, który jednym kliknięciem wysyła członkowi w DM losowe słowo lub zdanie.",
+  "Prediction markets": "Rynki predykcyjne",
+  "Bet economy coins on questions: markets imported from Polymarket or made by hand.": "Obstawiaj monety z ekonomii na pytania: rynki importowane z Polymarketa lub robione ręcznie.",
+  "Prediction markets played for virtual coins.": "Rynki predykcyjne za wirtualne monety.",
+  "Show the open markets.": "Pokaż otwarte rynki.",
+  "Show your recent bets.": "Pokaż Twoje ostatnie zakłady.",
+  "Show the best predictors on this server.": "Pokaż najlepszych typerów na tym serwerze."
 }

@@ -73,6 +73,8 @@ export const GUILD_TABLES = [
   'dm_messages',
   'random_drops',
   'random_drop_claims',
+  'markets',
+  'market_bets',
   'config_audit',
   'afk',
   'posted_keys',

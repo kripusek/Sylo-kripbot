@@ -61,6 +61,7 @@ const CATEGORIES = [
       { page: 'moderation', dotModule: 'moderation', label: 'Moderator' },
       { module: 'leveling', label: 'Levels' },
       { module: 'economy', label: 'Economy' },
+      { module: 'markets', label: 'Rynki' },
       { module: 'starboard', label: 'Starboard' },
     ],
   },

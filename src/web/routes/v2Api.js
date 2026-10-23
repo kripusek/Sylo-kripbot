@@ -46,6 +46,7 @@ import { mdToHtml } from '../lib/markdown.js';
 import { voteLimit as roadmapVoteLimit, suggestLimit as roadmapSuggestLimit } from './roadmap.js';
 import { getGuildModule, setGuildModule } from '../../db/modules.js';
 import { randomDropOverview, resetDropLimit } from '../../modules/randomDrops.js';
+import { registerMarketRoutes } from '../lib/marketRoutes.js';
 import { normaliseLevelingConfig, ANNOUNCE_MODES, XP_RATES, syncRewards } from '../../modules/leveling.js';
 import { levelFromXp } from '../../modules/lib/levels.js';
 import {
@@ -850,6 +851,9 @@ router.post(
     res.json({ reset });
   })
 );
+
+// Prediction markets (shared with the V1 dashboard).
+registerMarketRoutes(router, '/guilds/:guildId/modules/markets');
 
 router.get(
   '/guilds/:guildId/modules/voice-relay/config',

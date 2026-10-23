@@ -1,0 +1,110 @@
+<%
+  var cfg = moduleConfig || {};
+  var minBet = cfg.minBet || 10;
+  var maxBet = cfg.maxBet || 5000;
+  var chs = typeof channels !== 'undefined' && Array.isArray(channels) ? channels : [];
+%>
+
+<p class="muted small">
+  Rynki predykcyjne na wirtualne monety z modułu Ekonomia (bez prawdziwych pieniędzy). Członkowie klikają przycisk opcji pod
+  wiadomością, wpisują stawkę, a po rozstrzygnięciu <strong>cała pula dzieli się między tych, którzy trafili</strong> —
+  proporcjonalnie do stawek. Jeśli nikt nie trafił albo rynek anulujesz, wszyscy odzyskują monety.
+  Rynki z Polymarketa same aktualizują procenty i rozliczają się, gdy Polymarket poda wynik (sprawdzanie co 5 minut);
+  własne rynki rozstrzygasz ręcznie poniżej. Wymaga włączonego modułu Ekonomia.
+</p>
+
+<form method="POST" action="/guilds/<%= guild.id %>/m/markets/config" hx-post="/guilds/<%= guild.id %>/m/markets/config" hx-target="#module-config" hx-swap="outerHTML">
+  <details class="lvl-sec" open>
+    <summary>Ustawienia zakładów<span class="lvl-chev">▾</span></summary>
+    <label class="small">Minimalna stawka</label>
+    <input class="u-w-field-sm" type="number" name="minBet" min="1" value="<%= minBet %>" />
+    <label class="small u-mt-2">Maksymalna stawka</label>
+    <input class="u-w-field-sm" type="number" name="maxBet" min="1" value="<%= maxBet %>" />
+    <label class="small u-mt-2">Domyślny kanał rynków</label>
+    <select class="u-w-field" name="channelId">
+      <option value="">— wybierz —</option>
+      <% chs.forEach(function (c) { %>
+        <option value="<%= c.id %>" <%= c.id === cfg.channelId ? 'selected' : '' %>>#<%= c.name %></option>
+      <% }) %>
+    </select>
+  </details>
+  <div class="btn-row u-mt-2"><button type="submit" class="btn btn-primary">Zapisz ustawienia</button></div>
+</form>
+
+<div x-data="marketsAdmin(<%= JSON.stringify({ base: '/guilds/' + guild.id + '/markets', channelId: cfg.channelId || '' }) %>)" class="u-mt-4">
+  <p class="small" x-show="msg" x-text="msg" :class="bad ? 'text-bad' : 'muted'"></p>
+
+  <details class="lvl-sec" open>
+    <summary>Nowy własny rynek<span class="lvl-chev">▾</span></summary>
+    <label class="small">Pytanie</label>
+    <input style="width:100%;max-width:520px" maxlength="200" x-model="form.question" placeholder="Kto wygra mecz?" />
+    <label class="small u-mt-2">Opis (opcjonalnie)</label>
+    <textarea style="width:100%;max-width:520px" rows="2" maxlength="800" x-model="form.description"></textarea>
+    <label class="small u-mt-2">Opcje — jedna w linii (od 2 do 10)</label>
+    <textarea style="width:100%;max-width:520px" rows="4" x-model="form.options" placeholder="Drużyna A&#10;Drużyna B&#10;Remis"></textarea>
+    <label class="small u-mt-2">Zakłady do (opcjonalnie)</label>
+    <input type="datetime-local" x-model="form.closes" />
+    <label class="small u-mt-2">Kanał</label>
+    <select x-model="form.channelId">
+      <option value="">— wybierz —</option>
+      <template x-for="c in channels" :key="c.id"><option :value="c.id" x-text="'#' + c.name"></option></template>
+    </select>
+    <label class="checkline u-mt-2"><input type="checkbox" x-model="form.publish" /> Od razu opublikuj na kanale</label>
+    <div class="btn-row u-mt-2">
+      <button type="button" class="btn btn-primary" :disabled="busy" @click="create()">Utwórz rynek</button>
+    </div>
+  </details>
+
+  <details class="lvl-sec" open>
+    <summary>Import z Polymarketa<span class="lvl-chev">▾</span></summary>
+    <p class="muted small">Wklej adres rynku z polymarket.com albo wybierz z najpopularniejszych. Opcje i procenty przychodzą z Polymarketa; zakłady są tylko na wirtualne monety.</p>
+    <input style="width:100%;max-width:520px" x-model="importUrl" placeholder="https://polymarket.com/event/…" />
+    <div class="btn-row u-mt-2">
+      <button type="button" class="btn btn-primary" :disabled="busy || !importUrl.trim()" @click="importOne(importUrl)">Importuj</button>
+      <button type="button" class="secondary" :disabled="busy" @click="loadTrending()">Pokaż popularne</button>
+    </div>
+    <ul x-show="trendingLoaded" class="u-mt-2">
+      <template x-for="e in trending" :key="e.slug">
+        <li>
+          <strong x-text="e.question"></strong>
+          <span class="muted small" x-text="e.options.map(function (o) { return o.label + (o.percent === null ? '' : ' ' + o.percent + '%'); }).join(' · ')"></span>
+          <button type="button" class="secondary" :disabled="busy" @click="importOne(e.slug)">Importuj</button>
+        </li>
+      </template>
+    </ul>
+  </details>
+
+  <h3 class="u-mt-4">Rynki</h3>
+  <p class="muted" x-show="loading">Wczytywanie…</p>
+  <p class="muted" x-show="!loading && !markets.length">Nie ma jeszcze żadnych rynków.</p>
+  <template x-for="m in markets" :key="m.id">
+    <div class="lvl-sec" style="padding:12px;margin-bottom:12px">
+      <div>
+        <strong x-text="'#' + m.id + ' ' + m.question"></strong>
+        <span class="muted small" x-text="m.source === 'polymarket' ? ' · Polymarket' : ' · własny'"></span>
+      </div>
+      <div class="muted small" x-text="statusText(m) + ' · pula ' + m.total + ' ' + currency + (m.published ? ' · ' + chName(m.channelId) : ' · nieopublikowany')"></div>
+      <ul>
+        <template x-for="(o, i) in m.options" :key="i">
+          <li>
+            <span x-text="(m.status === 'resolved' && m.winner === i ? '✅ ' : '') + o.label"></span>
+            — <span x-text="o.total + ' ' + currency + ' (' + o.share + '%, ' + o.bets + ' zakł.)'"></span>
+            <span class="muted small" x-show="o.percent !== null" x-text="' · Polymarket ' + o.percent + '%'"></span>
+          </li>
+        </template>
+      </ul>
+      <div class="btn-row" x-show="m.status === 'open'">
+        <button type="button" class="secondary" :disabled="busy" @click="publish(m)" x-text="m.published ? 'Odśwież wiadomość' : 'Opublikuj'"></button>
+        <select x-model="winners[m.id]" aria-label="Zwycięska opcja">
+          <option value="">Zwycięska opcja…</option>
+          <template x-for="(o, i) in m.options" :key="i"><option :value="i" x-text="o.label"></option></template>
+        </select>
+        <button type="button" class="btn btn-primary" :disabled="busy" @click="settle(m)">Rozstrzygnij</button>
+        <button type="button" class="danger" :disabled="busy" @click="cancel(m)">Anuluj i zwróć</button>
+      </div>
+      <div class="btn-row" x-show="m.status !== 'open'">
+        <button type="button" class="danger" :disabled="busy" @click="remove(m)">Usuń z historii</button>
+      </div>
+    </div>
+  </template>
+</div>
