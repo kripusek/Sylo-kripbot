@@ -113,13 +113,8 @@ export const data = new SlashCommandBuilder()
       .addStringOption((o) =>
         o
           .setName('typ')
-          .setDescription('What to bet on')
+          .setDescription('czerwone / czarne / zielone / even / odd / or a number 0-14')
           .setRequired(true)
-          .addChoices(
-            { name: 'Czerwone', value: 'czerwone' },
-            { name: 'Czarne', value: 'czarne' },
-            { name: 'Zielone', value: 'zielone' }
-          )
       )
       .addIntegerOption(stake(BET))
   )
@@ -261,19 +256,45 @@ const GAMES = {
       };
     }),
   ruletka: (interaction, config, bet) => {
-    const type = interaction.options.getString('typ', true);
-    return instantRound(interaction, config, bet, () => {
-      const r = roulette(type);
-      return {
-        title: '🎡 Ruletka',
-        lines: [
-          `Postawiłeś na: **${COLOR_LABEL[type]}** (${ROULETTE_MULTIPLIERS[type]}x)`,
-          `Wypadło: **${r.pocket}** ${COLOR_LABEL[r.color]}`,
-        ],
-        multiplier: r.multiplier,
-      };
-    });
-  },
+  const raw = interaction.options.getString('typ', true).trim().toLowerCase();
+
+  // --- validation ---
+  const validNamed = ['czerwone', 'czarne', 'zielone', 'even', 'odd'];
+  const isNumber = /^\d+$/.test(raw);
+  const num = isNumber ? Number(raw) : null;
+
+  if (!validNamed.includes(raw) && !(isNumber && num >= 0 && num <= 14)) {
+    return interaction.reply(
+      ephemeral('Nieprawidłowy typ zakładu. Dozwolone: czerwone, czarne, zielone, even, odd lub liczba 0–14.')
+    );
+  }
+
+  const type = isNumber ? num : raw;
+
+  return instantRound(interaction, config, bet, () => {
+    const r = roulette(type);
+
+    let betLabel;
+    if (typeof type === 'number') {
+      betLabel = `liczba **${type}** (15x)`;
+    } else if (type === 'even') {
+      betLabel = '**parzyste** (2x)';
+    } else if (type === 'odd') {
+      betLabel = '**nieparzyste** (2x)';
+    } else {
+      betLabel = `**${COLOR_LABEL[type]}** (${ROULETTE_MULTIPLIERS[type]}x)`;
+    }
+
+    return {
+      title: '🎡 Ruletka',
+      lines: [
+        `Postawiłeś na: ${betLabel}`,
+        `Wypadło: **${r.pocket}** ${COLOR_LABEL[r.color]}`,
+      ],
+      multiplier: r.multiplier,
+    };
+  });
+},
   kubki: (interaction, config, bet) => {
     const choice = interaction.options.getInteger('kubek', true);
     return instantRound(interaction, config, bet, () => {
