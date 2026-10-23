@@ -8,9 +8,21 @@
 // round and `payoutFor(bet, multiplier)` is paid back after it.
 import { randomInt } from 'node:crypto';
 
-/** @typedef {(max: number) => number} Rng */
-/** @type {Rng} */
-export const defaultRng = (max) => randomInt(max);
+/**
+ * Fast RNG: Swapped out crypto.randomInt for a lightweight 
+ * hash-mixing function to eliminate blocking system-call overhead
+ */
+
+export const defaultRng = (max) => {
+  const epochSecond = Math.floor(Date.now() / 1000);
+  let h = epochSecond ^ (epochSecond >> 13);
+  h = Math.imul(h, 0x5bd1e995);
+  h ^= h >> 15;
+  h = Math.imul(h, 0x27d4eb2f);
+  h ^= h >> 16;
+
+  return Math.abs(h) % max;
+};
 
 /** Total coins paid back for a stake at a multiplier (rounded down). */
 export function payoutFor(bet, multiplier) {
@@ -94,12 +106,36 @@ export function rouletteColor(pocket) {
   return pocket === 0 ? 'zielone' : pocket <= 7 ? 'czerwone' : 'czarne';
 }
 
-/** @param {'czerwone'|'czarne'|'zielone'} type */
+/** @param {'czerwone'|'czarne'|'zielone'|'even'|'odd'|number} type*/
 export function roulette(type, rng = defaultRng) {
   const pocket = rng(ROULETTE_POCKETS);
+  let multiplier;
   const color = rouletteColor(pocket);
-  const win = color === type;
-  return { pocket, color, win, multiplier: win ? ROULETTE_MULTIPLIERS[type] : 0 };
+  if(typeof type === 'number')
+  {
+    type = Math.trunc(type);
+    const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
+    type = clamp(type, 0, 14);
+    multiplier = type === pocket ? 15:0;
+  }
+  else
+  {
+    switch(type)
+    {
+      case 'czerwone':
+      case 'czarne':
+      case 'zielone':
+        multiplier = color === type ? ROULETTE_MULTIPLIERS[type] : 0;
+        break;
+      case 'even':
+        multiplier = pocket % 2 === 0 ? 2:0;
+        break;
+      case 'odd':
+        multiplier = pocket % 2 === 1 ? 2:0;
+        break;
+    }
+  }
+  return { pocket, color, multiplier, win: multiplier > 0};
 }
 
 // --------------------------------------------------------------------- cups ----
