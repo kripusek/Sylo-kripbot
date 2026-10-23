@@ -100,7 +100,7 @@ export function rouletteColor(pocket) {
 /** Does this bet win on this pocket? `type` is a name from ROULETTE_TYPES or an exact pocket number. */
 export function rouletteWins(type, pocket) {
   if (typeof type === 'number') return type === pocket;
-  if (type === 'parzyste') return pocket > 0 && pocket % 2 === 0;
+  if (type === 'parzyste') return pocket % 2 === 0;
   if (type === 'nieparzyste') return pocket % 2 === 1;
   return rouletteColor(pocket) === type;
 }
