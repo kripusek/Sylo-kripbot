@@ -119,6 +119,7 @@ export default function Markets() {
     channelId: '',
     publish: true,
   });
+  const [cs, setCs] = useState({ steamId: '', name: '', closes: '' });
   const [importUrl, setImportUrl] = useState('');
   const [trending, setTrending] = useState(null);
 
@@ -304,6 +305,61 @@ export default function Markets() {
           }
         >
           Utwórz rynek
+        </button>
+      </div>
+
+      <h2 className="v2-group-title">Mecz CS2 (rozliczany z Leetify)</h2>
+      <p className="v2-field-hint">
+        Rynek „Czy gracz wygra następny mecz CS2?”. Liczy się pierwszy mecz zakończony po zamknięciu zakładów;
+        remis zwraca stawki. Bot sprawdza wyniki co 5 minut w Leetify (dane pojawiają się po przetworzeniu
+        meczu, czasem z opóźnieniem). Dane: Leetify.
+      </p>
+      {data.leetify === false ? (
+        <p className="v2-field-hint" style={{ color: 'var(--bad, #ed4245)' }}>
+          Brak klucza LEETIFY_API_KEY na serwerze bota — rynek utworzysz, ale rozstrzygniesz go ręcznie.
+        </p>
+      ) : null}
+      <div className="v2-field-row">
+        <input
+          style={{ width: '100%', maxWidth: 360 }}
+          placeholder="SteamID64 lub link steamcommunity.com/profiles/…"
+          value={cs.steamId}
+          onChange={(e) => setCs({ ...cs, steamId: e.target.value })}
+        />
+        <input
+          maxLength={40}
+          placeholder="Nick w pytaniu"
+          value={cs.name}
+          onChange={(e) => setCs({ ...cs, name: e.target.value })}
+        />
+        <label>
+          Zakłady do{' '}
+          <input
+            type="datetime-local"
+            value={cs.closes}
+            onChange={(e) => setCs({ ...cs, closes: e.target.value })}
+          />
+        </label>
+        <button
+          type="button"
+          className="v2-btn-primary"
+          disabled={busy || !cs.steamId.trim()}
+          onClick={() =>
+            run(async () => {
+              const t = cs.closes ? new Date(cs.closes).getTime() : 0;
+              const out = await marketsApi(guildId, '/create-cs2', {
+                steamId: cs.steamId,
+                name: cs.name,
+                closesAt: Number.isNaN(t) ? 0 : t,
+                channelId,
+                publish: form.publish,
+              });
+              setCs({ ...cs, steamId: '', closes: '' });
+              return out;
+            }, 'Rynek meczu CS2 utworzony.')
+          }
+        >
+          Utwórz rynek meczu
         </button>
       </div>
 

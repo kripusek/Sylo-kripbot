@@ -802,6 +802,8 @@ document.addEventListener('alpine:init', function () {
         channelId: cfg.channelId || '',
         publish: true,
       },
+      cs: { steamId: '', name: '', closes: '' },
+      leetify: true,
       importUrl: '',
       trending: [],
       trendingLoaded: false,
@@ -832,6 +834,7 @@ document.addEventListener('alpine:init', function () {
           this.markets = data.markets;
           this.channels = data.channels;
           this.currency = data.currency;
+          this.leetify = data.leetify !== false;
         } catch (e) {
           this.say(e.message, true);
         } finally {
@@ -874,6 +877,22 @@ document.addEventListener('alpine:init', function () {
           self.form.closes = '';
           return data;
         }, 'Rynek utworzony.');
+      },
+      createCs() {
+        var self = this;
+        var t = self.cs.closes ? new Date(self.cs.closes).getTime() : 0;
+        return this.run(async function () {
+          var data = await self.call('/create-cs2', {
+            steamId: self.cs.steamId,
+            name: self.cs.name,
+            closesAt: isNaN(t) ? 0 : t,
+            channelId: self.form.channelId,
+            publish: self.form.publish,
+          });
+          self.cs.steamId = '';
+          self.cs.closes = '';
+          return data;
+        }, 'Rynek meczu CS2 utworzony.');
       },
       importOne(input) {
         var self = this;

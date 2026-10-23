@@ -56,6 +56,22 @@
   </details>
 
   <details class="lvl-sec" open>
+    <summary>Mecz CS2 (rozliczany z Leetify)<span class="lvl-chev">▾</span></summary>
+    <p class="muted small">Rynek „Czy gracz wygra następny mecz CS2?”. Liczy się pierwszy mecz zakończony po zamknięciu zakładów; remis zwraca stawki. Bot sprawdza wyniki co 5 minut w Leetify (dane pojawiają się dopiero po przetworzeniu meczu, czasem z opóźnieniem). Dane: Leetify.</p>
+    <p class="small text-bad" x-show="!leetify">Brak klucza LEETIFY_API_KEY na serwerze bota — rynek utworzysz, ale rozstrzygniesz go ręcznie.</p>
+    <label class="small">SteamID64 gracza lub link steamcommunity.com/profiles/…</label>
+    <input style="width:100%;max-width:520px" x-model="cs.steamId" placeholder="76561198000000000" />
+    <label class="small u-mt-2">Nick w pytaniu</label>
+    <input class="u-w-field" maxlength="40" x-model="cs.name" placeholder="np. Krip" />
+    <label class="small u-mt-2">Zakłady do (mecz musi skończyć się później)</label>
+    <input type="datetime-local" x-model="cs.closes" />
+    <div class="btn-row u-mt-2">
+      <button type="button" class="btn btn-primary" :disabled="busy || !cs.steamId.trim()" @click="createCs()">Utwórz rynek meczu</button>
+    </div>
+    <p class="muted small u-mt-2">Kanał i „od razu opublikuj” bierze z formularza własnego rynku powyżej.</p>
+  </details>
+
+  <details class="lvl-sec" open>
     <summary>Import z Polymarketa<span class="lvl-chev">▾</span></summary>
     <p class="muted small">Wklej adres rynku z polymarket.com albo wybierz z najpopularniejszych. Opcje i procenty przychodzą z Polymarketa; zakłady są tylko na wirtualne monety.</p>
     <input style="width:100%;max-width:520px" x-model="importUrl" placeholder="https://polymarket.com/event/…" />
@@ -81,7 +97,7 @@
     <div class="lvl-sec" style="padding:12px;margin-bottom:12px">
       <div>
         <strong x-text="'#' + m.id + ' ' + m.question"></strong>
-        <span class="muted small" x-text="m.source === 'polymarket' ? ' · Polymarket' : ' · własny'"></span>
+        <span class="muted small" x-text="m.source === 'polymarket' ? ' · Polymarket' : m.source === 'cs2' ? ' · CS2 / Leetify' : ' · własny'"></span>
       </div>
       <div class="muted small" x-text="statusText(m) + ' · pula ' + m.total + ' ' + currency + (m.published ? ' · ' + chName(m.channelId) : ' · nieopublikowany')"></div>
       <ul>

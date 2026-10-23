@@ -80,6 +80,7 @@ const listOpenStmt = prepare(
   "SELECT * FROM markets WHERE guild_id = ? AND status = 'open' ORDER BY id DESC LIMIT ?"
 );
 const openPolymarketStmt = prepare("SELECT * FROM markets WHERE status = 'open' AND source = 'polymarket'");
+const openBySourceStmt = prepare("SELECT * FROM markets WHERE status = 'open' AND source = ?");
 const editStmt = prepare(
   `UPDATE markets SET question = @question, description = @description, closes_at = @closesAt
    WHERE id = @id AND guild_id = @guildId AND status = 'open'`
@@ -164,6 +165,11 @@ export async function listMarkets(guildId, { openOnly = false, limit = 100 } = {
 /** Every open market imported from Polymarket (all guilds) — for the sync loop. */
 export async function openPolymarketMarkets() {
   return (await openPolymarketStmt.all()).map(toMarket);
+}
+
+/** Every open market of one source (all guilds). */
+export async function openMarketsBySource(source) {
+  return (await openBySourceStmt.all(source)).map(toMarket);
 }
 
 /** Edit the text / closing time of a market that is still open. */

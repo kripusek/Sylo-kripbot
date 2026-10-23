@@ -8,9 +8,11 @@ import { rateLimit } from '../middleware/rateLimit.js';
 import { getGuildModule, setGuildModule } from '../../db/modules.js';
 import { recordAudit } from '../../db/audit.js';
 import { getGuildMarket, getMarket } from '../../db/markets.js';
+import { parseClosesAt } from '../../modules/lib/marketMath.js';
 import {
   normaliseMarkets,
   createCustomMarket,
+  createCs2Market,
   importPolymarket,
   trendingPolymarket,
   publishMarket,
@@ -89,6 +91,22 @@ export function registerMarketRoutes(router, base) {
       try {
         const id = await createCustomMarket(req.guild.id, req.body);
         await audit(req, `created market ${id}`);
+        res.json({ id, warning: await maybePublish(req, id, req.body.publish) });
+      } catch (error) {
+        fail(res, error);
+      }
+    })
+  );
+
+  router.post(
+    `${base}/create-cs2`,
+    rateLimit({ windowMs: 60_000, max: 20 }),
+    asyncHandler(async (req, res) => {
+      try {
+        const closesAt = parseClosesAt(req.body.closesAt);
+        if (closesAt === null) throw new Error('Nieprawidłowa data zamknięcia zakładów.');
+        const id = await createCs2Market(req.guild.id, { ...req.body, closesAt });
+        await audit(req, `created CS2 market ${id} for ${req.body.steamId}`);
         res.json({ id, warning: await maybePublish(req, id, req.body.publish) });
       } catch (error) {
         fail(res, error);

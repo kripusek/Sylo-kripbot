@@ -23,6 +23,7 @@ import {
   getGuildMarket,
   listMarkets,
   openPolymarketMarkets,
+  openMarketsBySource,
   setMarketOptions,
   setMarketMessage,
   markResolved,
@@ -45,6 +46,7 @@ import {
   evaluatePolymarketEvent,
   OPTIONS_MAX,
 } from './lib/marketMath.js';
+import { parseSteam64, matchList, firstMatchAfter } from './lib/cs2.js';
 
 export { normaliseMarketInput, parsePolymarketSlug, OPTIONS_MAX };
 
@@ -186,6 +188,99 @@ async function tooManyOpen(guildId) {
   return (await listMarkets(guildId, { openOnly: true })).length >= MAX_OPEN_MARKETS;
 }
 
+// ------------------------------------------------------------------ CS2 ----
+
+const LEETIFY = 'https://api-public.cs-prod.leetify.com';
+// Read at call time so the key can be added without touching config loading.
+const leetifyKey = () => process.env.LEETIFY_API_KEY ?? '';
+export const leetifyConfigured = () => Boolean(leetifyKey());
+
+async function leetifyMatches(steamId) {
+  const res = await fetch(`${LEETIFY}/v3/profile/matches?steamId=${steamId}&limit=20`, {
+    headers: {
+      accept: 'application/json',
+      authorization: `Bearer ${leetifyKey()}`,
+      _leetify_key: leetifyKey(),
+    },
+    signal: AbortSignal.timeout(POLYMARKET_TIMEOUT_MS),
+  });
+  if (res.status === 401 || res.status === 403)
+    throw new Error('Leetify odrzucił klucz API (LEETIFY_API_KEY).');
+  if (res.status === 404)
+    throw new Error('Leetify nie zna tego SteamID (profil musi istnieć na leetify.com).');
+  if (!res.ok) throw new Error(`Leetify odpowiedział ${res.status}.`);
+  return matchList(await res.json());
+}
+
+/**
+ * "Will <player> win their next CS2 match?" — settled from Leetify. The match that
+ * counts is the first one the player finishes after `closesAt` (or after creation).
+ */
+export async function createCs2Market(guildId, raw) {
+  const steamId = parseSteam64(raw.steamId);
+  if (!steamId)
+    throw new Error(
+      'Podaj SteamID64 (17 cyfr, zaczyna się od 7656119) albo link steamcommunity.com/profiles/….'
+    );
+  if (await tooManyOpen(guildId)) throw new Error(`Maksymalnie ${MAX_OPEN_MARKETS} otwartych rynków naraz.`);
+  if (leetifyConfigured()) {
+    try {
+      await leetifyMatches(steamId); // fail now rather than leave a market that can never settle itself
+    } catch (error) {
+      throw new Error(error.message ?? String(error), { cause: error });
+    }
+  }
+  const name =
+    String(raw.name ?? '')
+      .trim()
+      .slice(0, 40) || 'Gracz';
+  const parsed = normaliseMarketInput({
+    question: `Czy ${name} wygra następny mecz CS2?`,
+    description:
+      String(raw.description ?? '').trim() ||
+      'Liczy się pierwszy mecz zakończony po zamknięciu zakładów. Remis = zwrot stawek.',
+    options: ['Wygra', 'Przegra'],
+    closesAt: raw.closesAt,
+  });
+  if (!parsed.ok) throw new Error(parsed.error);
+  return insertMarket(guildId, { ...parsed.value, source: 'cs2', sourceRef: steamId });
+}
+
+/** Settle open CS2 markets whose player has finished a match since betting closed. */
+export async function syncCs2() {
+  if (!leetifyConfigured()) return;
+  const open = (await openMarketsBySource('cs2')).filter((m) => !m.closesAt || m.closesAt <= Date.now() + 1);
+  const bySteam = new Map();
+  for (const market of open)
+    bySteam.set(market.sourceRef, [...(bySteam.get(market.sourceRef) ?? []), market]);
+  for (const [steamId, markets] of bySteam) {
+    let matches;
+    try {
+      matches = await leetifyMatches(steamId);
+    } catch (error) {
+      log.warn('module:markets', `Leetify sync for ${steamId} failed:`, error.message ?? error);
+      continue;
+    }
+    for (const market of markets) {
+      const found = firstMatchAfter(matches, steamId, market.closesAt || market.createdAt);
+      if (!found) continue;
+      if (found.state === 'unclear') {
+        log.warn(
+          'module:markets',
+          `market ${market.id}: match ${found.id} has no clear result, left for manual settling`
+        );
+        continue;
+      }
+      const note = `Mecz: ${found.map || 'CS2'}${found.score ? ` ${found.score}` : ''} — dane: Leetify`;
+      const done =
+        found.state === 'tie'
+          ? await cancelMarket(market.guildId, market.id, `Remis w meczu (${note}) — zakłady zwrócone.`)
+          : await settleMarket(market.guildId, market.id, found.state === 'win' ? 0 : 1, note);
+      if (!done.ok) log.warn('module:markets', `market ${market.id} not settled: ${done.error}`);
+    }
+  }
+}
+
 /** Create a hand-made market from dashboard input. */
 export async function createCustomMarket(guildId, raw) {
   const parsed = normaliseMarketInput(raw);
@@ -224,6 +319,7 @@ export function buildMarketMessage(market, pools, economy) {
   embed.setDescription(description.slice(0, 4000));
   const footer = [`Rynek #${market.id}`, `Pula: ${coinsText(economy, stats.total)}`];
   if (market.source === 'polymarket') footer.push('dane: Polymarket');
+  if (market.source === 'cs2') footer.push('dane: Leetify');
   embed.setFooter({ text: footer.join(' • ') });
   if (market.status === 'open' && market.closesAt)
     embed.addFields({ name: 'Zakłady do', value: `<t:${Math.floor(market.closesAt / 1000)}:f>` });
@@ -368,7 +464,7 @@ async function announce(market, text) {
  * Safe to call twice — only the call that flips the market out of "open" pays.
  * @returns {Promise<{ ok: true, paid: number, people: number, refunded: boolean } | { ok: false, error: string }>}
  */
-export async function settleMarket(guildId, marketId, winner) {
+export async function settleMarket(guildId, marketId, winner, note = '') {
   const market = await getGuildMarket(guildId, marketId);
   if (!market) return { ok: false, error: 'Nie znaleziono rynku.' };
   if (market.status !== 'open') return { ok: false, error: 'Ten rynek jest już rozstrzygnięty.' };
@@ -384,14 +480,14 @@ export async function settleMarket(guildId, marketId, winner) {
   await finishMarket(
     settled,
     refunded
-      ? `Zwycięska opcja: **${settled.options[winner].label}** — nikt na nią nie postawił, więc zakłady zostały zwrócone.`
-      : `Zwycięska opcja: ✅ **${settled.options[winner].label}**\nWypłacono ${result.paid.toLocaleString('pl-PL')} monet ${result.people} osobom.`
+      ? `Zwycięska opcja: **${settled.options[winner].label}** — nikt na nią nie postawił, więc zakłady zostały zwrócone.${note ? `\n${note}` : ''}`
+      : `Zwycięska opcja: ✅ **${settled.options[winner].label}**\nWypłacono ${result.paid.toLocaleString('pl-PL')} monet ${result.people} osobom.${note ? `\n${note}` : ''}`
   );
   return { ok: true, ...result, refunded };
 }
 
 /** Cancel a market and give every stake back. */
-export async function cancelMarket(guildId, marketId) {
+export async function cancelMarket(guildId, marketId, reason = '') {
   const market = await getGuildMarket(guildId, marketId);
   if (!market) return { ok: false, error: 'Nie znaleziono rynku.' };
   if (!(await markCancelled(marketId))) return { ok: false, error: 'Ten rynek jest już rozstrzygnięty.' };
@@ -400,7 +496,8 @@ export async function cancelMarket(guildId, marketId) {
   const cancelled = await getMarket(marketId);
   await finishMarket(
     cancelled,
-    `Rynek anulowany — zwrócono ${result.paid.toLocaleString('pl-PL')} monet ${result.people} osobom.`
+    reason ||
+      `Rynek anulowany — zwrócono ${result.paid.toLocaleString('pl-PL')} monet ${result.people} osobom.`
   );
   return { ok: true, ...result, refunded: true };
 }
@@ -446,7 +543,7 @@ export async function marketsOverview(guild) {
       })),
     });
   }
-  return { markets: out, currency: economy.currencyEmoji };
+  return { markets: out, currency: economy.currencyEmoji, leetify: leetifyConfigured() };
 }
 
 export async function myStakes(marketId, userId) {
@@ -494,6 +591,7 @@ const syncTimer = setInterval(() => {
   syncPolymarket().catch((error) =>
     log.error('module:markets', 'Polymarket sync failed:', error.message ?? error)
   );
+  syncCs2().catch((error) => log.error('module:markets', 'CS2 sync failed:', error.message ?? error));
 }, SYNC_MS);
 syncTimer.unref();
 

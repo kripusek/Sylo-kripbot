@@ -109,3 +109,33 @@ test('markets V1 settings form saves through the module config route', async () 
     app.close();
   }
 });
+
+test('CS2 match market can be created from the dashboard', async () => {
+  const app = await startWebApp();
+  try {
+    delete process.env.LEETIFY_API_KEY;
+    await setGuildModule(GID, 'economy', { enabled: true, config: {} });
+    await setGuildModule(GID, 'markets', { enabled: true, config: {} });
+    const call = (path, body) =>
+      fetch(`${app.base}${path}`, {
+        method: body ? 'POST' : 'GET',
+        headers: { 'content-type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    const bad = await call(`/guilds/${GID}/markets/create-cs2`, { steamId: 'abc' });
+    assert.equal(bad.status, 400);
+    assert.match((await bad.json()).error, /SteamID64/);
+    const ok = await call(`/guilds/${GID}/markets/create-cs2`, {
+      steamId: 'https://steamcommunity.com/profiles/76561198000000001',
+      name: 'Krip',
+      closesAt: Date.now() + 3_600_000,
+    });
+    assert.equal(ok.status, 200);
+    const overview = await (await call(`/api/v2/guilds/${GID}/modules/markets/overview`)).json();
+    const market = overview.markets.find((m) => m.source === 'cs2');
+    assert.equal(market.question, 'Czy Krip wygra następny mecz CS2?');
+    assert.equal(overview.leetify, false);
+  } finally {
+    app.close();
+  }
+});
