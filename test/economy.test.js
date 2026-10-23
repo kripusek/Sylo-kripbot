@@ -25,6 +25,7 @@ import {
   slots,
   roulette,
   rouletteColor,
+  rouletteWins,
   cups,
   payoutFor,
   evaluateHand,
@@ -265,6 +266,26 @@ test('roulette wheel and house edge', () => {
     assert.ok(rtp < 1, `${type} must favour the house (RTP ${rtp})`);
     assert.ok(rtp > 0.9, `${type} should not be punishing (RTP ${rtp})`);
     assert.equal(ROULETTE_MULTIPLIERS[type] > 0, true);
+  }
+});
+
+test('roulette even/odd and exact-number bets', () => {
+  assert.equal(roulette('parzyste', script(4)).multiplier, 2);
+  assert.equal(roulette('parzyste', script(3)).multiplier, 0);
+  assert.equal(roulette('nieparzyste', script(3)).multiplier, 2);
+  assert.equal(roulette('nieparzyste', script(14)).multiplier, 0);
+  assert.equal(roulette('parzyste', script(0)).multiplier, 0, 'zero is neither even nor odd');
+  assert.equal(roulette('nieparzyste', script(0)).multiplier, 0);
+  assert.equal(roulette(7, script(7)).multiplier, 14);
+  assert.equal(roulette(0, script(0)).multiplier, 14, 'exact 0 is a valid number bet');
+  assert.equal(roulette(7, script(8)).multiplier, 0);
+  assert.equal(rouletteWins('parzyste', 14), true);
+  for (const type of ['parzyste', 'nieparzyste', 0, 5, 14]) {
+    let total = 0;
+    for (let pocket = 0; pocket < ROULETTE_POCKETS; pocket += 1)
+      total += roulette(type, () => pocket).multiplier;
+    const rtp = total / ROULETTE_POCKETS;
+    assert.ok(rtp < 1 && rtp > 0.9, `${type} must favour the house without punishing (RTP ${rtp})`);
   }
 });
 

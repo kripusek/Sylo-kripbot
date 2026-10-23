@@ -2210,5 +2210,8 @@
   "Prediction markets played for virtual coins.": "Rynki predykcyjne za wirtualne monety.",
   "Show the open markets.": "Pokaż otwarte rynki.",
   "Show your recent bets.": "Pokaż Twoje ostatnie zakłady.",
-  "Show the best predictors on this server.": "Pokaż najlepszych typerów na tym serwerze."
+  "Show the best predictors on this server.": "Pokaż najlepszych typerów na tym serwerze.",
+  "Roulette: a colour, even/odd or an exact number.": "Ruletka: kolor, parzyste/nieparzyste albo dokładna liczba.",
+  "What to bet on (or pick an exact number instead)": "Na co postawić (albo wybierz dokładną liczbę)",
+  "Exact number to bet on (0-14), pays 14x": "Dokładna liczba (0-14), wypłata 14x"
 }

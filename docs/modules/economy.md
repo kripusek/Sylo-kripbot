@@ -32,7 +32,7 @@ Zapis działa od razu, bez restartu bota.
 
 ## Szanse w grach
 
-Każda gra faworyzuje kasyno (zwrot dla gracza poniżej 100%): ruletka ma 15 pól (0 zielone ×14, czerwone/czarne ×2), sloty ok. 84%, zgadnij ×4 z 5, kubki ×2,5 z 3, orzeł/reszka ×2, kostka ×2 (remis zwraca stawkę). W blackjacku naturalne 21 płaci ×2,5. Poker to 5 kart przeciwko botowi (remis zwraca stawkę). `rps` jest bez stawki.
+Każda gra faworyzuje kasyno (zwrot dla gracza poniżej 100%): ruletka ma 15 pól (0 zielone ×14, czerwone/czarne ×2, parzyste/nieparzyste ×2 — zero przegrywa, dokładna liczba 0–14 ×14), sloty ok. 84%, zgadnij ×4 z 5, kubki ×2,5 z 3, orzeł/reszka ×2, kostka ×2 (remis zwraca stawkę). W blackjacku naturalne 21 płaci ×2,5. Poker to 5 kart przeciwko botowi (remis zwraca stawkę). `rps` jest bez stawki.
 
 ## Ograniczenia
 

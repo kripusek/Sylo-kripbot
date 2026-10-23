@@ -34,7 +34,8 @@ import {
   SLOTS_JACKPOT_MULTIPLIER,
   SLOTS_PAIR_MULTIPLIER,
   CUPS_MULTIPLIER,
-  ROULETTE_MULTIPLIERS,
+  ROULETTE_POCKETS,
+  rouletteMultiplier,
 } from '../../modules/lib/economyGames.js';
 import { log } from '../../lib/log.js';
 
@@ -42,6 +43,7 @@ const BLACKJACK_TIMEOUT_MS = 60_000;
 const SIDE_LABEL = { orzel: 'Orzeł', reszka: 'Reszka' };
 const RPS_LABEL = { kamien: '🪨 Kamień', papier: '📄 Papier', nozyce: '✂️ Nożyce' };
 const COLOR_LABEL = { czerwone: '🔴 Czerwone', czarne: '⚫ Czarne', zielone: '🟢 Zielone' };
+const ROULETTE_LABEL = { ...COLOR_LABEL, parzyste: '2️⃣ Parzyste', nieparzyste: '1️⃣ Nieparzyste' };
 
 const stake = (description) => (o) =>
   o.setName('stawka').setDescription(description).setRequired(true).setMinValue(1).setMaxValue(MAX_PAYOUT);
@@ -109,19 +111,27 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((s) =>
     s
       .setName('ruletka')
-      .setDescription('Roulette: red, black or green.')
+      .setDescription('Roulette: a colour, even/odd or an exact number.')
+      .addIntegerOption(stake(BET))
       .addStringOption((o) =>
         o
           .setName('typ')
-          .setDescription('What to bet on')
-          .setRequired(true)
+          .setDescription('What to bet on (or pick an exact number instead)')
           .addChoices(
             { name: 'Czerwone', value: 'czerwone' },
             { name: 'Czarne', value: 'czarne' },
-            { name: 'Zielone', value: 'zielone' }
+            { name: 'Zielone', value: 'zielone' },
+            { name: 'Parzyste', value: 'parzyste' },
+            { name: 'Nieparzyste', value: 'nieparzyste' }
           )
       )
-      .addIntegerOption(stake(BET))
+      .addIntegerOption((o) =>
+        o
+          .setName('liczba')
+          .setDescription('Exact number to bet on (0-14), pays 14x')
+          .setMinValue(0)
+          .setMaxValue(ROULETTE_POCKETS - 1)
+      )
   )
   .addSubcommand((s) =>
     s
@@ -261,13 +271,19 @@ const GAMES = {
       };
     }),
   ruletka: (interaction, config, bet) => {
-    const type = interaction.options.getString('typ', true);
+    const name = interaction.options.getString('typ');
+    const exact = interaction.options.getInteger('liczba');
+    if ((name === null) === (exact === null))
+      return interaction.reply(
+        ephemeral('Wybierz dokładnie jedno: `typ` (kolor, parzyste/nieparzyste) albo `liczba`.')
+      );
+    const type = exact === null ? name : exact;
     return instantRound(interaction, config, bet, () => {
       const r = roulette(type);
       return {
         title: '🎡 Ruletka',
         lines: [
-          `Postawiłeś na: **${COLOR_LABEL[type]}** (${ROULETTE_MULTIPLIERS[type]}x)`,
+          `Postawiłeś na: **${exact === null ? ROULETTE_LABEL[name] : `liczbę ${exact}`}** (${rouletteMultiplier(type)}x)`,
           `Wypadło: **${r.pocket}** ${COLOR_LABEL[r.color]}`,
         ],
         multiplier: r.multiplier,

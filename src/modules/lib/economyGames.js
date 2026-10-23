@@ -86,20 +86,34 @@ export function slots(rng = defaultRng) {
 
 // ------------------------------------------------------------------ roulette ----
 // 15 pockets: 0 green, 1–7 red, 8–14 black (the common "Rust/CS" wheel).
+// Bets: a colour, even / odd (0 counts as neither, so it loses), or one exact
+// number. Every bet pays a bit under its fair odds, so the house keeps an edge.
 export const ROULETTE_POCKETS = 15;
-export const ROULETTE_TYPES = ['czerwone', 'czarne', 'zielone'];
-export const ROULETTE_MULTIPLIERS = { czerwone: 2, czarne: 2, zielone: 14 };
+export const ROULETTE_TYPES = ['czerwone', 'czarne', 'zielone', 'parzyste', 'nieparzyste'];
+export const ROULETTE_MULTIPLIERS = { czerwone: 2, czarne: 2, zielone: 14, parzyste: 2, nieparzyste: 2 };
+export const ROULETTE_EXACT_MULTIPLIER = 14;
 
 export function rouletteColor(pocket) {
   return pocket === 0 ? 'zielone' : pocket <= 7 ? 'czerwone' : 'czarne';
 }
 
-/** @param {'czerwone'|'czarne'|'zielone'} type */
+/** Does this bet win on this pocket? `type` is a name from ROULETTE_TYPES or an exact pocket number. */
+export function rouletteWins(type, pocket) {
+  if (typeof type === 'number') return type === pocket;
+  if (type === 'parzyste') return pocket > 0 && pocket % 2 === 0;
+  if (type === 'nieparzyste') return pocket % 2 === 1;
+  return rouletteColor(pocket) === type;
+}
+
+/** What a winning bet pays (the stake times this). */
+export const rouletteMultiplier = (type) =>
+  typeof type === 'number' ? ROULETTE_EXACT_MULTIPLIER : (ROULETTE_MULTIPLIERS[type] ?? 0);
+
+/** @param {'czerwone'|'czarne'|'zielone'|'parzyste'|'nieparzyste'|number} type  a bet name, or an exact number 0–14 */
 export function roulette(type, rng = defaultRng) {
   const pocket = rng(ROULETTE_POCKETS);
-  const color = rouletteColor(pocket);
-  const win = color === type;
-  return { pocket, color, win, multiplier: win ? ROULETTE_MULTIPLIERS[type] : 0 };
+  const win = rouletteWins(type, pocket);
+  return { pocket, color: rouletteColor(pocket), win, multiplier: win ? rouletteMultiplier(type) : 0 };
 }
 
 // --------------------------------------------------------------------- cups ----

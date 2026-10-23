@@ -493,3 +493,29 @@ test('buildMarketMessage shows pools, Polymarket odds and one button per option'
   assert.equal(done.components.length, 0);
   assert.match(done.embeds[0].data.description, /✅ \*\*Opcja 0\*\*/);
 });
+
+test('trendingPolymarket reads both response shapes and falls back when an endpoint refuses', async () => {
+  const { trendingPolymarket } = await import('../src/modules/markets.js');
+  const realFetch = globalThis.fetch;
+  const event = { slug: 'hot', title: 'Hot?', markets: [gammaMarket()] };
+  const seen = [];
+  try {
+    globalThis.fetch = async (url) => {
+      seen.push(String(url));
+      if (String(url).includes('/events/keyset')) return { ok: false, status: 422, json: async () => ({}) };
+      return { ok: true, json: async () => [event] };
+    };
+    const viaFallback = await trendingPolymarket(5);
+    assert.equal(viaFallback[0].slug, 'hot');
+    assert.equal(viaFallback[0].options[0].percent, 62);
+    assert.ok(seen.length >= 2, 'tried the next endpoint after a 422');
+
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ events: [event], next_cursor: 'x' }) });
+    assert.equal((await trendingPolymarket(5))[0].slug, 'hot');
+
+    globalThis.fetch = async () => ({ ok: false, status: 500, json: async () => ({}) });
+    await assert.rejects(trendingPolymarket(5), /Nie udało się pobrać listy z Polymarketa.*500/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

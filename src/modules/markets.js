@@ -95,12 +95,28 @@ async function gammaGet(path) {
   return res.json();
 }
 
+/** Gamma returns a bare array from /events and `{ events, next_cursor }` from /events/keyset. */
+const eventList = (body) => (Array.isArray(body) ? body : Array.isArray(body?.events) ? body.events : []);
+
+/** Try each path in turn and return the first list that loads; the last error is kept for the message. */
+async function gammaEvents(paths) {
+  let failure;
+  for (const path of paths) {
+    try {
+      return eventList(await gammaGet(path));
+    } catch (error) {
+      failure = error;
+    }
+  }
+  throw failure;
+}
+
 /** Fetch one Polymarket event by slug. Throws a Polish message when it can't be read. */
 export async function fetchPolymarketEvent(slug) {
   let event;
   try {
-    const events = await gammaGet(`/events?slug=${encodeURIComponent(slug)}`);
-    event = Array.isArray(events) ? events[0] : null;
+    const q = encodeURIComponent(slug);
+    event = (await gammaEvents([`/events?slug=${q}`, `/events/keyset?slug=${q}&closed=any`]))[0];
     if (!event) {
       const markets = await gammaGet(`/markets?slug=${encodeURIComponent(slug)}`);
       if (Array.isArray(markets) && markets[0])
@@ -119,14 +135,17 @@ export async function fetchPolymarketEvent(slug) {
 
 /** The most-traded open Polymarket events, for the "pick one" list in the dashboard. */
 export async function trendingPolymarket(limit = 20) {
-  const events = await gammaGet(
-    `/events?active=true&closed=false&order=volume24hr&ascending=false&limit=${Math.min(50, limit)}`
-  ).catch((error) => {
+  const n = Math.min(50, limit);
+  const events = await gammaEvents([
+    `/events/keyset?closed=false&order=volume24hr&ascending=false&limit=${n}`,
+    `/events?closed=false&order=volume24hr&ascending=false&limit=${n}`,
+    `/events/keyset?closed=false&limit=${n}`,
+  ]).catch((error) => {
     throw new Error(`Nie udało się pobrać listy z Polymarketa (${error.message ?? error}).`, {
       cause: error,
     });
   });
-  return (Array.isArray(events) ? events : [])
+  return events
     .map((event) => ({ slug: String(event.slug ?? ''), evaluated: evaluatePolymarketEvent(event) }))
     .filter((e) => e.slug && e.evaluated && e.evaluated.state === 'open')
     .map((e) => ({
