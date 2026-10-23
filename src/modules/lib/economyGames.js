@@ -106,12 +106,36 @@ export function rouletteColor(pocket) {
   return pocket === 0 ? 'zielone' : pocket <= 7 ? 'czerwone' : 'czarne';
 }
 
-/** @param {'czerwone'|'czarne'|'zielone'} type */
+/** @param {'czerwone'|'czarne'|'zielone'|'even'|'odd'|number} type*/
 export function roulette(type, rng = defaultRng) {
   const pocket = rng(ROULETTE_POCKETS);
+  let multiplier;
   const color = rouletteColor(pocket);
-  const win = color === type;
-  return { pocket, color, win, multiplier: win ? ROULETTE_MULTIPLIERS[type] : 0 };
+  if(typeof type === 'number')
+  {
+    type = Math.trunc(type);
+    const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
+    type = clamp(type, 0, 14);
+    multiplier = type === pocket ? 15:0;
+  }
+  else
+  {
+    switch(type)
+    {
+      case 'czerwone':
+      case 'czarne':
+      case 'zielone':
+        multiplier = color === type ? ROULETTE_MULTIPLIERS[type] : 0;
+        break;
+      case 'even':
+        multiplier = pocket % 2 === 0 ? 2:0;
+        break;
+      case 'odd':
+        multiplier = pocket % 2 === 1 ? 2:0;
+        break;
+    }
+  }
+  return { pocket, color, multiplier, win: multiplier > 0};
 }
 
 // --------------------------------------------------------------------- cups ----
