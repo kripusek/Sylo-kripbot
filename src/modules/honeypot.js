@@ -8,6 +8,7 @@
 //   {
 //     exemptRoles: string[],
 //     cleanup: { enabled, minutes },   // also delete the caught member's recent messages
+//     logChannelId: string,            // "stupidity" channel: who was caught + what they wrote
 //     channels: [ { channelId, action, timeoutMinutes, deleteMessage, triggerCount } ],
 //     messages: [ { channelId, messageId, bait, action, timeoutMinutes, triggerCount } ],
 //   }
@@ -18,6 +19,7 @@ import { EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { on } from './dispatch.js';
 import { getGuildModule, setGuildModule } from '../db/modules.js';
 import { postModLog } from '../bot/lib/modlog.js';
+import { postToChannel } from './lib/send.js';
 import { notifyTarget, MOD_COLOR } from '../bot/lib/moderation.js';
 import { addCase } from '../db/modCases.js';
 import { recordHoneypotCatch } from '../db/honeypotCatches.js';
@@ -43,6 +45,7 @@ const BAN_DELETE_MAX_SECONDS = 7 * 86_400; // Discord's cap for deleteMessageSec
 export function normaliseHoneypotConfig(raw = {}) {
   return {
     exemptRoles: idList(raw.exemptRoles),
+    logChannelId: isId(raw.logChannelId) ? raw.logChannelId : '',
     cleanup: {
       enabled: raw.cleanup?.enabled === true,
       minutes: clampInt(raw.cleanup?.minutes, 1, CLEANUP_MAX_MINUTES, 15),
@@ -108,6 +111,83 @@ function baitEmbed(row, cfg = {}) {
     });
 }
 
+const EVIDENCE_LINE_MAX = 160;
+const EVIDENCE_TOTAL_MAX = 3500;
+
+/** Message text made safe to show in a log: one line, no clickable links or mentions, shortened. */
+export function evidenceText(content, attachments = 0) {
+  const text = String(content ?? '')
+    .replace(/`/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, EVIDENCE_LINE_MAX);
+  const files = attachments ? ` [+${attachments} zał.]` : '';
+  return `\`${text || '(bez tekstu)'}\`${files}`;
+}
+
+/**
+ * Read (without deleting) a member's messages from the last `minutes` minutes, so
+ * the "stupidity" log can show what they wrote before cleanup removes it.
+ * @returns {Promise<Array<{ channelId: string, content: string, attachments: number }>>}
+ */
+export async function collectRecentMessages(guild, userId, minutes, now = Date.now()) {
+  const since = now - minutes * 60_000;
+  const me = guild.members.me;
+  const needed = ['ViewChannel', 'ReadMessageHistory'];
+  const channels = [...guild.channels.cache.values()]
+    .filter((c) => c.isTextBased?.() && c.messages && c.permissionsFor?.(me)?.has(needed))
+    .slice(0, CLEANUP_MAX_CHANNELS);
+  const found = [];
+  const scan = async (channel) => {
+    try {
+      const recent = await channel.messages.fetch({ limit: 100 });
+      for (const m of recent.values())
+        if (m.author?.id === userId && m.createdTimestamp >= since)
+          found.push({
+            channelId: channel.id,
+            at: m.createdTimestamp,
+            content: m.content,
+            attachments: m.attachments?.size ?? 0,
+          });
+    } catch (err) {
+      log.warn('module:honeypot', `reading ${channel.id} for the log failed: ${err.message}`);
+    }
+  };
+  for (let i = 0; i < channels.length; i += SWEEP_BATCH)
+    await Promise.all(channels.slice(i, i + SWEEP_BATCH).map(scan));
+  return found.sort((a, b) => a.at - b.at);
+}
+
+/** Post the "who was caught and what they wrote" entry to the log channel. */
+export async function postCatchLog(guild, channelId, { member, done, reason, trigger, deleted }) {
+  if (!channelId) return false;
+  const parts = [`${member.user.tag} (\`${member.id}\`) — **${done}**`, reason];
+  if (trigger) parts.push(`\n**Napisał na pułapce**\n${evidenceText(trigger.content, trigger.attachments)}`);
+  if (deleted.length) {
+    const lines = [];
+    let used = 0;
+    for (const m of deleted) {
+      const line = `<#${m.channelId}>: ${evidenceText(m.content, m.attachments)}`;
+      if (used + line.length > EVIDENCE_TOTAL_MAX) {
+        lines.push(`…i ${deleted.length - lines.length} więcej`);
+        break;
+      }
+      lines.push(line);
+      used += line.length + 1;
+    }
+    parts.push(`\n**Usunięte wiadomości (${deleted.length})**\n${lines.join('\n')}`);
+  }
+  const embed = new EmbedBuilder()
+    .setColor(0xed4245)
+    .setTitle('🍯 Złapany na pułapkę')
+    .setThumbnail(member.user.displayAvatarURL())
+    .setDescription(parts.join('\n').slice(0, 4000))
+    .setTimestamp(Date.now());
+  return Boolean(
+    await postToChannel(guild.id, channelId, { embeds: [embed], allowedMentions: { parse: [] } })
+  );
+}
+
 /**
  * Delete a member's messages from the last `minutes` minutes in every channel
  * the bot can moderate. Scam bots blast the same message into many channels
@@ -147,9 +227,21 @@ export async function sweepRecentMessages(guild, userId, minutes, now = Date.now
  *   nothing was (or could be) done — callers use this to decide whether to
  *   bump the row's trigger count.
  */
-async function punish(guild, member, entry, reason, cleanup = { enabled: false, minutes: 15 }) {
+async function punish(
+  guild,
+  member,
+  entry,
+  reason,
+  cleanup = { enabled: false, minutes: 15 },
+  catchLog = { channelId: '', trigger: null }
+) {
   let done = null;
   let cleaned = null; // message count, or text for a ban
+  // Read what they wrote BEFORE it is deleted (a ban removes it at once).
+  const deleted =
+    catchLog.channelId && cleanup.enabled
+      ? await collectRecentMessages(guild, member.id, cleanup.minutes).catch(() => [])
+      : [];
   try {
     if (entry.action === 'timeout' && member.moderatable) {
       await member.timeout(Math.min(entry.timeoutMinutes * 60_000, MAX_TIMEOUT_MS), reason);
@@ -210,6 +302,14 @@ async function punish(guild, member, entry, reason, cleanup = { enabled: false, 
     });
   }
   await postModLog(guild, embed);
+  if (catchLog.channelId)
+    await postCatchLog(guild, catchLog.channelId, {
+      member,
+      done,
+      reason,
+      trigger: catchLog.trigger,
+      deleted,
+    }).catch((err) => log.error('module:honeypot', 'catch log post failed:', err.message));
   return done;
 }
 
@@ -335,7 +435,11 @@ on('honeypot', 'messageCreate', async (message, config) => {
     member,
     entry,
     'Pułapka: wysłanie wiadomości na kanale pułapce',
-    cfg.cleanup
+    cfg.cleanup,
+    {
+      channelId: cfg.logChannelId,
+      trigger: { content: message.content, attachments: message.attachments?.size ?? 0 },
+    }
   );
   if (entry.deleteMessage && message.deletable) await message.delete().catch(() => {});
   if (done) {
@@ -367,7 +471,8 @@ on('honeypot', 'reactionAdd', async ({ reaction, user }, config) => {
     member,
     entry,
     'Pułapka: dodanie reakcji do wiadomości pułapki',
-    cfg.cleanup
+    cfg.cleanup,
+    { channelId: cfg.logChannelId, trigger: null }
   );
   if (done) {
     await bumpHoneypotStat(guild, 'messages', entry.channelId);

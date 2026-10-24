@@ -45,6 +45,7 @@ export default function Honeypot() {
       setForm({
         exemptRoles: data.config.exemptRoles,
         cleanup: data.config.cleanup,
+        logChannelId: data.config.logChannelId,
         channels: data.config.channels.map(toChannelRow),
         messages: data.config.messages.map(toMessageRow),
       });
@@ -88,6 +89,7 @@ export default function Honeypot() {
       const body = {
         exemptRoles: form.exemptRoles,
         cleanup: form.cleanup,
+        logChannelId: form.logChannelId,
         channels: form.channels.map((c) => ({
           channelId: c.channelId,
           action: c.action,
@@ -105,6 +107,7 @@ export default function Honeypot() {
       setForm({
         exemptRoles: config.exemptRoles,
         cleanup: config.cleanup,
+        logChannelId: config.logChannelId,
         channels: config.channels.map(toChannelRow),
         messages: config.messages.map(toMessageRow),
       });
@@ -309,6 +312,25 @@ export default function Honeypot() {
               setForm((f) => ({ ...f, cleanup: { ...f.cleanup, minutes: Number(e.target.value) } }))
             }
           />
+        </div>
+
+        <div className="v2-field v2-section-gap-sm">
+          <label>Log channel (what they wrote)</label>
+          <select
+            value={form.logChannelId}
+            onChange={(e) => setForm((f) => ({ ...f, logChannelId: e.target.value }))}
+          >
+            <option value="">— none —</option>
+            {data.channels.map((c) => (
+              <option key={c.id} value={c.id}>
+                #{c.name}
+              </option>
+            ))}
+          </select>
+          <p className="v2-field-hint">
+            Every catch is posted here: who was caught, what they wrote on the trap and — if cleanup is on —
+            the messages that were deleted (links are shown as plain text).
+          </p>
         </div>
 
         <div className="v2-field v2-section-gap-sm">

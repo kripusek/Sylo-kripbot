@@ -1261,6 +1261,7 @@ router.post(
       config = normaliseHoneypotConfig({
         exemptRoles: [].concat(b.exemptRoles ?? []),
         cleanup: { enabled: b.hp_cleanup_enabled === 'on', minutes: b.hp_cleanup_minutes },
+        logChannelId: b.hp_log_channel,
         channels: hpChannels.map((channelId, i) => ({
           channelId,
           action: hpChannelActions[i],

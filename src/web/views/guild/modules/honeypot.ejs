@@ -93,6 +93,15 @@
   <input class="u-w-field-sm" type="number" name="hp_cleanup_minutes" min="1" max="1440" value="<%= cleanup.minutes || 15 %>" />
   <p class="muted small">Works with kick, timeout and ban. The bot needs Manage Messages and Read Message History in the channels to clean; a ban uses Discord's own message deletion.</p>
 
+  <h3 class="u-mt-4">Log channel (what they wrote)</h3>
+  <p class="muted small">Every catch is posted here: who was caught, what they wrote on the trap and — if cleanup is on — the messages that were deleted (links are shown as plain text).</p>
+  <select class="u-w-field" name="hp_log_channel">
+    <option value="">— none —</option>
+    <% (typeof channels !== 'undefined' ? channels : []).forEach(function (c) { %>
+      <option value="<%= c.id %>" <%= c.id === cfg.logChannelId ? 'selected' : '' %>>#<%= c.name %></option>
+    <% }) %>
+  </select>
+
   <h3 class="u-mt-4">Exempt roles</h3>
   <p class="muted small">Members with any of these roles are never punished by the honeypot (Administrators are always exempt).</p>
   <%- include('../../partials/chip-picker', { field: 'exemptRoles', kind: 'role', items: roles, selected: exemptRoles }) %>
