@@ -24,8 +24,8 @@ import { normaliseEconomy, formatCoins } from './economy.js';
 export { CS2_MODES };
 /** A match must finish this long after the stake, so a game already on its last rounds can't be bet on. */
 export const MIN_MATCH_GAP_MS = 25 * 60_000;
-/** Wingman games are short, so the stake only needs to precede them by 10 minutes. */
-const MODE_GAP_MS = { wingman: 10 * 60_000 };
+/** Wingman and Rush games are short, so the stake only needs a shorter head start. */
+const MODE_GAP_MS = { wingman: 10 * 60_000, rush: 7 * 60_000 };
 export const matchGapMs = (mode) => MODE_GAP_MS[mode] ?? MIN_MATCH_GAP_MS;
 /** Stakes with no usable match after this long are refunded. */
 export const EXPIRY_MS = 72 * 3_600_000;

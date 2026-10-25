@@ -396,7 +396,7 @@ test('claimCs2ByLink settles from a Leetify link, with all the checks', async ()
     assert.match((await claimCs2ByLink(guild, U1, link(A))).message, /nie widzę/i);
 
     byId = { [A]: { ...match(A, placed + 5 * 60_000, STEAM1, 13, 3, 'rush') } };
-    assert.match((await claimCs2ByLink(guild, U1, link(A))).message, /co najmniej 25 min/);
+    assert.match((await claimCs2ByLink(guild, U1, link(A))).message, /co najmniej 7 min/);
 
     byId = { [A]: match(A, at, STEAM1, 13, 3, 'premier') };
     assert.match((await claimCs2ByLink(guild, U1, link(A))).message, /Premier.*Rush/);
@@ -440,6 +440,7 @@ test('debugCs2 lists recent matches and how the bot reads them', async () => {
 
 test('wingman stakes only need a 10 minute head start, other modes 25', async () => {
   assert.equal(matchGapMs('wingman'), 10 * 60_000);
+  assert.equal(matchGapMs('rush'), 7 * 60_000);
   assert.equal(matchGapMs('premier'), MIN_MATCH_GAP_MS);
   assert.equal(matchGapMs('any'), MIN_MATCH_GAP_MS);
 });
