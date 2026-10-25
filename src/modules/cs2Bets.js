@@ -17,7 +17,7 @@ import {
   describeMatch,
   detectMode,
 } from './lib/cs2.js';
-import { leetifyConfigured, leetifyMatches, leetifyMatchById } from './markets.js';
+import { leetifyConfigured, leetifyMatches, leetifyMatchById, leetifyRawMatches } from './markets.js';
 import { getGuildModule } from '../db/modules.js';
 import { normaliseEconomy, formatCoins } from './economy.js';
 
@@ -171,6 +171,13 @@ export async function debugCs2(guildId, userId, limit = 5) {
   const steamId = bet?.steamId ?? (await getSteamLink(guildId, userId));
   if (!steamId) return 'Brak połączonego Steama.';
   const matches = (await leetifyMatches(steamId)).slice(0, limit);
+  if (!matches.length) {
+    const raw = await leetifyRawMatches(steamId).catch((error) => ({
+      status: '?',
+      text: String(error.message),
+    }));
+    return `Konto Steam ${steamId}: lista meczów jest pusta.\nOdpowiedź Leetify (HTTP ${raw.status}):\n${raw.text.replaceAll('`', "'")}`;
+  }
   const lines = matches.map((m) => {
     const d = describeMatch(m, steamId);
     const at = d.finishedAt ? new Date(d.finishedAt).toISOString().slice(0, 16).replace('T', ' ') : '?';

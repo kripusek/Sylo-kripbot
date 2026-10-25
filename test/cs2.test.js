@@ -186,3 +186,12 @@ test('parseLeetifyMatchId reads a pasted Leetify link', () => {
   assert.equal(parseLeetifyMatchId(id.toUpperCase()), id);
   assert.equal(parseLeetifyMatchId('https://example.com/x'), null);
 });
+
+test('matchList finds the matches whatever the wrapper', () => {
+  assert.deepEqual(matchList([{ id: 1 }]), [{ id: 1 }]);
+  assert.deepEqual(matchList({ matches: [{ id: 2 }] }), [{ id: 2 }]);
+  assert.deepEqual(matchList({ data: [{ id: 3 }] }), [{ id: 3 }]);
+  assert.deepEqual(matchList({ foo: [{ id: 4 }], total: 1 }), [{ id: 4 }]);
+  assert.deepEqual(matchList({ a: [1], b: [2] }), []);
+  assert.deepEqual(matchList(null), []);
+});

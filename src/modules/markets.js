@@ -212,6 +212,19 @@ export async function leetifyMatches(steamId) {
   return matchList(await res.json());
 }
 
+/** The raw answer of the match list, for diagnosing an empty result. */
+export async function leetifyRawMatches(steamId) {
+  const res = await fetch(`${LEETIFY}/v3/profile/matches?steamId=${steamId}&limit=20`, {
+    headers: {
+      accept: 'application/json',
+      authorization: `Bearer ${leetifyKey()}`,
+      _leetify_key: leetifyKey(),
+    },
+    signal: AbortSignal.timeout(POLYMARKET_TIMEOUT_MS),
+  });
+  return { status: res.status, text: (await res.text()).slice(0, 400) };
+}
+
 /** One match by its Leetify game id, or null when Leetify doesn't know it. */
 export async function leetifyMatchById(id) {
   const headers = {

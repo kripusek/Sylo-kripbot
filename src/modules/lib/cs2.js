@@ -26,8 +26,15 @@ export function parseSteam64(input) {
 const first = (...values) => values.find((v) => v !== undefined && v !== null);
 
 /** The list of matches out of `/v3/profile/matches`, which may be a bare array or `{ matches: [...] }`. */
-export const matchList = (body) =>
-  Array.isArray(body) ? body : Array.isArray(body?.matches) ? body.matches : [];
+export function matchList(body) {
+  if (Array.isArray(body)) return body;
+  if (!body || typeof body !== 'object') return [];
+  for (const key of ['matches', 'data', 'results', 'items', 'games'])
+    if (Array.isArray(body[key])) return body[key];
+  // Unknown wrapper: take the only array in it, if there is exactly one.
+  const arrays = Object.values(body).filter(Array.isArray);
+  return arrays.length === 1 ? arrays[0] : [];
+}
 
 const finishedMs = (match) => {
   const ms = Date.parse(first(match?.finished_at, match?.finishedAt) ?? '');
