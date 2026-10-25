@@ -444,3 +444,25 @@ test('wingman stakes only need a 10 minute head start, other modes 25', async ()
   assert.equal(matchGapMs('premier'), MIN_MATCH_GAP_MS);
   assert.equal(matchGapMs('any'), MIN_MATCH_GAP_MS);
 });
+
+test('Leetify list request carries steam64_id and an error body is reported, not read as "no matches"', async () => {
+  process.env.LEETIFY_API_KEY = 'k';
+  const realFetch = globalThis.fetch;
+  let seen;
+  globalThis.fetch = async (url) => {
+    seen = new URL(String(url));
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ error: 'At least one identifier must be provided' }),
+    };
+  };
+  try {
+    const { leetifyMatches } = await import('../src/modules/markets.js');
+    await assert.rejects(() => leetifyMatches(STEAM1), /At least one identifier/);
+    assert.equal(seen.searchParams.get('steam64_id'), STEAM1);
+  } finally {
+    globalThis.fetch = realFetch;
+    delete process.env.LEETIFY_API_KEY;
+  }
+});

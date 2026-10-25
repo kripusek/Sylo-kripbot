@@ -196,7 +196,7 @@ const leetifyKey = () => process.env.LEETIFY_API_KEY ?? '';
 export const leetifyConfigured = () => Boolean(leetifyKey());
 
 export async function leetifyMatches(steamId) {
-  const res = await fetch(`${LEETIFY}/v3/profile/matches?steamId=${steamId}&limit=20`, {
+  const res = await fetch(`${LEETIFY}/v3/profile/matches?steam64_id=${steamId}&steamId=${steamId}&limit=20`, {
     headers: {
       accept: 'application/json',
       authorization: `Bearer ${leetifyKey()}`,
@@ -209,12 +209,16 @@ export async function leetifyMatches(steamId) {
   if (res.status === 404)
     throw new Error('Leetify nie zna tego SteamID (profil musi istnieć na leetify.com).');
   if (!res.ok) throw new Error(`Leetify odpowiedział ${res.status}.`);
-  return matchList(await res.json());
+  const body = await res.json();
+  // Leetify answers some bad requests with HTTP 200 and {"error": "..."}.
+  if (body && !Array.isArray(body) && typeof body.error === 'string')
+    throw new Error(`Leetify: ${body.error}`);
+  return matchList(body);
 }
 
 /** The raw answer of the match list, for diagnosing an empty result. */
 export async function leetifyRawMatches(steamId) {
-  const res = await fetch(`${LEETIFY}/v3/profile/matches?steamId=${steamId}&limit=20`, {
+  const res = await fetch(`${LEETIFY}/v3/profile/matches?steam64_id=${steamId}&steamId=${steamId}&limit=20`, {
     headers: {
       accept: 'application/json',
       authorization: `Bearer ${leetifyKey()}`,
