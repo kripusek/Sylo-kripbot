@@ -378,7 +378,7 @@ test('claimCs2ByLink settles from a Leetify link, with all the checks', async ()
   let byId = {};
   globalThis.fetch = async (url) => {
     const u = new URL(String(url));
-    if (u.pathname.startsWith('/v3/matches/'))
+    if (/^\/v[23]\/matches\//.test(u.pathname))
       return {
         ok: !!byId[u.pathname.split('/').pop()],
         status: byId[u.pathname.split('/').pop()] ? 200 : 404,

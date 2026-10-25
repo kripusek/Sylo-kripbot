@@ -49,7 +49,9 @@ export function evaluateCs2Match(match, steamId) {
   const unclear = { state: 'unclear', map, score: '' };
   if (!me) return unclear;
 
-  const team = Number(first(me.initial_team_number, me.team_number, me.teamNumber, me.team));
+  const team = Number(
+    first(me.initial_team_number, me.initialTeamNumber, me.team_number, me.teamNumber, me.team)
+  );
   const mine = scores.find((s) => s.team === team);
   const others = scores.filter((s) => s.team !== team);
   let computed = null;

@@ -214,20 +214,26 @@ export async function leetifyMatches(steamId) {
 
 /** One match by its Leetify game id, or null when Leetify doesn't know it. */
 export async function leetifyMatchById(id) {
-  const res = await fetch(`${LEETIFY}/v3/matches/${encodeURIComponent(id)}`, {
-    headers: {
-      accept: 'application/json',
-      authorization: `Bearer ${leetifyKey()}`,
-      _leetify_key: leetifyKey(),
-    },
-    signal: AbortSignal.timeout(POLYMARKET_TIMEOUT_MS),
-  });
-  if (res.status === 404) return null;
-  if (res.status === 401 || res.status === 403)
-    throw new Error('Leetify odrzucił klucz API (LEETIFY_API_KEY).');
-  if (!res.ok) throw new Error(`Leetify odpowiedział ${res.status}.`);
-  const body = await res.json();
-  return body && typeof body === 'object' && !Array.isArray(body) ? (body.match ?? body) : null;
+  const headers = {
+    accept: 'application/json',
+    authorization: `Bearer ${leetifyKey()}`,
+    _leetify_key: leetifyKey(),
+  };
+  // The documented route is /v2/matches/{gameId}; /v3 is kept as a fallback in case Leetify moves it.
+  for (const path of [`/v2/matches/${encodeURIComponent(id)}`, `/v3/matches/${encodeURIComponent(id)}`]) {
+    const res = await fetch(`${LEETIFY}${path}`, {
+      headers,
+      signal: AbortSignal.timeout(POLYMARKET_TIMEOUT_MS),
+    });
+    if (res.status === 404) continue;
+    if (res.status === 401 || res.status === 403)
+      throw new Error('Leetify odrzucił klucz API (LEETIFY_API_KEY).');
+    if (!res.ok) throw new Error(`Leetify odpowiedział ${res.status}.`);
+    const body = await res.json();
+    const match = body?.matchDetails ?? body?.match_details ?? body?.match ?? body;
+    if (match && typeof match === 'object' && !Array.isArray(match)) return match;
+  }
+  return null;
 }
 
 /**
