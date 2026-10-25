@@ -98,7 +98,7 @@ test('CS2 market settles itself from Leetify and refunds ties', async () => {
       market.options.map((o) => o.label),
       ['Wygra', 'Przegra']
     );
-    assert.match(seen[0].url, /api-public\.cs-prod\.leetify\.com\/v3\/profile\/matches\?steamId=7656/);
+    assert.match(seen[0].url, /api-public\.cs-prod\.leetify\.com\/v3\/profile\/matches\?steam64_id=7656/);
     assert.equal(seen[0].auth, 'Bearer test-key');
 
     await credit(GUILD, A, 300);
