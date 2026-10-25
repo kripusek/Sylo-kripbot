@@ -7,12 +7,12 @@ import { log } from '../lib/log.js';
 import { runtime } from '../runtime.js';
 import { ensureAccount, credit, debit } from '../db/economy.js';
 import { getSteamLink, insertCs2Bet, pendingCs2Bets, settleCs2Bet } from '../db/cs2.js';
-import { firstMatchAfter } from './lib/cs2.js';
+import { firstMatchAfter, CS2_MODES, modeInfo, describeModeFields } from './lib/cs2.js';
 import { leetifyConfigured, leetifyMatches } from './markets.js';
 import { getGuildModule } from '../db/modules.js';
 import { normaliseEconomy, formatCoins } from './economy.js';
 
-export const CS2_WIN_MULTIPLIER = 2;
+export { CS2_MODES };
 /** A match must finish this long after the stake, so a game already on its last rounds can't be bet on. */
 export const MIN_MATCH_GAP_MS = 25 * 60_000;
 /** Stakes with no usable match after this long are refunded. */
@@ -23,7 +23,9 @@ const SYNC_MS = 5 * 60_000;
  * Take the stake and open it.
  * @returns {Promise<{ ok: true, balance: number, economy: object } | { ok: false, error: string }>}
  */
-export async function placeCs2Bet(guildId, userId, amount) {
+export async function placeCs2Bet(guildId, userId, amount, mode) {
+  if (!CS2_MODES[mode])
+    return { ok: false, error: 'Wybierz tryb gry: Rush, Wingman, Competitive albo Premier.' };
   const economy = normaliseEconomy((await getGuildModule(guildId, 'economy')).config);
   if (!(await getGuildModule(guildId, 'economy')).enabled)
     return { ok: false, error: 'Moduł Ekonomia nie jest włączony na tym serwerze.' };
@@ -43,7 +45,7 @@ export async function placeCs2Bet(guildId, userId, amount) {
   if (balance === null) return { ok: false, error: 'Nie masz tylu monet.' };
   let id;
   try {
-    id = await insertCs2Bet(guildId, userId, steamId, amount);
+    id = await insertCs2Bet(guildId, userId, steamId, amount, mode);
   } catch (error) {
     await credit(guildId, userId, amount);
     throw error;
@@ -88,7 +90,17 @@ export async function syncCs2Bets(now = Date.now()) {
     for (const bet of bets) {
       const economy = normaliseEconomy((await getGuildModule(bet.guildId, 'economy')).config);
       const coins = (n) => formatCoins(economy, n).replaceAll('**', '');
-      const found = firstMatchAfter(matches, steamId, bet.createdAt + MIN_MATCH_GAP_MS);
+      const wanted = CS2_MODES[bet.mode] ? bet.mode : null;
+      const multiplier = modeInfo(bet.mode).multiplier;
+      const win = Math.floor(bet.amount * multiplier);
+      let found = firstMatchAfter(matches, steamId, bet.createdAt + MIN_MATCH_GAP_MS, wanted);
+      if (found?.none) {
+        log.warn(
+          'module:cs2-bets',
+          `bet ${bet.id} (${bet.mode}): ${found.skippedUnknown} match(es) skipped because Leetify doesn't say their mode — e.g. ${describeModeFields(matches[0])}`
+        );
+        found = null;
+      }
       const info = found
         ? `${found.map || 'CS2'}${found.score ? ` ${found.score}` : ''} — dane: Leetify`
         : '';
@@ -107,8 +119,8 @@ export async function syncCs2Bets(now = Date.now()) {
         await finish(
           bet,
           'won',
-          bet.amount * CS2_WIN_MULTIPLIER,
-          `🏆 Wygrałeś mecz CS2 (${info})! Wypłata: ${coins(bet.amount * CS2_WIN_MULTIPLIER)}.`
+          win,
+          `🏆 Wygrałeś mecz CS2 (${info})! Wypłata ×${multiplier}: ${coins(win)}.`
         );
       else if (found.state === 'loss')
         await finish(

@@ -38,7 +38,7 @@ import {
   rouletteMultiplier,
 } from '../../modules/lib/economyGames.js';
 import { log } from '../../lib/log.js';
-import { placeCs2Bet, CS2_WIN_MULTIPLIER, MIN_MATCH_GAP_MS } from '../../modules/cs2Bets.js';
+import { placeCs2Bet, CS2_MODES, MIN_MATCH_GAP_MS } from '../../modules/cs2Bets.js';
 
 const BLACKJACK_TIMEOUT_MS = 60_000;
 const SIDE_LABEL = { orzel: 'Orzeł', reszka: 'Reszka' };
@@ -139,6 +139,18 @@ export const data = new SlashCommandBuilder()
       .setName('cs2')
       .setDescription('Bet on winning your next CS2 match (needs /steam polacz).')
       .addIntegerOption(stake(BET))
+      .addStringOption((o) =>
+        o
+          .setName('tryb')
+          .setDescription('Game mode of the match (decides the payout)')
+          .setRequired(true)
+          .addChoices(
+            ...Object.entries(CS2_MODES).map(([value, m]) => ({
+              name: `${m.label} (x${m.multiplier})`,
+              value,
+            }))
+          )
+      )
   )
   .addSubcommand((s) =>
     s
@@ -487,7 +499,8 @@ async function cs2Game(interaction) {
   const config = await loadEconomy(interaction);
   if (!config) return;
   const bet = interaction.options.getInteger('stawka', true);
-  const result = await placeCs2Bet(interaction.guildId, interaction.user.id, bet);
+  const mode = interaction.options.getString('tryb', true);
+  const result = await placeCs2Bet(interaction.guildId, interaction.user.id, bet, mode);
   if (!result.ok) return interaction.reply(ephemeral(result.error));
   const minutes = MIN_MATCH_GAP_MS / 60_000;
   return interaction.reply({
@@ -496,8 +509,8 @@ async function cs2Game(interaction) {
         .setColor(COLORS.info)
         .setTitle('🎯 Stawka na mecz CS2')
         .setDescription(
-          `Postawiłeś ${formatCoins(config, bet)} na wygraną w swoim następnym meczu.\n` +
-            `Wygrana: **${CS2_WIN_MULTIPLIER}x**, remis zwraca stawkę. Liczy się pierwszy mecz, który skończy się ` +
+          `Postawiłeś ${formatCoins(config, bet)} na wygraną w swoim następnym meczu **${CS2_MODES[mode].label}**.\n` +
+            `Wygrana: **${CS2_MODES[mode].multiplier}x**, remis zwraca stawkę. Liczy się pierwszy mecz tego trybu, który skończy się ` +
             `co najmniej ${minutes} min po stawce. Wynik przyjdzie w DM (dane: Leetify).`
         )
         .setFooter({ text: `Saldo: ${result.balance}` }),

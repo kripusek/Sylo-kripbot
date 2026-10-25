@@ -160,8 +160,9 @@ test('steam link pages: start redirects to Steam, callback stores the verified a
 // ------------------------------------------------------------------- bets ----
 
 const GUILD = '800000000000000051';
-const match = (id, finishedAt, steamId, mine, theirs) => ({
+const match = (id, finishedAt, steamId, mine, theirs, mode = 'wingman') => ({
   id,
+  game_mode: mode,
   finished_at: new Date(finishedAt).toISOString(),
   map_name: 'de_mirage',
   team_scores: [
@@ -183,19 +184,19 @@ test('placeCs2Bet needs Leetify, a linked Steam, limits and funds', async () => 
   await setup();
   delete process.env.LEETIFY_API_KEY;
   await credit(GUILD, U1, 1000);
-  assert.match((await placeCs2Bet(GUILD, U1, 100)).error, /Leetify/);
+  assert.match((await placeCs2Bet(GUILD, U1, 100, 'wingman')).error, /Leetify/);
   process.env.LEETIFY_API_KEY = 'k';
-  assert.match((await placeCs2Bet(GUILD, U1, 100)).error, /\/steam polacz/);
+  assert.match((await placeCs2Bet(GUILD, U1, 100, 'wingman')).error, /\/steam polacz/);
   await saveSteamLink(GUILD, U1, STEAM1);
-  assert.match((await placeCs2Bet(GUILD, U1, 5)).error, /od 10 do 5000/);
-  assert.match((await placeCs2Bet(GUILD, U2, 100)).error, /\/steam polacz/);
+  assert.match((await placeCs2Bet(GUILD, U1, 5, 'wingman')).error, /od 10 do 5000/);
+  assert.match((await placeCs2Bet(GUILD, U2, 100, 'wingman')).error, /\/steam polacz/);
   await saveSteamLink(GUILD, U2, STEAM2);
-  assert.match((await placeCs2Bet(GUILD, U2, 100)).error, /Nie masz tylu monet/);
+  assert.match((await placeCs2Bet(GUILD, U2, 100, 'wingman')).error, /Nie masz tylu monet/);
 
-  const ok = await placeCs2Bet(GUILD, U1, 200);
+  const ok = await placeCs2Bet(GUILD, U1, 200, 'wingman');
   assert.equal(ok.ok, true);
   assert.equal(ok.balance, 800);
-  assert.match((await placeCs2Bet(GUILD, U1, 100)).error, /aktywną stawkę/);
+  assert.match((await placeCs2Bet(GUILD, U1, 100, 'wingman')).error, /aktywną stawkę/);
   assert.equal((await getAccount(GUILD, U1)).balance, 800, 'a refused second stake costs nothing');
   assert.equal((await pendingCs2BetOf(GUILD, U1)).amount, 200);
   delete process.env.LEETIFY_API_KEY;
@@ -207,9 +208,9 @@ test('two simultaneous stakes: exactly one is accepted and the other is refunded
   await credit(guild, U1, 1000);
   await saveSteamLink(guild, U1, STEAM1);
   const results = await Promise.all([
-    placeCs2Bet(guild, U1, 100),
-    placeCs2Bet(guild, U1, 100),
-    placeCs2Bet(guild, U1, 100),
+    placeCs2Bet(guild, U1, 100, 'wingman'),
+    placeCs2Bet(guild, U1, 100, 'wingman'),
+    placeCs2Bet(guild, U1, 100, 'wingman'),
   ]);
   assert.equal(results.filter((r) => r.ok).length, 1);
   assert.equal((await getAccount(guild, U1)).balance, 900);
@@ -222,8 +223,8 @@ test('syncCs2Bets pays 2x on a win, nothing on a loss, refunds ties and skips to
   for (const u of [U1, U2]) await credit(guild, u, 1000);
   await saveSteamLink(guild, U1, STEAM1);
   await saveSteamLink(guild, U2, STEAM2);
-  await placeCs2Bet(guild, U1, 100);
-  await placeCs2Bet(guild, U2, 100);
+  await placeCs2Bet(guild, U1, 100, 'wingman');
+  await placeCs2Bet(guild, U2, 100, 'wingman');
   const placed = (await pendingCs2BetOf(guild, U1)).createdAt;
 
   const realFetch = globalThis.fetch;
@@ -257,7 +258,7 @@ test('syncCs2Bets pays 2x on a win, nothing on a loss, refunds ties and skips to
     await syncCs2Bets();
     assert.equal((await getAccount(guild, U1)).balance, 1100, 'settled stakes are never paid twice');
 
-    await placeCs2Bet(guild, U1, 50);
+    await placeCs2Bet(guild, U1, 50, 'wingman');
     const at = (await pendingCs2BetOf(guild, U1)).createdAt;
     table = { [STEAM1]: [match('t', at + MIN_MATCH_GAP_MS + 60_000, STEAM1, 15, 15)] };
     await syncCs2Bets();
@@ -273,7 +274,7 @@ test('stakes with no usable match are refunded after three days', async () => {
   await setup(guild);
   await credit(guild, U1, 500);
   await saveSteamLink(guild, U1, STEAM1);
-  await placeCs2Bet(guild, U1, 100);
+  await placeCs2Bet(guild, U1, 100, 'wingman');
   const realFetch = globalThis.fetch;
   globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ matches: [] }) });
   try {
@@ -289,9 +290,57 @@ test('stakes with no usable match are refunded after three days', async () => {
 test('/forget removes the link and finished stakes but keeps a pending stake', async () => {
   const guild = '800000000000000055';
   await saveSteamLink(guild, U1, STEAM1);
-  const id = await insertCs2Bet(guild, U1, STEAM1, 10);
+  const id = await insertCs2Bet(guild, U1, STEAM1, 10, 'wingman');
   assert.ok(id);
   await forgetUser(guild, U1);
   assert.equal(await getSteamLink(guild, U1), null);
   assert.ok(await pendingCs2BetOf(guild, U1), 'owed coins are not forgotten');
+});
+
+test('each mode pays its own multiplier and only counts matches of that mode', async () => {
+  const guild = '800000000000000056';
+  await setup(guild);
+  const users = { rush: U1, competitive: U2, premier: '300000000000000003' };
+  const steams = { rush: STEAM1, competitive: STEAM2, premier: '76561198000000003' };
+  for (const [mode, user] of Object.entries(users)) {
+    await credit(guild, user, 1000);
+    await saveSteamLink(guild, user, steams[mode]);
+    await placeCs2Bet(guild, user, 100, mode);
+  }
+  assert.match((await placeCs2Bet(guild, U1, 100, 'bogus')).error, /tryb/);
+  const placed = (await pendingCs2BetOf(guild, U1)).createdAt;
+  const at = placed + MIN_MATCH_GAP_MS + 60_000;
+
+  const realFetch = globalThis.fetch;
+  let table = {};
+  globalThis.fetch = async (url) => {
+    const id = new URL(String(url)).searchParams.get('steamId');
+    return { ok: true, status: 200, json: async () => ({ matches: table[id] ?? [] }) };
+  };
+  try {
+    // A win in the wrong mode, or in a mode Leetify doesn't name, settles nothing.
+    table = {
+      [steams.rush]: [match('x', at, steams.rush, 13, 5, 'wingman')],
+      [steams.competitive]: [
+        { ...match('y', at, steams.competitive, 13, 5), game_mode: undefined, data_source: 'matchmaking' },
+      ],
+      [steams.premier]: [match('p', at, steams.premier, 13, 5, 'premier')],
+    };
+    await syncCs2Bets();
+    assert.ok(await pendingCs2BetOf(guild, users.rush));
+    assert.ok(await pendingCs2BetOf(guild, users.competitive));
+    assert.equal(await pendingCs2BetOf(guild, users.premier), null);
+    assert.equal((await getAccount(guild, users.premier)).balance, 1200, '900 + 100 x3');
+
+    table = {
+      [steams.rush]: [match('r', at, steams.rush, 13, 5, 'rush')],
+      [steams.competitive]: [match('c', at, steams.competitive, 13, 5, 'competitive')],
+    };
+    await syncCs2Bets();
+    assert.equal((await getAccount(guild, users.rush)).balance, 1050, '900 + 100 x1.5');
+    assert.equal((await getAccount(guild, users.competitive)).balance, 1150, '900 + 100 x2.5');
+  } finally {
+    globalThis.fetch = realFetch;
+    delete process.env.LEETIFY_API_KEY;
+  }
 });

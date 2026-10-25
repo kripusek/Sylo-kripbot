@@ -25,8 +25,10 @@ registerPostgresBootstrap(`
     status     TEXT NOT NULL DEFAULT 'pending',
     payout     BIGINT NOT NULL DEFAULT 0,
     created_at BIGINT NOT NULL,
-    settled_at BIGINT NOT NULL DEFAULT 0
+    settled_at BIGINT NOT NULL DEFAULT 0,
+    mode       TEXT NOT NULL DEFAULT 'any'
   );
+  ALTER TABLE cs2_bets ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'any';
   CREATE INDEX IF NOT EXISTS idx_cs2_bets_status ON cs2_bets (status, id);
   CREATE INDEX IF NOT EXISTS idx_cs2_bets_user ON cs2_bets (guild_id, user_id, id);
 `);
@@ -44,6 +46,7 @@ const toBet = (r) =>
         payout: num(r.payout),
         createdAt: num(r.created_at),
         settledAt: num(r.settled_at),
+        mode: r.mode,
       }
     : null;
 
@@ -58,9 +61,9 @@ const removeLinkStmt = prepare('DELETE FROM steam_links WHERE guild_id = ? AND u
 
 // One pending stake per member: the NOT EXISTS guard and the insert are one statement.
 const insertBetStmt = prepare(
-  `INSERT INTO cs2_bets (guild_id, user_id, steam_id, amount, created_at)
+  `INSERT INTO cs2_bets (guild_id, user_id, steam_id, amount, created_at, mode)
    SELECT CAST(@guildId AS TEXT), CAST(@userId AS TEXT), CAST(@steamId AS TEXT),
-          CAST(@amount AS BIGINT), CAST(@now AS BIGINT)
+          CAST(@amount AS BIGINT), CAST(@now AS BIGINT), CAST(@mode AS TEXT)
    WHERE NOT EXISTS (
      SELECT 1 FROM cs2_bets WHERE guild_id = @guildId AND user_id = @userId AND status = 'pending'
    )`,
@@ -101,8 +104,8 @@ export async function removeSteamLink(guildId, userId) {
 }
 
 /** @returns {Promise<number | null>} the stake id, or null when the member already has a pending one */
-export async function insertCs2Bet(guildId, userId, steamId, amount, now = Date.now()) {
-  const info = await insertBetStmt.run({ guildId, userId, steamId, amount, now });
+export async function insertCs2Bet(guildId, userId, steamId, amount, mode = 'any', now = Date.now()) {
+  const info = await insertBetStmt.run({ guildId, userId, steamId, amount, mode, now });
   return info.changes > 0 ? Number(info.lastInsertRowid) : null;
 }
 

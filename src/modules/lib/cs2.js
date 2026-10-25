@@ -65,17 +65,76 @@ export function evaluateCs2Match(match, steamId) {
   return state ? { state, map, score: unclear.score } : unclear;
 }
 
+/** Game modes a CS2 stake can be placed on, with what a win pays. */
+export const CS2_MODES = {
+  rush: { label: 'Rush', multiplier: 1.5 },
+  wingman: { label: 'Wingman', multiplier: 2 },
+  competitive: { label: 'Competitive', multiplier: 2.5 },
+  premier: { label: 'Premier', multiplier: 3 },
+};
+/** Stakes placed before modes existed: any match counts, flat 2x. */
+export const LEGACY_MODE = { label: 'dowolny', multiplier: 2 };
+
+export const modeInfo = (mode) => CS2_MODES[mode] ?? LEGACY_MODE;
+
+/** The mode-looking fields of a Leetify match, for guessing the mode (and for the log when we can't). */
+const modeFields = (match) =>
+  [
+    'data_source',
+    'dataSource',
+    'game_mode',
+    'gameMode',
+    'mode',
+    'match_type',
+    'matchType',
+    'rank_type',
+    'rankType',
+    'queue',
+    'game_type',
+  ]
+    .map((key) => [key, match?.[key]])
+    .filter(([, v]) => typeof v === 'string' && v);
+
+/**
+ * Which mode a match was played in, or null when the data doesn't say clearly.
+ * Leetify's mode fields aren't fully documented, so this only recognises the
+ * mode's own name — it never guesses (plain "matchmaking" could be Premier or
+ * Competitive, so it stays unknown).
+ */
+export function detectMode(match) {
+  const text = modeFields(match)
+    .map(([, v]) => v.toLowerCase())
+    .join(' ');
+  const hits = Object.keys(CS2_MODES).filter((mode) => text.includes(mode));
+  return hits.length === 1 ? hits[0] : null;
+}
+
+/** For logging: the raw mode-ish values of a match. */
+export const describeModeFields = (match) =>
+  modeFields(match)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(', ') || '(none)';
+
 /**
  * The first match the player finished after `afterMs`, and what it says.
- * Matches are compared by finish time, oldest first.
+ * Matches are compared by finish time, oldest first. With `wantedMode`, only
+ * matches clearly in that mode count — other modes and matches whose mode can't
+ * be told are skipped (`skippedUnknown` counts the latter, for logging).
  * @returns {{ id: string, finishedAt: number, state: string, map: string, score: string } | null} null when none yet
  */
-export function firstMatchAfter(matches, steamId, afterMs) {
+export function firstMatchAfter(matches, steamId, afterMs, wantedMode = null) {
+  let skippedUnknown = 0;
   const candidates = matches
     .map((m) => ({ m, at: finishedMs(m) }))
     .filter((x) => x.at !== null && x.at > afterMs)
+    .filter(({ m }) => {
+      if (!wantedMode || !CS2_MODES[wantedMode]) return true;
+      const mode = detectMode(m);
+      if (mode === null) skippedUnknown += 1;
+      return mode === wantedMode;
+    })
     .sort((a, b) => a.at - b.at);
-  if (!candidates.length) return null;
+  if (!candidates.length) return skippedUnknown ? { none: true, skippedUnknown } : null;
   const { m, at } = candidates[0];
   return { id: String(first(m.id, m.game_id) ?? ''), finishedAt: at, ...evaluateCs2Match(m, steamId) };
 }

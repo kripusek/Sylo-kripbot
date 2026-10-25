@@ -2220,5 +2220,6 @@
   "Link your Steam account (Steam sign-in).": "Połącz konto Steam (logowanie przez Steam).",
   "Show your linked Steam account and CS2 stake.": "Pokaż połączone konto Steam i stawkę CS2.",
   "Unlink your Steam account.": "Odłącz konto Steam.",
-  "Bet on winning your next CS2 match (needs /steam polacz).": "Postaw na wygraną w swoim następnym meczu CS2 (wymaga /steam polacz)."
+  "Bet on winning your next CS2 match (needs /steam polacz).": "Postaw na wygraną w swoim następnym meczu CS2 (wymaga /steam polacz).",
+  "Game mode of the match (decides the payout)": "Tryb gry meczu (decyduje o wypłacie)"
 }

@@ -4,7 +4,13 @@ import assert from 'node:assert/strict';
 import { setGuildModule } from '../src/db/modules.js';
 import { credit, getAccount } from '../src/db/economy.js';
 import { getMarket } from '../src/db/markets.js';
-import { parseSteam64, evaluateCs2Match, firstMatchAfter, matchList } from '../src/modules/lib/cs2.js';
+import {
+  parseSteam64,
+  evaluateCs2Match,
+  firstMatchAfter,
+  matchList,
+  detectMode,
+} from '../src/modules/lib/cs2.js';
 import { createCs2Market, placeBet, syncCs2 } from '../src/modules/markets.js';
 
 const STEAM = '76561198000000001';
@@ -154,4 +160,16 @@ test('syncCs2 does nothing without a Leetify key', async () => {
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test('detectMode only recognises a mode by its own name', () => {
+  assert.equal(detectMode({ game_mode: 'Wingman' }), 'wingman');
+  assert.equal(detectMode({ data_source: 'matchmaking_premier' }), 'premier');
+  assert.equal(detectMode({ data_source: 'matchmaking' }), null);
+  assert.equal(
+    detectMode({ data_source: 'premier', game_mode: 'wingman' }),
+    null,
+    'conflicting hints are unknown'
+  );
+  assert.equal(detectMode({}), null);
 });

@@ -952,6 +952,10 @@ export const MIGRATIONS = [
       CREATE INDEX idx_cs2_bets_user ON cs2_bets (guild_id, user_id, id);
     `);
   },
+  // CS2 stakes: which game mode the stake is on (decides the payout multiplier).
+  (database) => {
+    database.exec(`ALTER TABLE cs2_bets ADD COLUMN mode TEXT NOT NULL DEFAULT 'any';`);
+  },
 ];
 
 /** Highest schema version this build knows how to run. */

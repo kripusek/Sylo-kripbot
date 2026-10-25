@@ -14,7 +14,7 @@ Monety są wirtualne, nie mają wartości w prawdziwym świecie, a gry nie używ
 | `/ekonomia przekaz <komu> <kwota>` | Przelew (opcjonalna prowizja). |
 | `/gry coinflip`, `zgadnij`, `rps`, `kostka`, `sloty`, `blackjack`, `poker`, `ruletka`, `kubki` | Mini-gry za monety. |
 | `/steam polacz`, `status`, `odlacz` | Łączenie konta Steam (logowanie przez Steam). |
-| `/gry cs2 <stawka>` | Stawka na wygraną w swoim następnym meczu CS2: wygrana ×2, remis zwraca stawkę. |
+| `/gry cs2 <stawka> <tryb>` | Stawka na wygraną w swoim następnym meczu CS2 w wybranym trybie: Rush ×1,5, Wingman ×2, Competitive ×2,5, Premier ×3; remis zwraca stawkę. |
 | `/kup lista`, `/kup rola <rola>` | Sklep z rolami. |
 | `/level profil`, `/level top` | Poziomy (skróty do `/rank` i `/leaderboard`). |
 
@@ -47,8 +47,10 @@ Każda gra faworyzuje kasyno (zwrot dla gracza poniżej 100%): ruletka ma 15 pó
 Wymagają: klucza `LEETIFY_API_KEY` (leetify.com/app/developer), ustawionego `DASHBOARD_URL` (publiczny adres panelu, https), włączonej Ekonomii z włączonymi grami oraz jednorazowego połączenia Steama.
 
 1. **`/steam polacz`** — bot wysyła przycisk „Zaloguj przez Steam”. Po zalogowaniu Steam sam potwierdza numer konta (SteamID64), bot nie dostaje hasła ani klucza. Jedno konto Steam można połączyć tylko z jednym użytkownikiem Discorda na serwerze. Bez połączenia `/gry cs2` odpowie „użyj /steam polacz”.
-2. **`/gry cs2 <stawka>`** — stawka schodzi z konta od razu. Jedna aktywna stawka na osobę.
-3. Co 5 minut bot sprawdza w Leetify Twój pierwszy mecz, który **skończył się co najmniej 25 minut po stawce** (mecz już będący na finiszu nie może być obstawiony; krótszy mecz się nie liczy). Wygrana wypłaca ×2, przegrana zabiera stawkę, remis zwraca ją. Wynik przychodzi w DM.
+2. **`/gry cs2 <stawka> <tryb>`** — wybierasz tryb: Rush ×1,5, Wingman ×2, Competitive ×2,5, Premier ×3. Stawka schodzi z konta od razu. Jedna aktywna stawka na osobę.
+3. Co 5 minut bot sprawdza w Leetify Twój pierwszy mecz **wybranego trybu**, który **skończył się co najmniej 25 minut po stawce** (mecz już będący na finiszu nie może być obstawiony; krótszy mecz się nie liczy). Wygrana wypłaca mnożnik trybu, przegrana zabiera stawkę, remis zwraca ją. Wynik przychodzi w DM.
 4. Gdy przez 72 godziny nie znajdzie się żaden mecz (albo dane są niejasne), stawka wraca na konto.
+
+Tryb meczu bot rozpoznaje po jego nazwie w danych Leetify; mecz, którego trybu nie da się ustalić, jest pomijany (po 72 h stawka wraca, a w logu bota pojawia się surowe pole trybu).
 
 Leetify publikuje mecz po przetworzeniu dema, więc wynik może przyjść z opóźnieniem. `/forget` usuwa połączenie i zakończone stawki, ale nie aktywną stawkę (monety należą się z powrotem). Dane: Leetify.
