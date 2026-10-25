@@ -172,3 +172,21 @@ export function describeMatch(match, steamId) {
     ...evaluateCs2Match(match, steamId),
   };
 }
+
+/** Default result announcements; `{placeholders}` are filled by renderCs2Message. */
+export const CS2_DEFAULT_MESSAGES = {
+  win: '🏆 {user} wygrał mecz CS2 ({map} {score}, {mode})! Wypłata ×{multiplier}: {payout}.',
+  loss: '💀 {user} przegrał mecz CS2 ({map} {score}, {mode}). Stawka {amount} przepadła.',
+  tie: '🤝 Remis w meczu CS2 ({map} {score}, {mode}) — {user} dostaje zwrot stawki: {amount}.',
+  expired: '⏳ Nie znalazłem meczu CS2 dla {user} — stawka {amount} wróciła na konto.',
+};
+
+/** Fill `{name}` placeholders; unknown ones are left as written, extra spaces tidied. */
+export function renderCs2Message(template, vars) {
+  return String(template)
+    .replace(/\{(\w+)\}/g, (whole, key) => (key in vars ? String(vars[key]) : whole))
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\(\s*,\s*/g, '(')
+    .replace(/\s+([.,!)])/g, '$1')
+    .trim();
+}

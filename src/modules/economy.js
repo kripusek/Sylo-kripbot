@@ -47,6 +47,13 @@ const text = (value, fallback, max) =>
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, max) || fallback;
+// A free-text announcement: markdown and custom emoji allowed, mentions are blocked at send time.
+const message = (value, max) =>
+  [...String(value ?? '')]
+    .filter((ch) => ch.charCodeAt(0) >= 32 || ch === '\n')
+    .join('')
+    .trim()
+    .slice(0, max);
 // A unicode emoji or a custom one (<:name:id> / <a:name:id>).
 const emoji = (value, fallback) => {
   const v = String(value ?? '').trim();
@@ -59,6 +66,7 @@ export function normaliseEconomy(raw = {}) {
   const transfers = raw.transfers ?? {};
   const shop = raw.shop ?? {};
   const games = raw.games ?? {};
+  const cs2 = games.cs2 ?? {};
   const activity = raw.activity ?? {};
   const msgs = activity.messages ?? {};
   const voice = activity.voice ?? {};
@@ -123,6 +131,14 @@ export function normaliseEconomy(raw = {}) {
       channelIds: [...new Set((Array.isArray(games.channelIds) ? games.channelIds : []).map(snowflake))]
         .filter(Boolean)
         .slice(0, 100),
+      cs2: {
+        channelId: snowflake(String(cs2.channelId ?? '')) || '',
+        ping: flag(cs2.ping, true),
+        winMessage: message(cs2.winMessage, 400),
+        lossMessage: message(cs2.lossMessage, 400),
+        tieMessage: message(cs2.tieMessage, 400),
+        expiredMessage: message(cs2.expiredMessage, 400),
+      },
     },
     activity: {
       messages: {

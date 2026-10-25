@@ -2224,5 +2224,14 @@
   "Game mode of the match (decides the payout)": "Tryb gry meczu (decyduje o wypłacie)",
   "Settle your CS2 stake from a Leetify match link.": "Rozlicz stawkę CS2 z linku do meczu w Leetify.",
   "Link to the match on leetify.com": "Link do meczu na leetify.com",
-  "Staff: show your latest Leetify matches and how the bot reads them.": "Administracja: pokaż ostatnie mecze z Leetify i jak bot je odczytuje."
+  "Staff: show your latest Leetify matches and how the bot reads them.": "Administracja: pokaż ostatnie mecze z Leetify i jak bot je odczytuje.",
+  "CS2 match bets — announcements": "Zakłady CS2 — ogłoszenia wyników",
+  "Where and how the result of a /gry cs2 stake is announced. Leave a message empty to use the default. Placeholders: {user} {amount} {payout} {multiplier} {map} {score} {mode} {currency}. Markdown and custom emoji work.": "Gdzie i jak ogłaszany jest wynik stawki z /gry cs2. Pusta wiadomość = domyślna. Znaczniki: {user} {amount} {payout} {multiplier} {map} {score} {mode} {currency}. Działa markdown i własne emoji.",
+  "Announcement channel": "Kanał ogłoszeń",
+  "— the channel where the stake was placed —": "— kanał, na którym postawiono stawkę —",
+  "Ping the player (notification)": "Pinguj gracza (powiadomienie)",
+  "Win message": "Wiadomość o wygranej",
+  "Loss message": "Wiadomość o przegranej",
+  "Tie message": "Wiadomość o remisie",
+  "No match found (refund) message": "Wiadomość o braku meczu (zwrot)"
 }

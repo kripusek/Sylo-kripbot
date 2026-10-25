@@ -17,6 +17,8 @@ import {
   matchById,
   describeMatch,
   detectMode,
+  CS2_DEFAULT_MESSAGES,
+  renderCs2Message,
 } from './lib/cs2.js';
 import { leetifyConfigured, leetifyMatches, leetifyMatchById, leetifyRawMatches } from './markets.js';
 import { getGuildModule } from '../db/modules.js';
@@ -70,21 +72,34 @@ export async function placeCs2Bet(guildId, userId, amount, mode, channelId = '')
   return { ok: true, balance, economy, id };
 }
 
+const KIND_FIELD = { win: 'winMessage', loss: 'lossMessage', tie: 'tieMessage', expired: 'expiredMessage' };
+
 /**
- * Announce a result in the channel the stake was placed in (the economy chat),
- * falling back to the first allowed games channel and then to a DM.
+ * Announce a result. Channel: the one set in the economy settings, else the one
+ * the stake was placed in, else the first allowed games channel, else a DM. The
+ * text comes from the (customisable) template of that outcome.
  */
-async function tell(bet, text) {
-  let channelId = bet.channelId;
-  if (!channelId) {
-    const economy = normaliseEconomy((await getGuildModule(bet.guildId, 'economy')).config);
-    channelId = economy.games.channelIds[0] ?? '';
-  }
+async function tell(bet, kind, vars = {}) {
+  const economy = normaliseEconomy((await getGuildModule(bet.guildId, 'economy')).config);
+  const settings = economy.games.cs2;
+  const coins = (n) => formatCoins(economy, n).replaceAll('**', '');
+  const multiplier = modeInfo(bet.mode).multiplier;
+  const text = renderCs2Message(settings[KIND_FIELD[kind]] || CS2_DEFAULT_MESSAGES[kind], {
+    user: `<@${bet.userId}>`,
+    amount: coins(bet.amount),
+    payout: coins(vars.payout ?? 0),
+    multiplier,
+    map: vars.map || 'CS2',
+    score: vars.score || '',
+    mode: CS2_MODES[bet.mode]?.label ?? 'dowolny',
+    currency: economy.currencyName,
+  });
+  const channelId = settings.channelId || bet.channelId || economy.games.channelIds[0] || '';
   if (
     channelId &&
     (await sendToChannel(bet.guildId, channelId, {
-      content: `<@${bet.userId}> ${text}`,
-      allowedMentions: { users: [bet.userId] },
+      content: text,
+      allowedMentions: settings.ping ? { users: [bet.userId] } : { parse: [] },
     }))
   )
     return;
@@ -96,28 +111,20 @@ async function tell(bet, text) {
   }
 }
 
-async function finish(bet, status, payout, text) {
+async function finish(bet, status, payout, kind, vars) {
   if (!(await settleCs2Bet(bet.id, status, payout))) return false; // somebody else settled it
   if (payout > 0) await credit(bet.guildId, bet.userId, payout);
-  await tell(bet, text);
+  await tell(bet, kind, { ...vars, payout });
   return true;
 }
 
 /** Pay out (or take, or refund) a stake from a clear match result. */
-async function applyResult(bet, found, coins) {
-  const multiplier = modeInfo(bet.mode).multiplier;
-  const win = Math.floor(bet.amount * multiplier);
-  const info = `${found.map || 'CS2'}${found.score ? ` ${found.score}` : ''} — dane: Leetify`;
-  if (found.state === 'win')
-    return finish(bet, 'won', win, `🏆 Wygrałeś mecz CS2 (${info})! Wypłata ×${multiplier}: ${coins(win)}.`);
-  if (found.state === 'loss')
-    return finish(bet, 'lost', 0, `💀 Przegrałeś mecz CS2 (${info}). Stawka ${coins(bet.amount)} przepadła.`);
-  return finish(
-    bet,
-    'tie',
-    bet.amount,
-    `🤝 Remis w meczu CS2 (${info}) — stawka ${coins(bet.amount)} wróciła na konto.`
-  );
+async function applyResult(bet, found) {
+  const win = Math.floor(bet.amount * modeInfo(bet.mode).multiplier);
+  const vars = { map: found.map, score: found.score };
+  if (found.state === 'win') return finish(bet, 'won', win, 'win', vars);
+  if (found.state === 'loss') return finish(bet, 'lost', 0, 'loss', vars);
+  return finish(bet, 'tie', bet.amount, 'tie', vars);
 }
 
 /**
@@ -175,9 +182,7 @@ export async function claimCs2ByLink(guildId, userId, link) {
     };
   if (found.state === 'unclear')
     return { ok: false, message: 'Wynik tego meczu jest niejasny w danych Leetify.' };
-  const economy = normaliseEconomy((await getGuildModule(guildId, 'economy')).config);
-  const coins = (n) => formatCoins(economy, n).replaceAll('**', '');
-  const done = await applyResult(bet, found, coins);
+  const done = await applyResult(bet, found);
   return done
     ? { ok: true, message: 'Stawka rozliczona — wynik poszedł na czat.' }
     : { ok: false, message: 'Ta stawka została już rozliczona.' };
@@ -226,8 +231,6 @@ export async function syncCs2Bets(now = Date.now()) {
       continue;
     }
     for (const bet of bets) {
-      const economy = normaliseEconomy((await getGuildModule(bet.guildId, 'economy')).config);
-      const coins = (n) => formatCoins(economy, n).replaceAll('**', '');
       const wanted = CS2_MODES[bet.mode] ? bet.mode : null;
       let found = firstMatchAfter(matches, steamId, bet.createdAt + matchGapMs(bet.mode), wanted);
       if (found?.none) {
@@ -238,17 +241,11 @@ export async function syncCs2Bets(now = Date.now()) {
         found = null;
       }
       if (!found || found.state === 'unclear') {
-        if (now - bet.createdAt > EXPIRY_MS)
-          await finish(
-            bet,
-            'expired',
-            bet.amount,
-            `⏳ Nie znalazłem Twojego meczu CS2, stawka ${coins(bet.amount)} wróciła na konto.`
-          );
+        if (now - bet.createdAt > EXPIRY_MS) await finish(bet, 'expired', bet.amount, 'expired', {});
         else if (found) log.warn('module:cs2-bets', `bet ${bet.id}: match ${found.id} has no clear result`);
         continue;
       }
-      await applyResult(bet, found, coins);
+      await applyResult(bet, found);
     }
   }
 }

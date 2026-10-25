@@ -1395,6 +1395,14 @@ router.post(
           maxBet: req.body.games_maxBet,
           cooldownSeconds: req.body.games_cooldownSeconds,
           channelIds: list(req.body.gameChannels),
+          cs2: {
+            channelId: req.body.cs2_channel,
+            ping: checked(req.body.cs2_ping),
+            winMessage: req.body.cs2_win,
+            lossMessage: req.body.cs2_loss,
+            tieMessage: req.body.cs2_tie,
+            expiredMessage: req.body.cs2_expired,
+          },
         },
         activity: {
           messages: {

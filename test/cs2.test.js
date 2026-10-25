@@ -11,6 +11,8 @@ import {
   matchList,
   detectMode,
   parseLeetifyMatchId,
+  renderCs2Message,
+  CS2_DEFAULT_MESSAGES,
 } from '../src/modules/lib/cs2.js';
 import { createCs2Market, placeBet, syncCs2 } from '../src/modules/markets.js';
 
@@ -194,4 +196,13 @@ test('matchList finds the matches whatever the wrapper', () => {
   assert.deepEqual(matchList({ foo: [{ id: 4 }], total: 1 }), [{ id: 4 }]);
   assert.deepEqual(matchList({ a: [1], b: [2] }), []);
   assert.deepEqual(matchList(null), []);
+});
+
+test('renderCs2Message fills placeholders and tidies empty ones', () => {
+  const vars = { user: '<@1>', map: 'de_mirage', score: '', mode: 'Rush', payout: '15' };
+  assert.equal(
+    renderCs2Message('{user} won ({map} {score}, {mode}) — {payout} {unknown}', vars),
+    '<@1> won (de_mirage, Rush) — 15 {unknown}'
+  );
+  assert.ok(CS2_DEFAULT_MESSAGES.win.includes('{user}'));
 });
