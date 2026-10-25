@@ -956,6 +956,10 @@ export const MIGRATIONS = [
   (database) => {
     database.exec(`ALTER TABLE cs2_bets ADD COLUMN mode TEXT NOT NULL DEFAULT 'any';`);
   },
+  // CS2 stakes: the channel the stake was placed in, where the result is announced.
+  (database) => {
+    database.exec(`ALTER TABLE cs2_bets ADD COLUMN channel_id TEXT NOT NULL DEFAULT '';`);
+  },
 ];
 
 /** Highest schema version this build knows how to run. */

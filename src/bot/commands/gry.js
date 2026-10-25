@@ -500,7 +500,13 @@ async function cs2Game(interaction) {
   if (!config) return;
   const bet = interaction.options.getInteger('stawka', true);
   const mode = interaction.options.getString('tryb', true);
-  const result = await placeCs2Bet(interaction.guildId, interaction.user.id, bet, mode);
+  const result = await placeCs2Bet(
+    interaction.guildId,
+    interaction.user.id,
+    bet,
+    mode,
+    interaction.channelId ?? ''
+  );
   if (!result.ok) return interaction.reply(ephemeral(result.error));
   const minutes = matchGapMs(mode) / 60_000;
   return interaction.reply({
@@ -511,7 +517,7 @@ async function cs2Game(interaction) {
         .setDescription(
           `Postawiłeś ${formatCoins(config, bet)} na wygraną w swoim następnym meczu **${CS2_MODES[mode].label}**.\n` +
             `Wygrana: **${CS2_MODES[mode].multiplier}x**, remis zwraca stawkę. Liczy się pierwszy mecz tego trybu, który skończy się ` +
-            `co najmniej ${minutes} min po stawce. Wynik przyjdzie w DM (dane: Leetify).`
+            `co najmniej ${minutes} min po stawce. Wynik ogłoszę na tym kanale (dane: Leetify).`
         )
         .setFooter({ text: `Saldo: ${result.balance}` }),
     ],

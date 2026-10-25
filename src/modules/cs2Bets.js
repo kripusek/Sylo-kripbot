@@ -5,6 +5,7 @@
 // person's matches.
 import { log } from '../lib/log.js';
 import { runtime } from '../runtime.js';
+import { sendToChannel } from './lib/send.js';
 import { ensureAccount, credit, debit } from '../db/economy.js';
 import { getSteamLink, insertCs2Bet, pendingCs2Bets, pendingCs2BetOf, settleCs2Bet } from '../db/cs2.js';
 import {
@@ -35,7 +36,7 @@ const SYNC_MS = 5 * 60_000;
  * Take the stake and open it.
  * @returns {Promise<{ ok: true, balance: number, economy: object } | { ok: false, error: string }>}
  */
-export async function placeCs2Bet(guildId, userId, amount, mode) {
+export async function placeCs2Bet(guildId, userId, amount, mode, channelId = '') {
   if (!CS2_MODES[mode])
     return { ok: false, error: 'Wybierz tryb gry: Rush, Wingman, Competitive albo Premier.' };
   const economy = normaliseEconomy((await getGuildModule(guildId, 'economy')).config);
@@ -57,7 +58,7 @@ export async function placeCs2Bet(guildId, userId, amount, mode) {
   if (balance === null) return { ok: false, error: 'Nie masz tylu monet.' };
   let id;
   try {
-    id = await insertCs2Bet(guildId, userId, steamId, amount, mode);
+    id = await insertCs2Bet(guildId, userId, steamId, amount, mode, channelId);
   } catch (error) {
     await credit(guildId, userId, amount);
     throw error;
@@ -69,7 +70,24 @@ export async function placeCs2Bet(guildId, userId, amount, mode) {
   return { ok: true, balance, economy, id };
 }
 
+/**
+ * Announce a result in the channel the stake was placed in (the economy chat),
+ * falling back to the first allowed games channel and then to a DM.
+ */
 async function tell(bet, text) {
+  let channelId = bet.channelId;
+  if (!channelId) {
+    const economy = normaliseEconomy((await getGuildModule(bet.guildId, 'economy')).config);
+    channelId = economy.games.channelIds[0] ?? '';
+  }
+  if (
+    channelId &&
+    (await sendToChannel(bet.guildId, channelId, {
+      content: `<@${bet.userId}> ${text}`,
+      allowedMentions: { users: [bet.userId] },
+    }))
+  )
+    return;
   try {
     const user = await runtime.client?.users.fetch(bet.userId);
     await user?.send({ content: text, allowedMentions: { parse: [] } });
@@ -161,7 +179,7 @@ export async function claimCs2ByLink(guildId, userId, link) {
   const coins = (n) => formatCoins(economy, n).replaceAll('**', '');
   const done = await applyResult(bet, found, coins);
   return done
-    ? { ok: true, message: 'Stawka rozliczona — szczegóły przyszły w DM.' }
+    ? { ok: true, message: 'Stawka rozliczona — wynik poszedł na czat.' }
     : { ok: false, message: 'Ta stawka została już rozliczona.' };
 }
 
