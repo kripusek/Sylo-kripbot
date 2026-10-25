@@ -70,7 +70,7 @@ async function handleDM(message) {
     );
   await message
     .reply({
-      content: 'Możesz skontaktować się z administracją kilku serwerów. Wybierz jeden:',
+      content: 'UWAGA ZA PISANIE GŁUPOT NA TICKETACH MOŻNA WYRWAĆ BANA. Możesz skontaktować się z administracją kilku serwerów. Wybierz jeden:',
       components: [new ActionRowBuilder().addComponents(menu)],
     })
     .catch(() => {});
