@@ -48,7 +48,7 @@ Wymagają: klucza `LEETIFY_API_KEY` (leetify.com/app/developer), ustawionego `DA
 
 1. **`/steam polacz`** — bot wysyła przycisk „Zaloguj przez Steam”. Po zalogowaniu Steam sam potwierdza numer konta (SteamID64), bot nie dostaje hasła ani klucza. Jedno konto Steam można połączyć tylko z jednym użytkownikiem Discorda na serwerze. Bez połączenia `/gry cs2` odpowie „użyj /steam polacz”.
 2. **`/gry cs2 <stawka> <tryb>`** — wybierasz tryb: Rush ×1,5, Wingman ×2, Competitive ×2,5, Premier ×3. Stawka schodzi z konta od razu. Jedna aktywna stawka na osobę.
-3. Co 5 minut bot sprawdza w Leetify Twój pierwszy mecz **wybranego trybu**, który **skończył się co najmniej 25 minut po stawce** (mecz już będący na finiszu nie może być obstawiony; krótszy mecz się nie liczy). Wygrana wypłaca mnożnik trybu, przegrana zabiera stawkę, remis zwraca ją. Wynik przychodzi w DM.
+3. Co 5 minut bot sprawdza w Leetify Twój pierwszy mecz **wybranego trybu**, który **skończył się co najmniej 25 minut po stawce (Wingman: 10 minut)** (mecz już będący na finiszu nie może być obstawiony; krótszy mecz się nie liczy). Wygrana wypłaca mnożnik trybu, przegrana zabiera stawkę, remis zwraca ją. Wynik przychodzi w DM.
 4. Gdy przez 72 godziny nie znajdzie się żaden mecz (albo dane są niejasne), stawka wraca na konto.
 
 Tryb meczu bot rozpoznaje po jego nazwie w danych Leetify; mecz, którego trybu nie da się ustalić, jest pomijany (po 72 h stawka wraca, a w logu bota pojawia się surowe pole trybu).

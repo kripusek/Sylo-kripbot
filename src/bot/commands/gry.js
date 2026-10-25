@@ -38,7 +38,7 @@ import {
   rouletteMultiplier,
 } from '../../modules/lib/economyGames.js';
 import { log } from '../../lib/log.js';
-import { placeCs2Bet, CS2_MODES, MIN_MATCH_GAP_MS } from '../../modules/cs2Bets.js';
+import { placeCs2Bet, CS2_MODES, matchGapMs } from '../../modules/cs2Bets.js';
 
 const BLACKJACK_TIMEOUT_MS = 60_000;
 const SIDE_LABEL = { orzel: 'Orzeł', reszka: 'Reszka' };
@@ -502,7 +502,7 @@ async function cs2Game(interaction) {
   const mode = interaction.options.getString('tryb', true);
   const result = await placeCs2Bet(interaction.guildId, interaction.user.id, bet, mode);
   if (!result.ok) return interaction.reply(ephemeral(result.error));
-  const minutes = MIN_MATCH_GAP_MS / 60_000;
+  const minutes = matchGapMs(mode) / 60_000;
   return interaction.reply({
     embeds: [
       new EmbedBuilder()

@@ -24,6 +24,9 @@ import { normaliseEconomy, formatCoins } from './economy.js';
 export { CS2_MODES };
 /** A match must finish this long after the stake, so a game already on its last rounds can't be bet on. */
 export const MIN_MATCH_GAP_MS = 25 * 60_000;
+/** Wingman games are short, so the stake only needs to precede them by 10 minutes. */
+const MODE_GAP_MS = { wingman: 10 * 60_000 };
+export const matchGapMs = (mode) => MODE_GAP_MS[mode] ?? MIN_MATCH_GAP_MS;
 /** Stakes with no usable match after this long are refunded. */
 export const EXPIRY_MS = 72 * 3_600_000;
 const SYNC_MS = 5 * 60_000;
@@ -127,10 +130,10 @@ export async function claimCs2ByLink(guildId, userId, link) {
       message:
         'Nie widzę Cię w tym meczu albo Leetify nie podaje wyniku — to musi być mecz z Twojego połączonego konta Steam.',
     };
-  if (found.finishedAt === null || found.finishedAt <= bet.createdAt + MIN_MATCH_GAP_MS)
+  if (found.finishedAt === null || found.finishedAt <= bet.createdAt + matchGapMs(bet.mode))
     return {
       ok: false,
-      message: `Mecz musi skończyć się co najmniej ${MIN_MATCH_GAP_MS / 60_000} min po postawieniu stawki.`,
+      message: `Mecz musi skończyć się co najmniej ${matchGapMs(bet.mode) / 60_000} min po postawieniu stawki.`,
     };
   if (CS2_MODES[bet.mode] && found.mode && found.mode !== bet.mode)
     return {
@@ -142,7 +145,7 @@ export async function claimCs2ByLink(guildId, userId, link) {
     return (
       other.id !== found.id &&
       other.finishedAt !== null &&
-      other.finishedAt > bet.createdAt + MIN_MATCH_GAP_MS &&
+      other.finishedAt > bet.createdAt + matchGapMs(bet.mode) &&
       other.finishedAt < found.finishedAt &&
       (!CS2_MODES[bet.mode] || detectMode(m) === bet.mode)
     );
@@ -174,7 +177,7 @@ export async function debugCs2(guildId, userId, limit = 5) {
     return `• ${at} UTC · ${d.map || '?'} · ${d.score || '?'} · ${d.state} · tryb: ${d.mode ?? 'nieznany'} [${describeModeFields(m)}]\n  id: ${d.id}`;
   });
   const head = bet
-    ? `Aktywna stawka: ${bet.amount} na ${CS2_MODES[bet.mode]?.label ?? 'dowolny'}, postawiona ${new Date(bet.createdAt).toISOString().slice(0, 16).replace('T', ' ')} UTC (liczą się mecze zakończone po +${MIN_MATCH_GAP_MS / 60_000} min).`
+    ? `Aktywna stawka: ${bet.amount} na ${CS2_MODES[bet.mode]?.label ?? 'dowolny'}, postawiona ${new Date(bet.createdAt).toISOString().slice(0, 16).replace('T', ' ')} UTC (liczą się mecze zakończone po +${matchGapMs(bet.mode) / 60_000} min).`
     : 'Brak aktywnej stawki.';
   return [head, ...(lines.length ? lines : ['Leetify nie zwrócił żadnych meczów.'])]
     .join('\n')
@@ -199,7 +202,7 @@ export async function syncCs2Bets(now = Date.now()) {
       const economy = normaliseEconomy((await getGuildModule(bet.guildId, 'economy')).config);
       const coins = (n) => formatCoins(economy, n).replaceAll('**', '');
       const wanted = CS2_MODES[bet.mode] ? bet.mode : null;
-      let found = firstMatchAfter(matches, steamId, bet.createdAt + MIN_MATCH_GAP_MS, wanted);
+      let found = firstMatchAfter(matches, steamId, bet.createdAt + matchGapMs(bet.mode), wanted);
       if (found?.none) {
         log.warn(
           'module:cs2-bets',

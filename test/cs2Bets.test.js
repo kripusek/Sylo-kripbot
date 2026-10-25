@@ -28,6 +28,7 @@ import {
   claimCs2ByLink,
   debugCs2,
   MIN_MATCH_GAP_MS,
+  matchGapMs,
 } from '../src/modules/cs2Bets.js';
 
 const U1 = '700000000000000081';
@@ -435,4 +436,10 @@ test('debugCs2 lists recent matches and how the bot reads them', async () => {
     globalThis.fetch = realFetch;
     delete process.env.LEETIFY_API_KEY;
   }
+});
+
+test('wingman stakes only need a 10 minute head start, other modes 25', async () => {
+  assert.equal(matchGapMs('wingman'), 10 * 60_000);
+  assert.equal(matchGapMs('premier'), MIN_MATCH_GAP_MS);
+  assert.equal(matchGapMs('any'), MIN_MATCH_GAP_MS);
 });
