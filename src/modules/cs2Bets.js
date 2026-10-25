@@ -4,6 +4,8 @@
 // been linked with /steam polacz (Steam sign-in), so nobody can bet on another
 // person's matches.
 import { log } from '../lib/log.js';
+import { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { registerComponent } from '../bot/lib/components.js';
 import { runtime } from '../runtime.js';
 import { sendToChannel } from './lib/send.js';
 import { ensureAccount, credit, debit } from '../db/economy.js';
@@ -72,6 +74,31 @@ export async function placeCs2Bet(guildId, userId, amount, mode, channelId = '')
   return { ok: true, balance, economy, id };
 }
 
+const NOPING_ID = 'cs2np:toggle';
+
+/** The "no pings" button: whoever clicks it gets (or loses) the configured role. */
+async function handleNoPing(interaction) {
+  const reply = (content) => interaction.reply({ content, flags: MessageFlags.Ephemeral });
+  const economy = normaliseEconomy((await getGuildModule(interaction.guildId, 'economy')).config);
+  const roleId = economy.games.cs2.noPingRoleId;
+  if (!roleId || !interaction.inGuild()) return reply('Ta opcja nie jest włączona na tym serwerze.');
+  const member = await interaction.guild.members.fetch(interaction.user.id);
+  try {
+    if (member.roles.cache.has(roleId)) {
+      await member.roles.remove(roleId, 'CS2 announcements: pings back on');
+      return reply('🔔 Pingi przy wynikach CS2 są znowu włączone.');
+    }
+    await member.roles.add(roleId, 'CS2 announcements: no pings');
+    return reply('🔕 Gotowe — wyniki CS2 nie będą Cię już pingować. Kliknij ponownie, żeby cofnąć.');
+  } catch (error) {
+    log.warn('module:cs2-bets', `could not change the no-ping role: ${error.message ?? error}`);
+    return reply(
+      'Nie mogę nadać tej roli — administracja musi sprawdzić uprawnienia bota (Zarządzanie rolami) i pozycję roli.'
+    );
+  }
+}
+registerComponent('cs2-bets', 'cs2np:', handleNoPing);
+
 const KIND_FIELD = { win: 'winMessage', loss: 'lossMessage', tie: 'tieMessage', expired: 'expiredMessage' };
 
 /**
@@ -95,11 +122,30 @@ async function tell(bet, kind, vars = {}) {
     currency: economy.currencyName,
   });
   const channelId = settings.channelId || bet.channelId || economy.games.channelIds[0] || '';
+  // Members holding the "no pings" role are still named, but silently.
+  let ping = settings.ping;
+  if (ping && settings.noPingRoleId) {
+    const member = await runtime.client?.guilds.cache
+      .get(bet.guildId)
+      ?.members.fetch(bet.userId)
+      .catch(() => null);
+    if (member?.roles.cache.has(settings.noPingRoleId)) ping = false;
+  }
   if (
     channelId &&
     (await sendToChannel(bet.guildId, channelId, {
       content: text,
-      allowedMentions: settings.ping ? { users: [bet.userId] } : { parse: [] },
+      allowedMentions: ping ? { users: [bet.userId] } : { parse: [] },
+      components: settings.noPingRoleId
+        ? [
+            new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setCustomId(NOPING_ID)
+                .setStyle(ButtonStyle.Secondary)
+                .setLabel('🔕 Bez pingów / z pingami')
+            ),
+          ]
+        : [],
     }))
   )
     return;

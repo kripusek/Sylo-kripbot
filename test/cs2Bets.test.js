@@ -471,10 +471,16 @@ test('economy config keeps the customised CS2 announcements', async () => {
   const { normaliseEconomy } = await import('../src/modules/economy.js');
   const cfg = normaliseEconomy({
     games: {
-      cs2: { channelId: '123456789012345678', ping: false, winMessage: '  **GG** {user} {payout} <:x:1> ' },
+      cs2: {
+        channelId: '123456789012345678',
+        noPingRoleId: '223456789012345678',
+        ping: false,
+        winMessage: '  **GG** {user} {payout} <:x:1> ',
+      },
     },
   });
   assert.equal(cfg.games.cs2.ping, false);
+  assert.equal(cfg.games.cs2.noPingRoleId, '223456789012345678');
   assert.equal(cfg.games.cs2.channelId, '123456789012345678');
   assert.equal(cfg.games.cs2.winMessage, '**GG** {user} {payout} <:x:1>');
   assert.equal(cfg.games.cs2.lossMessage, '');

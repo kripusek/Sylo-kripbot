@@ -2233,5 +2233,8 @@
   "Win message": "Wiadomość o wygranej",
   "Loss message": "Wiadomość o przegranej",
   "Tie message": "Wiadomość o remisie",
-  "No match found (refund) message": "Wiadomość o braku meczu (zwrot)"
+  "No match found (refund) message": "Wiadomość o braku meczu (zwrot)",
+  "\"No pings\" role": "Rola „bez pingów”",
+  "— none (no button) —": "— brak (bez przycisku) —",
+  "With a role chosen, every announcement gets a button; clicking it gives or removes the role, and members holding it are not pinged. The bot needs Manage Roles and the role must be below the bot's highest role.": "Po wybraniu roli każde ogłoszenie ma przycisk; kliknięcie nadaje lub zabiera rolę, a osoby z rolą nie są pingowane. Bot potrzebuje „Zarządzanie rolami”, a rola musi być pod jego najwyższą rolą."
 }

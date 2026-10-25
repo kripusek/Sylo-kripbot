@@ -632,6 +632,25 @@ export default function Economy() {
               Pinguj gracza (powiadomienie)
             </label>
           </div>
+          <div className="v2-field">
+            <label htmlFor="cs2NoPing">Rola „bez pingów”</label>
+            <select
+              id="cs2NoPing"
+              value={games.cs2?.noPingRoleId ?? ''}
+              onChange={(e) => setCs2({ noPingRoleId: e.target.value })}
+            >
+              <option value="">— brak (bez przycisku) —</option>
+              {data.roles.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.name}
+                </option>
+              ))}
+            </select>
+            <p className="v2-field-hint">
+              Po wybraniu roli każde ogłoszenie ma przycisk; kliknięcie nadaje lub zabiera rolę, a osoby z
+              rolą nie są pingowane. Bot potrzebuje „Zarządzanie rolami”, a rola musi być pod jego najwyższą rolą.
+            </p>
+          </div>
           {[
             ['winMessage', 'Wiadomość o wygranej'],
             ['lossMessage', 'Wiadomość o przegranej'],

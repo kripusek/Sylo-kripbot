@@ -1398,6 +1398,7 @@ router.post(
           cs2: {
             channelId: req.body.cs2_channel,
             ping: checked(req.body.cs2_ping),
+            noPingRoleId: req.body.cs2_noping_role,
             winMessage: req.body.cs2_win,
             lossMessage: req.body.cs2_loss,
             tieMessage: req.body.cs2_tie,

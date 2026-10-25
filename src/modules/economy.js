@@ -134,6 +134,7 @@ export function normaliseEconomy(raw = {}) {
       cs2: {
         channelId: snowflake(String(cs2.channelId ?? '')) || '',
         ping: flag(cs2.ping, true),
+        noPingRoleId: snowflake(String(cs2.noPingRoleId ?? '')) || '',
         winMessage: message(cs2.winMessage, 400),
         lossMessage: message(cs2.lossMessage, 400),
         tieMessage: message(cs2.tieMessage, 400),

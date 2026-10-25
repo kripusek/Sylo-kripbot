@@ -193,6 +193,12 @@
       <input type="checkbox" name="cs2_ping" <%= cs2.ping !== false ? 'checked' : '' %> />
       Ping the player (notification)
     </label>
+    <label class="small u-mt-2">"No pings" role</label>
+    <select class="u-w-field" name="cs2_noping_role">
+      <option value="">— none (no button) —</option>
+      <% roles.forEach(function (role) { %><option value="<%= role.id %>" <%= role.id === cs2.noPingRoleId ? 'selected' : '' %>><%= role.name %></option><% }) %>
+    </select>
+    <p class="muted small">With a role chosen, every announcement gets a button; clicking it gives or removes the role, and members holding it are not pinged. The bot needs Manage Roles and the role must be below the bot's highest role.</p>
     <label class="small u-mt-2">Win message</label>
     <textarea name="cs2_win" rows="2" maxlength="400" placeholder="🏆 {user} wygrał mecz CS2 ({map} {score}, {mode})! Wypłata ×{multiplier}: {payout}."><%= cs2.winMessage || '' %></textarea>
     <label class="small u-mt-2">Loss message</label>
