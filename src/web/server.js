@@ -23,6 +23,7 @@ import guildTicketsRouter from './routes/guildTickets.js';
 import guildDmRouter from './routes/guildDm.js';
 import guildDropsRouter from './routes/guildDrops.js';
 import guildMarketsRouter from './routes/guildMarkets.js';
+import steamLinkRouter from './routes/steamLink.js';
 import guildMessagesRouter from './routes/guildMessages.js';
 import guildSoundboardRouter from './routes/guildSoundboard.js';
 import githubWebhookRouter from './routes/githubWebhook.js';
@@ -76,6 +77,7 @@ export function createApp() {
   app.use('/leaderboard', rateLimit({ windowMs: 60_000, max: 40 }), leaderboardRouter);
   app.use('/lb', rateLimit({ windowMs: 60_000, max: 40 }), vanityRouter);
   app.use('/verify', rateLimit({ windowMs: 60_000, max: 20 }), verifyRouter);
+  app.use('/steam', rateLimit({ windowMs: 60_000, max: 20 }), steamLinkRouter);
   app.use('/appeal', rateLimit({ windowMs: 60_000, max: 15 }), appealRouter);
   app.use('/roadmap', rateLimit({ windowMs: 60_000, max: 60 }), roadmapRouter);
 

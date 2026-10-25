@@ -75,6 +75,8 @@ export const GUILD_TABLES = [
   'random_drop_claims',
   'markets',
   'market_bets',
+  'steam_links',
+  'cs2_bets',
   'config_audit',
   'afk',
   'posted_keys',
@@ -119,6 +121,8 @@ const userStmts = {
   leveling: prepare('DELETE FROM leveling WHERE guild_id = ? AND user_id = ?'),
   levelingPeriods: prepare('DELETE FROM leveling_periods WHERE guild_id = ? AND user_id = ?'),
   economy: prepare('DELETE FROM economy_accounts WHERE guild_id = ? AND user_id = ?'),
+  steamLink: prepare('DELETE FROM steam_links WHERE guild_id = ? AND user_id = ?'),
+  cs2Bets: prepare("DELETE FROM cs2_bets WHERE guild_id = ? AND user_id = ? AND status <> 'pending'"),
   counting: prepare('UPDATE counting SET last_user_id = NULL WHERE guild_id = ? AND last_user_id = ?'),
   ticketMsgs: prepare(`
     DELETE FROM ticket_messages
@@ -161,6 +165,9 @@ export async function forgetUser(guildId, userId) {
   const afk = (await userStmts.afk.run(guildId, userId)).changes;
   const birthdays = (await userStmts.birthdays.run(guildId, userId)).changes;
   const economy = (await userStmts.economy.run(guildId, userId)).changes;
+  // A still-pending CS2 stake keeps its row (its coins are owed back); finished ones go.
+  await userStmts.steamLink.run(guildId, userId);
+  await userStmts.cs2Bets.run(guildId, userId);
   const giveawayEntries = (await userStmts.giveawayEntries.run(guildId, userId)).changes;
   const invites =
     (await userStmts.inviteCounts.run(guildId, userId)).changes +
@@ -218,6 +225,20 @@ const USER_DATA_SOURCES = [
     order: 'gu',
     countSql: 'SELECT COUNT(*) AS n FROM economy_accounts WHERE guild_id = ? AND user_id = ?',
     rowsSql: 'SELECT * FROM economy_accounts WHERE guild_id = ? AND user_id = ?',
+  },
+  {
+    key: 'steam',
+    label: 'Linked Steam account',
+    order: 'gu',
+    countSql: 'SELECT COUNT(*) AS n FROM steam_links WHERE guild_id = ? AND user_id = ?',
+    rowsSql: 'SELECT * FROM steam_links WHERE guild_id = ? AND user_id = ?',
+  },
+  {
+    key: 'cs2Bets',
+    label: 'CS2 match stakes',
+    order: 'gu',
+    countSql: 'SELECT COUNT(*) AS n FROM cs2_bets WHERE guild_id = ? AND user_id = ?',
+    rowsSql: 'SELECT * FROM cs2_bets WHERE guild_id = ? AND user_id = ?',
   },
   {
     key: 'tickets',

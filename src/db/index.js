@@ -926,6 +926,32 @@ export const MIGRATIONS = [
       CREATE INDEX idx_market_bets_user ON market_bets (guild_id, user_id, id);
     `);
   },
+  // Steam account links and "bet on my next CS2 match" stakes.
+  (database) => {
+    database.exec(`
+      CREATE TABLE steam_links (
+        guild_id  TEXT NOT NULL,
+        user_id   TEXT NOT NULL,
+        steam_id  TEXT NOT NULL,
+        linked_at INTEGER NOT NULL,
+        PRIMARY KEY (guild_id, user_id)
+      );
+      CREATE UNIQUE INDEX idx_steam_links_steam ON steam_links (guild_id, steam_id);
+      CREATE TABLE cs2_bets (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id   TEXT NOT NULL,
+        user_id    TEXT NOT NULL,
+        steam_id   TEXT NOT NULL,
+        amount     INTEGER NOT NULL,
+        status     TEXT NOT NULL DEFAULT 'pending',
+        payout     INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        settled_at INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX idx_cs2_bets_status ON cs2_bets (status, id);
+      CREATE INDEX idx_cs2_bets_user ON cs2_bets (guild_id, user_id, id);
+    `);
+  },
 ];
 
 /** Highest schema version this build knows how to run. */

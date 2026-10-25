@@ -3,6 +3,7 @@
 import './logging.js';
 import './randomDrops.js';
 import './markets.js';
+import './cs2Bets.js';
 import './welcome.js';
 import './roles.js';
 import './sticky.js';

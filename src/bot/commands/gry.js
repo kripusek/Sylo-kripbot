@@ -38,6 +38,7 @@ import {
   rouletteMultiplier,
 } from '../../modules/lib/economyGames.js';
 import { log } from '../../lib/log.js';
+import { placeCs2Bet, CS2_WIN_MULTIPLIER, MIN_MATCH_GAP_MS } from '../../modules/cs2Bets.js';
 
 const BLACKJACK_TIMEOUT_MS = 60_000;
 const SIDE_LABEL = { orzel: 'Orzeł', reszka: 'Reszka' };
@@ -132,6 +133,12 @@ export const data = new SlashCommandBuilder()
           .setMinValue(0)
           .setMaxValue(ROULETTE_POCKETS - 1)
       )
+  )
+  .addSubcommand((s) =>
+    s
+      .setName('cs2')
+      .setDescription('Bet on winning your next CS2 match (needs /steam polacz).')
+      .addIntegerOption(stake(BET))
   )
   .addSubcommand((s) =>
     s
@@ -475,11 +482,36 @@ async function blackjackGame(interaction, config, bet) {
 }
 
 /** @param {import('discord.js').ChatInputCommandInteraction} interaction */
+// ---------------------------------------------------------------- cs2 (match bet) ----
+async function cs2Game(interaction) {
+  const config = await loadEconomy(interaction);
+  if (!config) return;
+  const bet = interaction.options.getInteger('stawka', true);
+  const result = await placeCs2Bet(interaction.guildId, interaction.user.id, bet);
+  if (!result.ok) return interaction.reply(ephemeral(result.error));
+  const minutes = MIN_MATCH_GAP_MS / 60_000;
+  return interaction.reply({
+    embeds: [
+      new EmbedBuilder()
+        .setColor(COLORS.info)
+        .setTitle('🎯 Stawka na mecz CS2')
+        .setDescription(
+          `Postawiłeś ${formatCoins(config, bet)} na wygraną w swoim następnym meczu.\n` +
+            `Wygrana: **${CS2_WIN_MULTIPLIER}x**, remis zwraca stawkę. Liczy się pierwszy mecz, który skończy się ` +
+            `co najmniej ${minutes} min po stawce. Wynik przyjdzie w DM (dane: Leetify).`
+        )
+        .setFooter({ text: `Saldo: ${result.balance}` }),
+    ],
+    flags: ephemeral('').flags,
+  });
+}
+
 export async function execute(interaction) {
   const config = await loadEconomy(interaction);
   if (!config) return;
   const sub = interaction.options.getSubcommand();
   if (sub === 'rps') return rpsGame(interaction, config);
+  if (sub === 'cs2') return cs2Game(interaction);
   const bet = interaction.options.getInteger('stawka', true);
   if (sub === 'blackjack') return blackjackGame(interaction, config, bet);
   return GAMES[sub](interaction, config, bet);

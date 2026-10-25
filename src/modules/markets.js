@@ -195,7 +195,7 @@ const LEETIFY = 'https://api-public.cs-prod.leetify.com';
 const leetifyKey = () => process.env.LEETIFY_API_KEY ?? '';
 export const leetifyConfigured = () => Boolean(leetifyKey());
 
-async function leetifyMatches(steamId) {
+export async function leetifyMatches(steamId) {
   const res = await fetch(`${LEETIFY}/v3/profile/matches?steamId=${steamId}&limit=20`, {
     headers: {
       accept: 'application/json',
