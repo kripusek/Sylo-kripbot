@@ -2221,5 +2221,8 @@
   "Show your linked Steam account and CS2 stake.": "Pokaż połączone konto Steam i stawkę CS2.",
   "Unlink your Steam account.": "Odłącz konto Steam.",
   "Bet on winning your next CS2 match (needs /steam polacz).": "Postaw na wygraną w swoim następnym meczu CS2 (wymaga /steam polacz).",
-  "Game mode of the match (decides the payout)": "Tryb gry meczu (decyduje o wypłacie)"
+  "Game mode of the match (decides the payout)": "Tryb gry meczu (decyduje o wypłacie)",
+  "Settle your CS2 stake from a Leetify match link.": "Rozlicz stawkę CS2 z linku do meczu w Leetify.",
+  "Link to the match on leetify.com": "Link do meczu na leetify.com",
+  "Staff: show your latest Leetify matches and how the bot reads them.": "Administracja: pokaż ostatnie mecze z Leetify i jak bot je odczytuje."
 }

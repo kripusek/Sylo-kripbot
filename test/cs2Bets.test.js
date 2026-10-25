@@ -22,7 +22,13 @@ import {
   verifySteamAssertion,
   STEAM_OPENID,
 } from '../src/modules/lib/steamLink.js';
-import { placeCs2Bet, syncCs2Bets, MIN_MATCH_GAP_MS } from '../src/modules/cs2Bets.js';
+import {
+  placeCs2Bet,
+  syncCs2Bets,
+  claimCs2ByLink,
+  debugCs2,
+  MIN_MATCH_GAP_MS,
+} from '../src/modules/cs2Bets.js';
 
 const U1 = '700000000000000081';
 const U2 = '700000000000000082';
@@ -339,6 +345,92 @@ test('each mode pays its own multiplier and only counts matches of that mode', a
     await syncCs2Bets();
     assert.equal((await getAccount(guild, users.rush)).balance, 1050, '900 + 100 x1.5');
     assert.equal((await getAccount(guild, users.competitive)).balance, 1150, '900 + 100 x2.5');
+  } finally {
+    globalThis.fetch = realFetch;
+    delete process.env.LEETIFY_API_KEY;
+  }
+});
+
+test('claimCs2ByLink settles from a Leetify link, with all the checks', async () => {
+  const guild = '800000000000000057';
+  await setup(guild);
+  await credit(guild, U1, 1000);
+  await saveSteamLink(guild, U1, STEAM1);
+  assert.match(
+    (
+      await claimCs2ByLink(
+        guild,
+        U1,
+        'https://leetify.com/app/match-details/f2f225b7-2df0-4452-8cdb-a35ea61dc7b6/your-match'
+      )
+    ).message,
+    /aktywnej stawki/
+  );
+  await placeCs2Bet(guild, U1, 100, 'rush');
+  const placed = (await pendingCs2BetOf(guild, U1)).createdAt;
+  const at = placed + MIN_MATCH_GAP_MS + 60_000;
+  const A = 'f2f225b7-2df0-4452-8cdb-a35ea61dc7b6';
+  const B = 'a2f225b7-2df0-4452-8cdb-a35ea61dc7b6';
+  const link = (id) => `[7 : 3 on Complex](https://leetify.com/app/match-details/${id}/your-match)`;
+
+  const realFetch = globalThis.fetch;
+  let list = [];
+  let byId = {};
+  globalThis.fetch = async (url) => {
+    const u = new URL(String(url));
+    if (u.pathname.startsWith('/v3/matches/'))
+      return {
+        ok: !!byId[u.pathname.split('/').pop()],
+        status: byId[u.pathname.split('/').pop()] ? 200 : 404,
+        json: async () => byId[u.pathname.split('/').pop()],
+      };
+    return { ok: true, status: 200, json: async () => ({ matches: list }) };
+  };
+  try {
+    assert.match((await claimCs2ByLink(guild, U1, 'nope')).message, /link/);
+    assert.match((await claimCs2ByLink(guild, U1, link(A))).message, /nie zna/);
+
+    // Someone else's match: not in the player's list, and the player isn't in it.
+    byId = { [A]: match(A, at, STEAM2, 13, 3, 'rush') };
+    assert.match((await claimCs2ByLink(guild, U1, link(A))).message, /nie widzę/i);
+
+    byId = { [A]: { ...match(A, placed + 5 * 60_000, STEAM1, 13, 3, 'rush') } };
+    assert.match((await claimCs2ByLink(guild, U1, link(A))).message, /co najmniej 25 min/);
+
+    byId = { [A]: match(A, at, STEAM1, 13, 3, 'premier') };
+    assert.match((await claimCs2ByLink(guild, U1, link(A))).message, /Premier.*Rush/);
+
+    // An earlier counting match in the player's own history blocks cherry-picking.
+    list = [match(B, at - 30_000, STEAM1, 3, 13, 'rush')];
+    byId = { [A]: match(A, at, STEAM1, 13, 3, 'rush') };
+    assert.match((await claimCs2ByLink(guild, U1, link(A))).message, /pierwszy mecz/);
+
+    list = [];
+    const done = await claimCs2ByLink(guild, U1, link(A));
+    assert.equal(done.ok, true);
+    assert.equal((await getAccount(guild, U1)).balance, 1050, '900 + 100 x1.5');
+    assert.match((await claimCs2ByLink(guild, U1, link(A))).message, /aktywnej stawki/);
+  } finally {
+    globalThis.fetch = realFetch;
+    delete process.env.LEETIFY_API_KEY;
+  }
+});
+
+test('debugCs2 lists recent matches and how the bot reads them', async () => {
+  const guild = '800000000000000058';
+  await setup(guild);
+  await saveSteamLink(guild, U1, STEAM1);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ matches: [match('m1', Date.now(), STEAM1, 13, 7, 'rush')] }),
+  });
+  try {
+    const text = await debugCs2(guild, U1);
+    assert.match(text, /de_mirage/);
+    assert.match(text, /13:7/);
+    assert.match(text, /tryb: rush/);
   } finally {
     globalThis.fetch = realFetch;
     delete process.env.LEETIFY_API_KEY;

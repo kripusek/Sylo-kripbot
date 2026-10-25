@@ -212,6 +212,24 @@ export async function leetifyMatches(steamId) {
   return matchList(await res.json());
 }
 
+/** One match by its Leetify game id, or null when Leetify doesn't know it. */
+export async function leetifyMatchById(id) {
+  const res = await fetch(`${LEETIFY}/v3/matches/${encodeURIComponent(id)}`, {
+    headers: {
+      accept: 'application/json',
+      authorization: `Bearer ${leetifyKey()}`,
+      _leetify_key: leetifyKey(),
+    },
+    signal: AbortSignal.timeout(POLYMARKET_TIMEOUT_MS),
+  });
+  if (res.status === 404) return null;
+  if (res.status === 401 || res.status === 403)
+    throw new Error('Leetify odrzucił klucz API (LEETIFY_API_KEY).');
+  if (!res.ok) throw new Error(`Leetify odpowiedział ${res.status}.`);
+  const body = await res.json();
+  return body && typeof body === 'object' && !Array.isArray(body) ? (body.match ?? body) : null;
+}
+
 /**
  * "Will <player> win their next CS2 match?" — settled from Leetify. The match that
  * counts is the first one the player finishes after `closesAt` (or after creation).

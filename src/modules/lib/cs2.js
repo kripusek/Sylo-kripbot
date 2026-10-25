@@ -138,3 +138,28 @@ export function firstMatchAfter(matches, steamId, afterMs, wantedMode = null) {
   const { m, at } = candidates[0];
   return { id: String(first(m.id, m.game_id) ?? ''), finishedAt: at, ...evaluateCs2Match(m, steamId) };
 }
+
+const MATCH_ID = /match-details\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+
+/** The match id out of a leetify.com/app/match-details/<id>/… link (or a bare id); null otherwise. */
+export function parseLeetifyMatchId(input) {
+  const text = String(input ?? '');
+  const hit = text.match(MATCH_ID)?.[1];
+  if (hit) return hit.toLowerCase();
+  const bare = text.trim().match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  return bare ? bare[0].toLowerCase() : null;
+}
+
+/** A match by id from a list of matches, or null. */
+export const matchById = (matches, id) =>
+  matches.find((m) => String(first(m?.id, m?.game_id, m?.gameId) ?? '').toLowerCase() === id) ?? null;
+
+/** Result and timing of one specific match, as `firstMatchAfter` reports it. */
+export function describeMatch(match, steamId) {
+  return {
+    id: String(first(match?.id, match?.game_id, match?.gameId) ?? ''),
+    finishedAt: finishedMs(match),
+    mode: detectMode(match),
+    ...evaluateCs2Match(match, steamId),
+  };
+}

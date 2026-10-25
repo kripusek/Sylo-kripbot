@@ -6,9 +6,18 @@
 import { log } from '../lib/log.js';
 import { runtime } from '../runtime.js';
 import { ensureAccount, credit, debit } from '../db/economy.js';
-import { getSteamLink, insertCs2Bet, pendingCs2Bets, settleCs2Bet } from '../db/cs2.js';
-import { firstMatchAfter, CS2_MODES, modeInfo, describeModeFields } from './lib/cs2.js';
-import { leetifyConfigured, leetifyMatches } from './markets.js';
+import { getSteamLink, insertCs2Bet, pendingCs2Bets, pendingCs2BetOf, settleCs2Bet } from '../db/cs2.js';
+import {
+  firstMatchAfter,
+  CS2_MODES,
+  modeInfo,
+  describeModeFields,
+  parseLeetifyMatchId,
+  matchById,
+  describeMatch,
+  detectMode,
+} from './lib/cs2.js';
+import { leetifyConfigured, leetifyMatches, leetifyMatchById } from './markets.js';
 import { getGuildModule } from '../db/modules.js';
 import { normaliseEconomy, formatCoins } from './economy.js';
 
@@ -73,6 +82,105 @@ async function finish(bet, status, payout, text) {
   return true;
 }
 
+/** Pay out (or take, or refund) a stake from a clear match result. */
+async function applyResult(bet, found, coins) {
+  const multiplier = modeInfo(bet.mode).multiplier;
+  const win = Math.floor(bet.amount * multiplier);
+  const info = `${found.map || 'CS2'}${found.score ? ` ${found.score}` : ''} — dane: Leetify`;
+  if (found.state === 'win')
+    return finish(bet, 'won', win, `🏆 Wygrałeś mecz CS2 (${info})! Wypłata ×${multiplier}: ${coins(win)}.`);
+  if (found.state === 'loss')
+    return finish(bet, 'lost', 0, `💀 Przegrałeś mecz CS2 (${info}). Stawka ${coins(bet.amount)} przepadła.`);
+  return finish(
+    bet,
+    'tie',
+    bet.amount,
+    `🤝 Remis w meczu CS2 (${info}) — stawka ${coins(bet.amount)} wróciła na konto.`
+  );
+}
+
+/**
+ * Settle your own stake from a Leetify match link — for matches the automatic
+ * check can't see or classify. The match must be yours, finish late enough, fit
+ * the stake's mode, and no earlier counting match of yours may exist.
+ * @returns {Promise<{ ok: boolean, message: string }>}
+ */
+export async function claimCs2ByLink(guildId, userId, link) {
+  const id = parseLeetifyMatchId(link);
+  if (!id) return { ok: false, message: 'Podaj link do meczu z Leetify (leetify.com/app/match-details/…).' };
+  const bet = await pendingCs2BetOf(guildId, userId);
+  if (!bet) return { ok: false, message: 'Nie masz aktywnej stawki CS2.' };
+  if (!leetifyConfigured()) return { ok: false, message: 'Brak klucza Leetify na serwerze bota.' };
+  let matches;
+  let raw;
+  try {
+    matches = await leetifyMatches(bet.steamId);
+    raw = matchById(matches, id) ?? (await leetifyMatchById(id));
+  } catch (error) {
+    return { ok: false, message: error.message ?? String(error) };
+  }
+  if (!raw) return { ok: false, message: 'Leetify nie zna tego meczu — poczekaj, aż się przetworzy.' };
+  const found = describeMatch(raw, bet.steamId);
+  if (found.state === 'unclear' && !found.score)
+    return {
+      ok: false,
+      message:
+        'Nie widzę Cię w tym meczu albo Leetify nie podaje wyniku — to musi być mecz z Twojego połączonego konta Steam.',
+    };
+  if (found.finishedAt === null || found.finishedAt <= bet.createdAt + MIN_MATCH_GAP_MS)
+    return {
+      ok: false,
+      message: `Mecz musi skończyć się co najmniej ${MIN_MATCH_GAP_MS / 60_000} min po postawieniu stawki.`,
+    };
+  if (CS2_MODES[bet.mode] && found.mode && found.mode !== bet.mode)
+    return {
+      ok: false,
+      message: `To mecz ${CS2_MODES[found.mode].label}, a stawka jest na ${CS2_MODES[bet.mode].label}.`,
+    };
+  const earlier = matches.filter((m) => {
+    const other = describeMatch(m, bet.steamId);
+    return (
+      other.id !== found.id &&
+      other.finishedAt !== null &&
+      other.finishedAt > bet.createdAt + MIN_MATCH_GAP_MS &&
+      other.finishedAt < found.finishedAt &&
+      (!CS2_MODES[bet.mode] || detectMode(m) === bet.mode)
+    );
+  });
+  if (earlier.length)
+    return {
+      ok: false,
+      message: 'Liczy się pierwszy mecz po stawce — wcześniej skończyłeś inny mecz tego trybu.',
+    };
+  if (found.state === 'unclear')
+    return { ok: false, message: 'Wynik tego meczu jest niejasny w danych Leetify.' };
+  const economy = normaliseEconomy((await getGuildModule(guildId, 'economy')).config);
+  const coins = (n) => formatCoins(economy, n).replaceAll('**', '');
+  const done = await applyResult(bet, found, coins);
+  return done
+    ? { ok: true, message: 'Stawka rozliczona — szczegóły przyszły w DM.' }
+    : { ok: false, message: 'Ta stawka została już rozliczona.' };
+}
+
+/** Admin help: what Leetify returns for a player and what the bot makes of it. */
+export async function debugCs2(guildId, userId, limit = 5) {
+  const bet = await pendingCs2BetOf(guildId, userId);
+  const steamId = bet?.steamId ?? (await getSteamLink(guildId, userId));
+  if (!steamId) return 'Brak połączonego Steama.';
+  const matches = (await leetifyMatches(steamId)).slice(0, limit);
+  const lines = matches.map((m) => {
+    const d = describeMatch(m, steamId);
+    const at = d.finishedAt ? new Date(d.finishedAt).toISOString().slice(0, 16).replace('T', ' ') : '?';
+    return `• ${at} UTC · ${d.map || '?'} · ${d.score || '?'} · ${d.state} · tryb: ${d.mode ?? 'nieznany'} [${describeModeFields(m)}]\n  id: ${d.id}`;
+  });
+  const head = bet
+    ? `Aktywna stawka: ${bet.amount} na ${CS2_MODES[bet.mode]?.label ?? 'dowolny'}, postawiona ${new Date(bet.createdAt).toISOString().slice(0, 16).replace('T', ' ')} UTC (liczą się mecze zakończone po +${MIN_MATCH_GAP_MS / 60_000} min).`
+    : 'Brak aktywnej stawki.';
+  return [head, ...(lines.length ? lines : ['Leetify nie zwrócił żadnych meczów.'])]
+    .join('\n')
+    .slice(0, 1900);
+}
+
 /** Settle every pending stake whose player has finished a counting match. */
 export async function syncCs2Bets(now = Date.now()) {
   if (!leetifyConfigured()) return;
@@ -91,8 +199,6 @@ export async function syncCs2Bets(now = Date.now()) {
       const economy = normaliseEconomy((await getGuildModule(bet.guildId, 'economy')).config);
       const coins = (n) => formatCoins(economy, n).replaceAll('**', '');
       const wanted = CS2_MODES[bet.mode] ? bet.mode : null;
-      const multiplier = modeInfo(bet.mode).multiplier;
-      const win = Math.floor(bet.amount * multiplier);
       let found = firstMatchAfter(matches, steamId, bet.createdAt + MIN_MATCH_GAP_MS, wanted);
       if (found?.none) {
         log.warn(
@@ -101,9 +207,6 @@ export async function syncCs2Bets(now = Date.now()) {
         );
         found = null;
       }
-      const info = found
-        ? `${found.map || 'CS2'}${found.score ? ` ${found.score}` : ''} — dane: Leetify`
-        : '';
       if (!found || found.state === 'unclear') {
         if (now - bet.createdAt > EXPIRY_MS)
           await finish(
@@ -115,27 +218,7 @@ export async function syncCs2Bets(now = Date.now()) {
         else if (found) log.warn('module:cs2-bets', `bet ${bet.id}: match ${found.id} has no clear result`);
         continue;
       }
-      if (found.state === 'win')
-        await finish(
-          bet,
-          'won',
-          win,
-          `🏆 Wygrałeś mecz CS2 (${info})! Wypłata ×${multiplier}: ${coins(win)}.`
-        );
-      else if (found.state === 'loss')
-        await finish(
-          bet,
-          'lost',
-          0,
-          `💀 Przegrałeś mecz CS2 (${info}). Stawka ${coins(bet.amount)} przepadła.`
-        );
-      else
-        await finish(
-          bet,
-          'tie',
-          bet.amount,
-          `🤝 Remis w meczu CS2 (${info}) — stawka ${coins(bet.amount)} wróciła na konto.`
-        );
+      await applyResult(bet, found, coins);
     }
   }
 }

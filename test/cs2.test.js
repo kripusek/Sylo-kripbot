@@ -10,6 +10,7 @@ import {
   firstMatchAfter,
   matchList,
   detectMode,
+  parseLeetifyMatchId,
 } from '../src/modules/lib/cs2.js';
 import { createCs2Market, placeBet, syncCs2 } from '../src/modules/markets.js';
 
@@ -172,4 +173,16 @@ test('detectMode only recognises a mode by its own name', () => {
     'conflicting hints are unknown'
   );
   assert.equal(detectMode({}), null);
+});
+
+test('parseLeetifyMatchId reads a pasted Leetify link', () => {
+  const id = 'f2f225b7-2df0-4452-8cdb-a35ea61dc7b6';
+  assert.equal(
+    parseLeetifyMatchId(
+      `[7 : 3 on Complex – Leetify](https://leetify.com/app/match-details/${id}/your-match)`
+    ),
+    id
+  );
+  assert.equal(parseLeetifyMatchId(id.toUpperCase()), id);
+  assert.equal(parseLeetifyMatchId('https://example.com/x'), null);
 });
