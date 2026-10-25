@@ -188,6 +188,8 @@ export async function debugCs2(guildId, userId, limit = 5) {
 export async function syncCs2Bets(now = Date.now()) {
   if (!leetifyConfigured()) return;
   const pending = await pendingCs2Bets();
+  if (pending.length)
+    log.info('module:cs2-bets', `checking ${pending.length} pending stake(s) against Leetify`);
   const bySteam = new Map();
   for (const bet of pending) bySteam.set(bet.steamId, [...(bySteam.get(bet.steamId) ?? []), bet]);
   for (const [steamId, bets] of bySteam) {
@@ -230,3 +232,7 @@ const timer = setInterval(() => {
   syncCs2Bets().catch((error) => log.error('module:cs2-bets', 'sync failed:', error.message ?? error));
 }, SYNC_MS);
 timer.unref();
+// First check shortly after start-up instead of waiting a full interval.
+setTimeout(() => {
+  syncCs2Bets().catch((error) => log.error('module:cs2-bets', 'sync failed:', error.message ?? error));
+}, 20_000).unref();
