@@ -181,6 +181,17 @@ export const CS2_DEFAULT_MESSAGES = {
   expired: '⏳ Nie znalazłem meczu CS2 dla {user} — stawka {amount} wróciła na konto.',
 };
 
+/** Announcements for stakes on somebody else's match. */
+export const CS2_DEFAULT_MESSAGES_OTHER = {
+  win: '🏆 {user} trafił! {player} {result} mecz CS2 ({map} {score}, {mode}). Wypłata ×{multiplier}: {payout}.',
+  loss: '💀 {user} nie trafił — {player} {result} mecz CS2 ({map} {score}, {mode}). Stawka {amount} przepadła.',
+  tie: '🤝 Remis w meczu CS2 gracza {player} ({map} {score}, {mode}) — {user} dostaje zwrot stawki: {amount}.',
+  expired: '⏳ Nie znalazłem meczu CS2 gracza {player} — stawka {user} ({amount}) wróciła na konto.',
+};
+
+/** What a stake that the player will NOT win pays, whatever the mode. */
+export const CS2_LOSE_PICK_MULTIPLIER = 1.5;
+
 /** Fill `{name}` placeholders; unknown ones are left as written, extra spaces tidied. */
 export function renderCs2Message(template, vars) {
   return String(template)

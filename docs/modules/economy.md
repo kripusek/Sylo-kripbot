@@ -53,6 +53,8 @@ Wymagają: klucza `LEETIFY_API_KEY` (leetify.com/app/developer), ustawionego `DA
 
 Tryb meczu bot rozpoznaje po jego nazwie w danych Leetify; mecz, którego trybu nie da się ustalić, jest pomijany (po 72 h stawka wraca, a w logu bota pojawia się surowe pole trybu).
 
+**Stawka na mecz innego gracza:** `/gry cs2 stawka tryb gracz:@ktoś czy_wygra:tak|nie`. Gracz musi mieć połączone Steam (`/steam polacz`). „tak" płaci mnożnik trybu, „nie" płaci ×1,5 w każdym trybie; remis zwraca stawkę. Przeciwko sobie obstawić się nie da. Żeby stawka w ogóle przeszła, obstawiający (albo gracz, na którego stawia) musi mieć profil na Leetify — bot sprawdza to przy stawce i podaje link do leetify.com.
+
 **Gdy bot sam nie rozliczy stawki:** `/steam mecz <link>` — wklej link do meczu z Leetify (`leetify.com/app/match-details/…`). Bot sprawdza, że to Twój mecz (Twoje połączone Steam), skończył się ≥25 min po stawce, jest w wybranym trybie (jeśli tryb da się ustalić) i że nie miałeś wcześniej innego liczącego się meczu — wtedy rozlicza stawkę normalnie.
 
 **Diagnostyka (Zarządzanie serwerem):** `/steam debug` pokazuje 5 ostatnich meczów z Leetify (czas, mapa, wynik, rozpoznany tryb i surowe pola trybu) oraz aktywną stawkę.

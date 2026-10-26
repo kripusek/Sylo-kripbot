@@ -166,6 +166,18 @@ test('steam link pages: start redirects to Steam, callback stores the verified a
 
 // ------------------------------------------------------------------- bets ----
 
+// Every test sees a Leetify profile for every Steam account unless it says otherwise.
+const profileFetch = globalThis.fetch;
+let profileState = 'ok';
+globalThis.fetch = async (url, init) => {
+  const u = new URL(String(url));
+  if (u.hostname === 'api-public.cs-prod.leetify.com' && u.pathname === '/v3/profile')
+    return profileState === 'missing'
+      ? { ok: false, status: 404, json: async () => ({}) }
+      : { ok: true, status: 200, json: async () => ({ name: 'x' }) };
+  return profileFetch(url, init);
+};
+
 const GUILD = '800000000000000051';
 const match = (id, finishedAt, steamId, mine, theirs, mode = 'wingman') => ({
   id,
@@ -485,4 +497,57 @@ test('economy config keeps the customised CS2 announcements', async () => {
   assert.equal(cfg.games.cs2.winMessage, '**GG** {user} {payout} <:x:1>');
   assert.equal(cfg.games.cs2.lossMessage, '');
   assert.equal(normaliseEconomy({}).games.cs2.ping, true);
+});
+
+test('stakes need a Leetify profile; bets on other players work and pay by pick', async () => {
+  const guild = '800000000000000059';
+  await setup(guild);
+  const U3 = '300000000000000099';
+  for (const u of [U1, U2, U3]) await credit(guild, u, 1000);
+  await saveSteamLink(guild, U1, STEAM1);
+  await saveSteamLink(guild, U2, STEAM2);
+
+  // No Leetify profile: refused with a pointer to leetify.com.
+  const other = '76561198000000077';
+  await saveSteamLink(guild, U3, other);
+  profileState = 'missing';
+  assert.match((await placeCs2Bet(guild, U3, 100, 'premier')).error, /konta na Leetify/);
+  assert.match(
+    (await placeCs2Bet(guild, U1, 100, 'premier', '', { targetId: U3 })).error,
+    /Ten gracz nie ma konta na Leetify/
+  );
+  profileState = 'ok';
+
+  // Not linked / against yourself.
+  assert.match(
+    (await placeCs2Bet(guild, U1, 100, 'premier', '', { targetId: '300000000000000001' })).error,
+    /nie ma połączonego Steama/
+  );
+  assert.match((await placeCs2Bet(guild, U1, 100, 'premier', '', { pick: 'lose' })).error, /Przeciwko sobie/);
+
+  // U1 bets that U2 will win (x3), U3 bets that U2 will lose (x1.5).
+  assert.equal((await placeCs2Bet(guild, U1, 100, 'premier', '', { targetId: U2, pick: 'win' })).ok, true);
+  assert.equal((await placeCs2Bet(guild, U3, 100, 'premier', '', { targetId: U2, pick: 'lose' })).ok, true);
+  const placed = (await pendingCs2BetOf(guild, U1)).createdAt;
+
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const id = new URL(String(url)).searchParams.get('steamId');
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        matches:
+          id === STEAM2 ? [match('o', placed + MIN_MATCH_GAP_MS + 60_000, STEAM2, 13, 5, 'premier')] : [],
+      }),
+    };
+  };
+  try {
+    await syncCs2Bets();
+    assert.equal((await getAccount(guild, U1)).balance, 1200, '900 + 100 x3: U2 won');
+    assert.equal((await getAccount(guild, U3)).balance, 900, 'bet on a loss, U2 won: stake gone');
+  } finally {
+    globalThis.fetch = realFetch;
+    delete process.env.LEETIFY_API_KEY;
+  }
 });

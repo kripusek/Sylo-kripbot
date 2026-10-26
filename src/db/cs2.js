@@ -27,10 +27,14 @@ registerPostgresBootstrap(`
     created_at BIGINT NOT NULL,
     settled_at BIGINT NOT NULL DEFAULT 0,
     mode       TEXT NOT NULL DEFAULT 'any',
-    channel_id TEXT NOT NULL DEFAULT ''
+    channel_id TEXT NOT NULL DEFAULT '',
+    target_id  TEXT NOT NULL DEFAULT '',
+    pick       TEXT NOT NULL DEFAULT 'win'
   );
   ALTER TABLE cs2_bets ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'any';
   ALTER TABLE cs2_bets ADD COLUMN IF NOT EXISTS channel_id TEXT NOT NULL DEFAULT '';
+  ALTER TABLE cs2_bets ADD COLUMN IF NOT EXISTS target_id TEXT NOT NULL DEFAULT '';
+  ALTER TABLE cs2_bets ADD COLUMN IF NOT EXISTS pick TEXT NOT NULL DEFAULT 'win';
   CREATE INDEX IF NOT EXISTS idx_cs2_bets_status ON cs2_bets (status, id);
   CREATE INDEX IF NOT EXISTS idx_cs2_bets_user ON cs2_bets (guild_id, user_id, id);
 `);
@@ -50,6 +54,8 @@ const toBet = (r) =>
         settledAt: num(r.settled_at),
         mode: r.mode,
         channelId: r.channel_id ?? '',
+        targetId: r.target_id ?? '',
+        pick: r.pick || 'win',
       }
     : null;
 
@@ -64,9 +70,10 @@ const removeLinkStmt = prepare('DELETE FROM steam_links WHERE guild_id = ? AND u
 
 // One pending stake per member: the NOT EXISTS guard and the insert are one statement.
 const insertBetStmt = prepare(
-  `INSERT INTO cs2_bets (guild_id, user_id, steam_id, amount, created_at, mode, channel_id)
+  `INSERT INTO cs2_bets (guild_id, user_id, steam_id, amount, created_at, mode, channel_id, target_id, pick)
    SELECT CAST(@guildId AS TEXT), CAST(@userId AS TEXT), CAST(@steamId AS TEXT),
-          CAST(@amount AS BIGINT), CAST(@now AS BIGINT), CAST(@mode AS TEXT), CAST(@channelId AS TEXT)
+          CAST(@amount AS BIGINT), CAST(@now AS BIGINT), CAST(@mode AS TEXT), CAST(@channelId AS TEXT),
+          CAST(@targetId AS TEXT), CAST(@pick AS TEXT)
    WHERE NOT EXISTS (
      SELECT 1 FROM cs2_bets WHERE guild_id = @guildId AND user_id = @userId AND status = 'pending'
    )`,
@@ -114,9 +121,20 @@ export async function insertCs2Bet(
   amount,
   mode = 'any',
   channelId = '',
+  { targetId = '', pick = 'win' } = {},
   now = Date.now()
 ) {
-  const info = await insertBetStmt.run({ guildId, userId, steamId, amount, mode, channelId, now });
+  const info = await insertBetStmt.run({
+    guildId,
+    userId,
+    steamId,
+    amount,
+    mode,
+    channelId,
+    targetId,
+    pick,
+    now,
+  });
   return info.changes > 0 ? Number(info.lastInsertRowid) : null;
 }
 

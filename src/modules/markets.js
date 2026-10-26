@@ -216,6 +216,40 @@ export async function leetifyMatches(steamId) {
   return matchList(body);
 }
 
+const profileCache = new Map(); // steamId -> expiry of a confirmed profile
+const PROFILE_TTL_MS = 3_600_000;
+
+/**
+ * Does this SteamID have a Leetify profile? 'ok' (cached for an hour), 'missing'
+ * (Leetify doesn't know it) or 'unknown' (couldn't ask / odd answer).
+ */
+export async function leetifyProfileState(steamId) {
+  if ((profileCache.get(steamId) ?? 0) > Date.now()) return 'ok';
+  try {
+    const res = await fetch(`${LEETIFY}/v3/profile?steam64_id=${steamId}&steamId=${steamId}`, {
+      headers: {
+        accept: 'application/json',
+        authorization: `Bearer ${leetifyKey()}`,
+        _leetify_key: leetifyKey(),
+      },
+      signal: AbortSignal.timeout(POLYMARKET_TIMEOUT_MS),
+    });
+    if (res.status === 404) return 'missing';
+    if (!res.ok) return 'unknown';
+    const body = await res.json();
+    if (body && typeof body === 'object' && typeof body.error === 'string')
+      return /not\s*found|no\s*(such\s*)?(user|profile|player)|unregistered|not\s*registered/i.test(
+        body.error
+      )
+        ? 'missing'
+        : 'unknown';
+    profileCache.set(steamId, Date.now() + PROFILE_TTL_MS);
+    return 'ok';
+  } catch {
+    return 'unknown';
+  }
+}
+
 /** The raw answer of the match list, for diagnosing an empty result. */
 export async function leetifyRawMatches(steamId) {
   const res = await fetch(`${LEETIFY}/v3/profile/matches?steam64_id=${steamId}&steamId=${steamId}&limit=20`, {

@@ -20,9 +20,17 @@ import {
   describeMatch,
   detectMode,
   CS2_DEFAULT_MESSAGES,
+  CS2_DEFAULT_MESSAGES_OTHER,
+  CS2_LOSE_PICK_MULTIPLIER,
   renderCs2Message,
 } from './lib/cs2.js';
-import { leetifyConfigured, leetifyMatches, leetifyMatchById, leetifyRawMatches } from './markets.js';
+import {
+  leetifyConfigured,
+  leetifyMatches,
+  leetifyMatchById,
+  leetifyRawMatches,
+  leetifyProfileState,
+} from './markets.js';
 import { getGuildModule } from '../db/modules.js';
 import { normaliseEconomy, formatCoins } from './economy.js';
 
@@ -40,7 +48,14 @@ const SYNC_MS = 5 * 60_000;
  * Take the stake and open it.
  * @returns {Promise<{ ok: true, balance: number, economy: object } | { ok: false, error: string }>}
  */
-export async function placeCs2Bet(guildId, userId, amount, mode, channelId = '') {
+export async function placeCs2Bet(
+  guildId,
+  userId,
+  amount,
+  mode,
+  channelId = '',
+  { targetId = '', pick = 'win' } = {}
+) {
   if (!CS2_MODES[mode])
     return { ok: false, error: 'Wybierz tryb gry: Rush, Wingman, Competitive albo Premier.' };
   const economy = normaliseEconomy((await getGuildModule(guildId, 'economy')).config);
@@ -49,8 +64,26 @@ export async function placeCs2Bet(guildId, userId, amount, mode, channelId = '')
   if (!economy.games.enabled) return { ok: false, error: 'Gry są wyłączone na tym serwerze.' };
   if (!leetifyConfigured())
     return { ok: false, error: 'Zakłady CS2 nie są skonfigurowane (brak klucza Leetify na serwerze bota).' };
-  const steamId = await getSteamLink(guildId, userId);
-  if (!steamId) return { ok: false, error: 'Najpierw połącz konto Steam: użyj **/steam polacz**.' };
+  const onOther = Boolean(targetId) && targetId !== userId;
+  if (!onOther && pick === 'lose')
+    return { ok: false, error: 'Przeciwko sobie nie postawisz — wybierz „tak" albo wskaż innego gracza.' };
+  const steamId = await getSteamLink(guildId, onOther ? targetId : userId);
+  if (!steamId)
+    return {
+      ok: false,
+      error: onOther
+        ? 'Ten gracz nie ma połączonego Steama (musi użyć **/steam polacz**) — nie mogę sprawdzać jego meczy.'
+        : 'Najpierw połącz konto Steam: użyj **/steam polacz**.',
+    };
+  const profile = await leetifyProfileState(steamId);
+  if (profile !== 'ok')
+    return {
+      ok: false,
+      error:
+        profile === 'missing'
+          ? `${onOther ? 'Ten gracz nie ma' : 'Nie masz'} konta na Leetify — załóż je na https://leetify.com (zaloguj się przez Steama tym samym kontem) i spróbuj ponownie.`
+          : 'Nie udało mi się sprawdzić konta Leetify, spróbuj za chwilę.',
+    };
   if (!Number.isInteger(amount) || amount < economy.games.minBet || amount > economy.games.maxBet)
     return {
       ok: false,
@@ -62,7 +95,10 @@ export async function placeCs2Bet(guildId, userId, amount, mode, channelId = '')
   if (balance === null) return { ok: false, error: 'Nie masz tylu monet.' };
   let id;
   try {
-    id = await insertCs2Bet(guildId, userId, steamId, amount, mode, channelId);
+    id = await insertCs2Bet(guildId, userId, steamId, amount, mode, channelId, {
+      targetId: onOther ? targetId : '',
+      pick: onOther ? pick : 'win',
+    });
   } catch (error) {
     await credit(guildId, userId, amount);
     throw error;
@@ -111,11 +147,16 @@ async function tell(bet, kind, vars = {}) {
   const settings = economy.games.cs2;
   const coins = (n) => formatCoins(economy, n).replaceAll('**', '');
   const multiplier = modeInfo(bet.mode).multiplier;
-  const text = renderCs2Message(settings[KIND_FIELD[kind]] || CS2_DEFAULT_MESSAGES[kind], {
+  const other = Boolean(bet.targetId) && bet.targetId !== bet.userId;
+  const defaults = other ? CS2_DEFAULT_MESSAGES_OTHER : CS2_DEFAULT_MESSAGES;
+  const text = renderCs2Message(settings[KIND_FIELD[kind]] || defaults[kind], {
     user: `<@${bet.userId}>`,
+    player: `<@${other ? bet.targetId : bet.userId}>`,
+    result: vars.result ?? '',
+    pick: bet.pick === 'lose' ? 'nie' : 'tak',
     amount: coins(bet.amount),
     payout: coins(vars.payout ?? 0),
-    multiplier,
+    multiplier: bet.pick === 'lose' ? CS2_LOSE_PICK_MULTIPLIER : multiplier,
     map: vars.map || 'CS2',
     score: vars.score || '',
     mode: CS2_MODES[bet.mode]?.label ?? 'dowolny',
@@ -166,11 +207,13 @@ async function finish(bet, status, payout, kind, vars) {
 
 /** Pay out (or take, or refund) a stake from a clear match result. */
 async function applyResult(bet, found) {
-  const win = Math.floor(bet.amount * modeInfo(bet.mode).multiplier);
-  const vars = { map: found.map, score: found.score };
-  if (found.state === 'win') return finish(bet, 'won', win, 'win', vars);
-  if (found.state === 'loss') return finish(bet, 'lost', 0, 'loss', vars);
-  return finish(bet, 'tie', bet.amount, 'tie', vars);
+  const factor = bet.pick === 'lose' ? CS2_LOSE_PICK_MULTIPLIER : modeInfo(bet.mode).multiplier;
+  const win = Math.floor(bet.amount * factor);
+  const result = { win: 'wygrał', loss: 'przegrał', tie: 'zremisował' }[found.state] ?? '';
+  const vars = { map: found.map, score: found.score, result };
+  if (found.state === 'tie') return finish(bet, 'tie', bet.amount, 'tie', vars);
+  const hit = bet.pick === 'lose' ? found.state === 'loss' : found.state === 'win';
+  return hit ? finish(bet, 'won', win, 'win', vars) : finish(bet, 'lost', 0, 'loss', vars);
 }
 
 /**

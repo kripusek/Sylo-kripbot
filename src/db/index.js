@@ -960,6 +960,11 @@ export const MIGRATIONS = [
   (database) => {
     database.exec(`ALTER TABLE cs2_bets ADD COLUMN channel_id TEXT NOT NULL DEFAULT '';`);
   },
+  // CS2 stakes on somebody else's match: whose match, and whether the stake is on a win or a loss.
+  (database) => {
+    database.exec(`ALTER TABLE cs2_bets ADD COLUMN target_id TEXT NOT NULL DEFAULT '';`);
+    database.exec(`ALTER TABLE cs2_bets ADD COLUMN pick TEXT NOT NULL DEFAULT 'win';`);
+  },
 ];
 
 /** Highest schema version this build knows how to run. */

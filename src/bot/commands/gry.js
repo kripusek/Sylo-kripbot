@@ -38,6 +38,7 @@ import {
   rouletteMultiplier,
 } from '../../modules/lib/economyGames.js';
 import { log } from '../../lib/log.js';
+import { CS2_LOSE_PICK_MULTIPLIER } from '../../modules/lib/cs2.js';
 import { placeCs2Bet, CS2_MODES, matchGapMs } from '../../modules/cs2Bets.js';
 
 const BLACKJACK_TIMEOUT_MS = 60_000;
@@ -150,6 +151,16 @@ export const data = new SlashCommandBuilder()
               value,
             }))
           )
+      )
+      .addUserOption((o) =>
+        o.setName('gracz').setDescription("Bet on this member's match instead of your own").setRequired(false)
+      )
+      .addStringOption((o) =>
+        o
+          .setName('czy_wygra')
+          .setDescription('Will the player win? (tak pays the mode multiplier, nie pays x1.5)')
+          .setRequired(false)
+          .addChoices({ name: 'tak', value: 'win' }, { name: 'nie', value: 'lose' })
       )
   )
   .addSubcommand((s) =>
@@ -500,23 +511,30 @@ async function cs2Game(interaction) {
   if (!config) return;
   const bet = interaction.options.getInteger('stawka', true);
   const mode = interaction.options.getString('tryb', true);
+  const target = interaction.options.getUser('gracz');
+  const pick = interaction.options.getString('czy_wygra') ?? 'win';
+  if (target?.bot) return interaction.reply(ephemeral('Na bota nie postawisz.'));
   const result = await placeCs2Bet(
     interaction.guildId,
     interaction.user.id,
     bet,
     mode,
-    interaction.channelId ?? ''
+    interaction.channelId ?? '',
+    { targetId: target?.id ?? '', pick }
   );
   if (!result.ok) return interaction.reply(ephemeral(result.error));
   const minutes = matchGapMs(mode) / 60_000;
+  const onOther = Boolean(target) && target.id !== interaction.user.id;
   return interaction.reply({
     embeds: [
       new EmbedBuilder()
         .setColor(COLORS.info)
         .setTitle('🎯 Stawka na mecz CS2')
         .setDescription(
-          `Postawiłeś ${formatCoins(config, bet)} na wygraną w swoim następnym meczu **${CS2_MODES[mode].label}**.\n` +
-            `Wygrana: **${CS2_MODES[mode].multiplier}x**, remis zwraca stawkę. Liczy się pierwszy mecz tego trybu, który skończy się ` +
+          (onOther
+            ? `Postawiłeś ${formatCoins(config, bet)}, że ${target} **${pick === 'win' ? 'wygra' : 'przegra'}** swój następny mecz **${CS2_MODES[mode].label}**.\n`
+            : `Postawiłeś ${formatCoins(config, bet)} na wygraną w swoim następnym meczu **${CS2_MODES[mode].label}**.\n`) +
+            `Wygrana: **${pick === 'lose' && onOther ? CS2_LOSE_PICK_MULTIPLIER : CS2_MODES[mode].multiplier}x**, remis zwraca stawkę. Liczy się pierwszy mecz tego trybu, który skończy się ` +
             `co najmniej ${minutes} min po stawce. Wynik ogłoszę na tym kanale (dane: Leetify).`
         )
         .setFooter({ text: `Saldo: ${result.balance}` }),
