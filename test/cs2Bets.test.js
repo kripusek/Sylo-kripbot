@@ -249,7 +249,7 @@ test('syncCs2Bets pays 2x on a win, nothing on a loss, refunds ties and skips to
   const realFetch = globalThis.fetch;
   let table = {};
   globalThis.fetch = async (url) => {
-    const id = new URL(String(url)).searchParams.get('steamId');
+    const id = new URL(String(url)).searchParams.get('steam64_id');
     return { ok: true, status: 200, json: async () => ({ matches: table[id] ?? [] }) };
   };
   try {
@@ -333,7 +333,7 @@ test('each mode pays its own multiplier and only counts matches of that mode', a
   const realFetch = globalThis.fetch;
   let table = {};
   globalThis.fetch = async (url) => {
-    const id = new URL(String(url)).searchParams.get('steamId');
+    const id = new URL(String(url)).searchParams.get('steam64_id');
     return { ok: true, status: 200, json: async () => ({ matches: table[id] ?? [] }) };
   };
   try {
@@ -532,7 +532,7 @@ test('stakes need a Leetify profile; bets on other players work and pay by pick'
 
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
-    const id = new URL(String(url)).searchParams.get('steamId');
+    const id = new URL(String(url)).searchParams.get('steam64_id');
     return {
       ok: true,
       status: 200,

@@ -196,7 +196,7 @@ const leetifyKey = () => process.env.LEETIFY_API_KEY ?? '';
 export const leetifyConfigured = () => Boolean(leetifyKey());
 
 export async function leetifyMatches(steamId) {
-  const res = await fetch(`${LEETIFY}/v3/profile/matches?steam64_id=${steamId}&steamId=${steamId}&limit=20`, {
+  const res = await fetch(`${LEETIFY}/v3/profile/matches?steam64_id=${steamId}&limit=20`, {
     headers: {
       accept: 'application/json',
       authorization: `Bearer ${leetifyKey()}`,
@@ -208,7 +208,7 @@ export async function leetifyMatches(steamId) {
     throw new Error('Leetify odrzucił klucz API (LEETIFY_API_KEY).');
   if (res.status === 404)
     throw new Error('Leetify nie zna tego SteamID (profil musi istnieć na leetify.com).');
-  if (!res.ok) throw new Error(`Leetify odpowiedział ${res.status}.`);
+  if (!res.ok) throw new Error(`Leetify odpowiedział ${res.status} (lista meczów).`);
   const body = await res.json();
   // Leetify answers some bad requests with HTTP 200 and {"error": "..."}.
   if (body && !Array.isArray(body) && typeof body.error === 'string')
@@ -226,7 +226,7 @@ const PROFILE_TTL_MS = 3_600_000;
 export async function leetifyProfileState(steamId) {
   if ((profileCache.get(steamId) ?? 0) > Date.now()) return 'ok';
   try {
-    const res = await fetch(`${LEETIFY}/v3/profile?steam64_id=${steamId}&steamId=${steamId}`, {
+    const res = await fetch(`${LEETIFY}/v3/profile?steam64_id=${steamId}`, {
       headers: {
         accept: 'application/json',
         authorization: `Bearer ${leetifyKey()}`,
@@ -252,7 +252,7 @@ export async function leetifyProfileState(steamId) {
 
 /** The raw answer of the match list, for diagnosing an empty result. */
 export async function leetifyRawMatches(steamId) {
-  const res = await fetch(`${LEETIFY}/v3/profile/matches?steam64_id=${steamId}&steamId=${steamId}&limit=20`, {
+  const res = await fetch(`${LEETIFY}/v3/profile/matches?steam64_id=${steamId}&limit=20`, {
     headers: {
       accept: 'application/json',
       authorization: `Bearer ${leetifyKey()}`,
@@ -271,6 +271,7 @@ export async function leetifyMatchById(id) {
     _leetify_key: leetifyKey(),
   };
   // The documented route is /v2/matches/{gameId}; /v3 is kept as a fallback in case Leetify moves it.
+  let failure = '';
   for (const path of [`/v2/matches/${encodeURIComponent(id)}`, `/v3/matches/${encodeURIComponent(id)}`]) {
     const res = await fetch(`${LEETIFY}${path}`, {
       headers,
@@ -279,11 +280,15 @@ export async function leetifyMatchById(id) {
     if (res.status === 404) continue;
     if (res.status === 401 || res.status === 403)
       throw new Error('Leetify odrzucił klucz API (LEETIFY_API_KEY).');
-    if (!res.ok) throw new Error(`Leetify odpowiedział ${res.status}.`);
+    if (!res.ok) {
+      failure = `Leetify odpowiedział ${res.status} (szczegóły meczu ${path.split('/')[1]}).`;
+      continue;
+    }
     const body = await res.json();
     const match = body?.matchDetails ?? body?.match_details ?? body?.match ?? body;
     if (match && typeof match === 'object' && !Array.isArray(match)) return match;
   }
+  if (failure) throw new Error(failure);
   return null;
 }
 
