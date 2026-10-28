@@ -1,4 +1,4 @@
-import { cs2BetHistory } from '../../db/cs2.js';
+import { cs2BetHistory, activeGuildCs2Bets, refundCs2Bet } from '../../db/cs2.js';
 import { headerJson } from '../lib/httpJson.js';
 import { normaliseFeedbackConfig, publishFeedbackPanel } from '../../modules/feedback.js';
 import { normaliseChannelTickets, publishTicketPanel } from '../../modules/channelTickets.js';
@@ -303,17 +303,37 @@ router.get(
   asyncHandler(async (req, res) => {
     const page = Math.max(0, Math.min(100000, Number.parseInt(req.query.page, 10) || 0));
     const rows = await cs2BetHistory(req.guild.id, 26, page * 25);
+    const activePage = Math.max(0, Math.min(100000, Number.parseInt(req.query.activePage, 10) || 0));
+    const active = await activeGuildCs2Bets(req.guild.id, 26, activePage * 25);
     const { config, enabled } = await getGuildModule(req.guild.id, 'economy');
     res.render('guild', {
       ...(await baseContext(req.guild, 'cs2')),
       roles: assignableRoles(req.guild),
       cs2Config: normaliseEconomy(config).games.cs2,
       cs2Bets: rows.slice(0, 25),
+      cs2Active: active.slice(0, 25),
+      cs2ActivePage: activePage,
+      cs2ActiveHasMore: active.length > 25,
+      refundResult: ['refunded', 'already-settled'].includes(req.query.msg) ? req.query.msg : null,
       cs2Page: page,
       cs2HasMore: rows.length > 25,
       economyEnabled: enabled,
       msg: req.query.msg === 'saved' ? 'saved' : null,
     });
+  })
+);
+router.post(
+  '/:guildId/cs2/:betId/refund',
+  asyncHandler(async (req, res) => {
+    const id = /^\d+$/.test(req.params.betId) ? Number(req.params.betId) : NaN;
+    const refunded = await refundCs2Bet(req.guild.id, id);
+    if (refunded)
+      await recordAudit(req.guild.id, {
+        actor: moderatorDisplayName(req),
+        action: 'cs2:refund',
+        detail: `Refunded CS2 bet #${id}`,
+      });
+    res.redirect(`/guilds/${req.guild.id}/cs2?msg=${refunded ? 'refunded' : 'already-settled'}`);
   })
 );
 router.post(

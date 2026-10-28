@@ -233,16 +233,28 @@ export function prepare(sqlText, opts) {
 
 /** Execute parameterized writes atomically on either database backend. */
 export async function runAtomicWrites(operations) {
-  if (!config.databaseUrl) {
-    return db.transaction(() => {
-      for (const operation of operations) db.prepare(operation.sql).run(...operation.args);
-    })();
-  }
-  const sql = await getSql();
-  await sql.begin(async (transaction) => {
-    for (const operation of operations) {
-      const translated = translate(operation.sql);
-      await transaction.unsafe(translated.text, toParams(translated, operation.args));
+  const guardFailed = new Error('Atomic write guard did not match');
+  try {
+    if (!config.databaseUrl) {
+      db.transaction(() => {
+        for (const operation of operations) {
+          const result = db.prepare(operation.sql).run(...operation.args);
+          if (operation.requireChanges && result.changes !== 1) throw guardFailed;
+        }
+      })();
+    } else {
+      const sql = await getSql();
+      await sql.begin(async (transaction) => {
+        for (const operation of operations) {
+          const translated = translate(operation.sql);
+          const result = await transaction.unsafe(translated.text, toParams(translated, operation.args));
+          if (operation.requireChanges && result.count !== 1) throw guardFailed;
+        }
+      });
     }
-  });
+    return true;
+  } catch (error) {
+    if (error === guardFailed) return false;
+    throw error;
+  }
 }

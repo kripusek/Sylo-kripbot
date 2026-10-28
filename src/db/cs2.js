@@ -5,7 +5,8 @@
 // second Discord account can't bet on somebody else's matches. A stake holds
 // coins until the player's next match is known; settling is a guarded UPDATE
 // (status = 'pending'), so a result is paid exactly once.
-import { prepare, registerPostgresBootstrap } from './driver.js';
+import { MAX_BALANCE } from './economy.js';
+import { prepare, registerPostgresBootstrap, runAtomicWrites } from './driver.js';
 
 registerPostgresBootstrap(`
   CREATE TABLE IF NOT EXISTS steam_links (
@@ -159,4 +160,33 @@ export async function settleCs2Bet(id, status, payout, now = Date.now()) {
 const historyStmt = prepare('SELECT * FROM cs2_bets WHERE guild_id = ? ORDER BY id DESC LIMIT ? OFFSET ?');
 export async function cs2BetHistory(guildId, limit = 25, offset = 0) {
   return (await historyStmt.all(guildId, limit, offset)).map(toBet);
+}
+
+const activeGuildStmt = prepare(
+  "SELECT * FROM cs2_bets WHERE guild_id = ? AND status = 'pending' ORDER BY id DESC LIMIT ? OFFSET ?"
+);
+export async function activeGuildCs2Bets(guildId, limit = 25, offset = 0) {
+  return (await activeGuildStmt.all(guildId, limit, offset)).map(toBet);
+}
+
+// The guarded close and credit share a transaction. A competing result or
+// refund can win only once; a failed credit rolls back the close as well.
+export async function refundCs2Bet(guildId, id, now = Date.now()) {
+  if (!Number.isSafeInteger(id) || id <= 0) return false;
+  return runAtomicWrites([
+    {
+      sql: `UPDATE cs2_bets SET status = 'refunded', payout = amount, settled_at = ?
+        WHERE guild_id = ? AND id = ? AND status = 'pending'`,
+      args: [now, guildId, id],
+      requireChanges: true,
+    },
+    {
+      sql: `INSERT INTO economy_accounts (guild_id, user_id, balance)
+        SELECT guild_id, user_id, amount FROM cs2_bets WHERE guild_id = ? AND id = ?
+        ON CONFLICT (guild_id, user_id) DO UPDATE SET balance = CASE
+          WHEN economy_accounts.balance + excluded.balance > ? THEN ?
+          ELSE economy_accounts.balance + excluded.balance END`,
+      args: [guildId, id, MAX_BALANCE, MAX_BALANCE],
+    },
+  ]);
 }

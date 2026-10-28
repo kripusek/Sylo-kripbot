@@ -4,6 +4,7 @@ import { apiFetch } from '../api.js';
 import { useApiData } from '../useApiData.js';
 
 const statuses = {
+  refunded: 'Zwrot administratora',
   pending: 'Oczekujący',
   won: 'Wygrany',
   lost: 'Przegrany',

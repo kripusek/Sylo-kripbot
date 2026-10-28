@@ -1,10 +1,33 @@
 <%
   var cs2 = cs2Config || {};
-  var statuses = { pending: 'Oczekujący', won: 'Wygrany', lost: 'Przegrany', tie: 'Remis', expired: 'Zwrot — brak meczu' };
+  var statuses = { refunded: 'Zwrot administratora', pending: 'Oczekujący', won: 'Wygrany', lost: 'Przegrany', tie: 'Remis', expired: 'Zwrot — brak meczu' };
   var modes = { rush: 'Rush', wingman: 'Wingman', competitive: 'Competitive', premier: 'Premier', any: 'Dowolny' };
   var date = (value) => value ? new Date(value).toLocaleString('pl-PL') : '—';
 %>
 <% if (!economyEnabled) { %><div class="banner info">Ekonomia jest wyłączona. Włącz ją, aby przyjmować nowe zakłady.</div><% } %>
+<% if (refundResult) { %><div class="banner info" role="status"><%= refundResult === 'refunded' ? 'Stawka została zwrócona na konto gracza.' : 'Zakład nie jest już aktywny albo nie istnieje. Nie wykonano zwrotu.' %></div><% } %>
+<details class="lvl-sec" open>
+  <summary>Aktywne mecze / zakłady CS2<span class="lvl-chev">▾</span></summary>
+  <p class="muted small">Zakłady oczekujące na wynik meczu z Leetify — nie jest to podgląd rozgrywek na żywo. Zwrot zamyka zakład i oddaje stawkę obstawiającemu.</p>
+  <div style="overflow-x:auto"><table>
+    <thead><tr><% ['ID', 'Gracz (Discord ID)', 'Cel (Discord ID)', 'Typ', 'Tryb', 'Stawka', 'Postawiono', 'Akcja'].forEach(function (label) { %><th scope="col"><%= label %></th><% }) %></tr></thead>
+    <tbody><% cs2Active.forEach(function (bet) { %><tr>
+      <td>#<%= bet.id %></td><td><%= bet.userId %></td><td><%= bet.targetId || bet.userId %></td>
+      <td><%= bet.pick === 'lose' ? 'Przegra' : 'Wygra' %></td><td><%= modes[bet.mode] || bet.mode %></td>
+      <td><%= bet.amount.toLocaleString('pl-PL') %></td><td><%= date(bet.createdAt) %></td>
+      <td><form method="POST" action="/guilds/<%= guild.id %>/cs2/<%= bet.id %>/refund">
+        <% if (typeof csrfToken !== 'undefined' && csrfToken) { %><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><% } %>
+        <button type="submit" class="btn" aria-label="Zwróć stawkę zakładu <%= bet.id %>">Zwróć stawkę</button>
+      </form></td>
+    </tr><% }) %></tbody>
+  </table></div>
+  <% if (!cs2Active.length) { %><p>Brak aktywnych zakładów na tej stronie.</p><% } %>
+  <nav class="btn-row u-mt-2" aria-label="Strony aktywnych zakładów">
+    <% if (cs2ActivePage > 0) { %><a class="btn" href="?page=<%= cs2Page %>&amp;activePage=<%= cs2ActivePage - 1 %>">Poprzednia</a><% } %>
+    <span>Strona <%= cs2ActivePage + 1 %></span>
+    <% if (cs2ActiveHasMore) { %><a class="btn" href="?page=<%= cs2Page %>&amp;activePage=<%= cs2ActivePage + 1 %>">Następna</a><% } %>
+  </nav>
+</details>
 <details class="lvl-sec" open>
   <summary>Historia zakładów CS2<span class="lvl-chev">▾</span></summary>
   <p class="muted small">Wszystkie zakłady na tym serwerze, od najnowszych. Wypłata obejmuje zwrot stawki. Kwoty w wirtualnych monetach.</p>
