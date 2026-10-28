@@ -4,7 +4,13 @@ import assert from 'node:assert/strict';
 import { dispatch } from '../src/modules/dispatch.js';
 import { setGuildModule } from '../src/db/modules.js';
 import { runtime } from '../src/runtime.js';
-import { normaliseHoneypotConfig, evidenceText, collectRecentMessages } from '../src/modules/honeypot.js';
+import {
+  normaliseHoneypotConfig,
+  evidenceText,
+  collectRecentMessages,
+  fetchEvidenceImages,
+  imagesOf,
+} from '../src/modules/honeypot.js';
 
 const G = '900000000000000889';
 const TRAP = '100000000000000011';
@@ -142,4 +148,82 @@ test('no log channel configured means nothing extra is posted', async () => {
     attachments: { size: 0 },
   });
   assert.equal(log.sent.length, 0);
+});
+
+test('imagesOf keeps only image attachments as plain data', () => {
+  const att = (contentType, url = 'https://cdn.discordapp.com/a/b.png') => ({ contentType, url, size: 10 });
+  const message = {
+    attachments: new Map([
+      ['1', att('image/png')],
+      ['2', att('video/mp4')],
+      ['3', att('text/plain')],
+    ]),
+  };
+  assert.deepEqual(imagesOf(message), [
+    { url: 'https://cdn.discordapp.com/a/b.png', type: 'image/png', size: 10 },
+  ]);
+  assert.deepEqual(imagesOf({ attachments: { size: 2 } }), []);
+});
+
+test('fetchEvidenceImages downloads Discord-CDN images as spoilers and skips everything else', async () => {
+  const realFetch = globalThis.fetch;
+  const asked = [];
+  globalThis.fetch = async (url) => {
+    asked.push(String(url));
+    return { ok: true, status: 200, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer };
+  };
+  try {
+    const good = { url: 'https://cdn.discordapp.com/attachments/1/2/x.png', type: 'image/png', size: 3 };
+    const { files, skipped } = await fetchEvidenceImages([
+      [good, good], // duplicate is fetched once
+      [{ url: 'https://evil.example/x.png', type: 'image/png', size: 3 }], // not Discord's CDN
+      [{ url: 'https://cdn.discordapp.com/big.png', type: 'image/png', size: 99_000_000 }], // too big
+    ]);
+    assert.equal(files.length, 1);
+    assert.equal(skipped, 2);
+    assert.match(files[0].name, /^SPOILER_obrazek1\.png$/);
+    assert.deepEqual(asked, [good.url]);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('a catch posts the caught member’s images, saved before deletion, with the log', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    arrayBuffer: async () => new Uint8Array([9]).buffer,
+  });
+  try {
+    const url = 'https://cdn.discordapp.com/attachments/1/2/scam.png';
+    const general = channel(GENERAL, [{ id: '1', author: SCAMMER, content: 'look', ageMin: 2, files: 1 }]);
+    const [m] = [...(await general.messages.fetch()).values()];
+    m.attachments = new Map([['a', { contentType: 'image/png', url, size: 1 }]]);
+    const logCh = channel(LOG);
+    const { guild, member } = guildWith([general, logCh, channel(TRAP)]);
+    await setGuildModule(G, 'honeypot', {
+      enabled: true,
+      config: {
+        logChannelId: LOG,
+        cleanup: { enabled: true, minutes: 15 },
+        channels: [{ channelId: TRAP, action: 'kick', deleteMessage: false }],
+      },
+    });
+    await dispatch('messageCreate', G, {
+      partial: false,
+      guild,
+      channelId: TRAP,
+      author: { id: SCAMMER },
+      member,
+      deletable: false,
+      content: 'hello',
+      attachments: { size: 0 },
+    });
+    assert.equal(logCh.sent[0].files.length, 1);
+    assert.match(logCh.sent[0].files[0].name, /^SPOILER_/);
+    assert.match(logCh.sent[0].embeds[0].data.description, /Obrazki:\*\* 1 dołączone/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });

@@ -15,7 +15,7 @@
 // triggerCount is bot-managed — bumped each time that row actually punishes
 // someone, and (for message rows) shown live in the trap message itself,
 // e.g. "Bans: 14" — never form-editable.
-import { EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { AttachmentBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { on } from './dispatch.js';
 import { getGuildModule, setGuildModule } from '../db/modules.js';
 import { postModLog } from '../bot/lib/modlog.js';
@@ -112,6 +112,64 @@ function baitEmbed(row, cfg = {}) {
 }
 
 const EVIDENCE_LINE_MAX = 160;
+const IMAGES_PER_MESSAGE = 4;
+const IMAGES_PER_LOG = 6;
+const IMAGE_MAX_BYTES = 4_000_000;
+const IMAGES_TOTAL_BYTES = 7_500_000; // stays under Discord's default upload limit
+const IMAGE_HOSTS = new Set(['cdn.discordapp.com', 'media.discordapp.net']);
+const IMAGE_EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' };
+
+/** The image attachments of a message (url + type + size) — plain data, safe to keep after deletion. */
+export function imagesOf(message) {
+  const list = message?.attachments?.values ? [...message.attachments.values()] : [];
+  return list
+    .filter((a) => IMAGE_EXT[String(a.contentType ?? '').split(';')[0]] && a.url)
+    .slice(0, IMAGES_PER_MESSAGE)
+    .map((a) => ({ url: a.url, type: String(a.contentType).split(';')[0], size: a.size ?? 0 }));
+}
+
+/**
+ * Download the images of the caught member's messages BEFORE they are deleted
+ * (Discord's CDN stops serving a deleted message's files), so the log can show
+ * them again. Only Discord's own CDN, capped in count and size; each file is
+ * posted as a spoiler because scam images are often NSFW.
+ * @returns {Promise<{ files: AttachmentBuilder[], skipped: number }>}
+ */
+export async function fetchEvidenceImages(sources) {
+  const seen = new Set();
+  const wanted = [];
+  for (const img of sources.flat()) {
+    if (!img?.url || seen.has(img.url)) continue;
+    seen.add(img.url);
+    wanted.push(img);
+  }
+  const files = [];
+  let total = 0;
+  let skipped = 0;
+  for (const img of wanted) {
+    if (files.length >= IMAGES_PER_LOG || (img.size && img.size > IMAGE_MAX_BYTES)) {
+      skipped += 1;
+      continue;
+    }
+    try {
+      const url = new URL(img.url);
+      if (url.protocol !== 'https:' || !IMAGE_HOSTS.has(url.hostname)) throw new Error('host not allowed');
+      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const buffer = Buffer.from(await res.arrayBuffer());
+      if (buffer.length > IMAGE_MAX_BYTES || total + buffer.length > IMAGES_TOTAL_BYTES)
+        throw new Error('too large');
+      total += buffer.length;
+      files.push(
+        new AttachmentBuilder(buffer, { name: `SPOILER_obrazek${files.length + 1}.${IMAGE_EXT[img.type]}` })
+      );
+    } catch (err) {
+      skipped += 1;
+      log.warn('module:honeypot', `could not keep an image for the log: ${err.message}`);
+    }
+  }
+  return { files, skipped };
+}
 const EVIDENCE_TOTAL_MAX = 3500;
 
 /** Message text made safe to show in a log: one line, no clickable links or mentions, shortened. */
@@ -148,6 +206,7 @@ export async function collectRecentMessages(guild, userId, minutes, now = Date.n
             at: m.createdTimestamp,
             content: m.content,
             attachments: m.attachments?.size ?? 0,
+            images: imagesOf(m),
           });
     } catch (err) {
       log.warn('module:honeypot', `reading ${channel.id} for the log failed: ${err.message}`);
@@ -159,7 +218,11 @@ export async function collectRecentMessages(guild, userId, minutes, now = Date.n
 }
 
 /** Post the "who was caught and what they wrote" entry to the log channel. */
-export async function postCatchLog(guild, channelId, { member, done, reason, trigger, deleted }) {
+export async function postCatchLog(
+  guild,
+  channelId,
+  { member, done, reason, trigger, deleted, images = { files: [], skipped: 0 } }
+) {
   if (!channelId) return false;
   const parts = [`${member.user.tag} (\`${member.id}\`) — **${done}**`, reason];
   if (trigger) parts.push(`\n**Napisał na pułapce**\n${evidenceText(trigger.content, trigger.attachments)}`);
@@ -177,6 +240,11 @@ export async function postCatchLog(guild, channelId, { member, done, reason, tri
     }
     parts.push(`\n**Usunięte wiadomości (${deleted.length})**\n${lines.join('\n')}`);
   }
+  if (images.files.length || images.skipped)
+    parts.push(
+      `\n**Obrazki:** ${images.files.length} dołączone poniżej (w spoilerach)` +
+        (images.skipped ? `, ${images.skipped} nie udało się zachować` : '')
+    );
   const embed = new EmbedBuilder()
     .setColor(0xed4245)
     .setTitle('🍯 Złapany na pułapkę')
@@ -184,7 +252,11 @@ export async function postCatchLog(guild, channelId, { member, done, reason, tri
     .setDescription(parts.join('\n').slice(0, 4000))
     .setTimestamp(Date.now());
   return Boolean(
-    await postToChannel(guild.id, channelId, { embeds: [embed], allowedMentions: { parse: [] } })
+    await postToChannel(guild.id, channelId, {
+      embeds: [embed],
+      ...(images.files.length ? { files: images.files } : {}),
+      allowedMentions: { parse: [] },
+    })
   );
 }
 
@@ -242,6 +314,13 @@ async function punish(
     catchLog.channelId && cleanup.enabled
       ? await collectRecentMessages(guild, member.id, cleanup.minutes).catch(() => [])
       : [];
+  // Keep the images too — once the messages are gone Discord stops serving them.
+  const images = catchLog.channelId
+    ? await fetchEvidenceImages([
+        catchLog.trigger?.images ?? [],
+        ...deleted.map((m) => m.images ?? []),
+      ]).catch(() => ({ files: [], skipped: 0 }))
+    : { files: [], skipped: 0 };
   try {
     if (entry.action === 'timeout' && member.moderatable) {
       await member.timeout(Math.min(entry.timeoutMinutes * 60_000, MAX_TIMEOUT_MS), reason);
@@ -309,6 +388,7 @@ async function punish(
       reason,
       trigger: catchLog.trigger,
       deleted,
+      images,
     }).catch((err) => log.error('module:honeypot', 'catch log post failed:', err.message));
   return done;
 }
@@ -438,7 +518,11 @@ on('honeypot', 'messageCreate', async (message, config) => {
     cfg.cleanup,
     {
       channelId: cfg.logChannelId,
-      trigger: { content: message.content, attachments: message.attachments?.size ?? 0 },
+      trigger: {
+        content: message.content,
+        attachments: message.attachments?.size ?? 0,
+        images: imagesOf(message),
+      },
     }
   );
   if (entry.deleteMessage && message.deletable) await message.delete().catch(() => {});
