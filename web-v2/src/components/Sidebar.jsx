@@ -82,6 +82,9 @@ export default function Sidebar({ activeGuildId, open, onClose }) {
       icon: 'trophy',
       href: activeGuildId ? `/guilds/${activeGuildId}/leaderboard` : '/',
     },
+    ...(activeGuildId
+      ? [{ key: 'cs2', label: 'CS2', icon: 'trophy', href: `/guilds/${activeGuildId}/cs2` }]
+      : []),
     { key: 'personalizer', label: 'Bot Personalizer', icon: 'id', href: '/settings' },
     {
       key: 'settings',

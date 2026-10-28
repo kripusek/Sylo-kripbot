@@ -1711,3 +1711,20 @@ form textarea {
   margin: 0 3px;
   cursor: pointer;
 }
+
+/* CS2 history keeps Discord IDs readable on narrow screens. */
+.v2-cs2-history {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+}
+.v2-cs2-history th,
+.v2-cs2-history td {
+  padding: 0.75rem;
+  border-bottom: 1px solid currentColor;
+  white-space: nowrap;
+}
+.v2-cs2-history th {
+  font-weight: 600;
+}

@@ -154,3 +154,9 @@ export async function recentCs2Bets(guildId, userId, limit = 5) {
 export async function settleCs2Bet(id, status, payout, now = Date.now()) {
   return (await settleStmt.run({ id, status, payout, now })).changes > 0;
 }
+
+// Bounded, guild-scoped history for the administration dashboard.
+const historyStmt = prepare('SELECT * FROM cs2_bets WHERE guild_id = ? ORDER BY id DESC LIMIT ? OFFSET ?');
+export async function cs2BetHistory(guildId, limit = 25, offset = 0) {
+  return (await historyStmt.all(guildId, limit, offset)).map(toBet);
+}

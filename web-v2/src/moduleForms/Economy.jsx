@@ -72,7 +72,6 @@ export default function Economy() {
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
   const setSection = (section, patch) => setForm((f) => ({ ...f, [section]: { ...f[section], ...patch } }));
-  const setCs2 = (patch) => setSection('games', { cs2: { ...(form.games.cs2 ?? {}), ...patch } });
   const num = (value) => (value === '' ? '' : Number(value));
 
   const { daily, levelRewards, transfers, shop, games, activity } = form;
@@ -602,72 +601,9 @@ export default function Economy() {
             />
             <p className="v2-field-hint">Zostaw puste, aby pozwolić na gry na każdym kanale.</p>
           </div>
-          <h3 className="v2-section-gap-sm">Zakłady CS2 — ogłoszenia wyników</h3>
-          <p className="v2-field-hint">
-            Gdzie i jak ogłaszany jest wynik stawki z <code>/gry cs2</code>. Pusta wiadomość = domyślna.
-            Znaczniki: {'{user} {amount} {payout} {multiplier} {map} {score} {mode} {currency}'}.
+          <p>
+            <a href={`/v2/guilds/${guildId}/cs2`}>CS2 — historia zakładów i ustawienia ogłoszeń →</a>
           </p>
-          <div className="v2-field">
-            <label htmlFor="cs2Channel">Kanał ogłoszeń</label>
-            <select
-              id="cs2Channel"
-              value={games.cs2?.channelId ?? ''}
-              onChange={(e) => setCs2({ channelId: e.target.value })}
-            >
-              <option value="">— kanał, na którym postawiono stawkę —</option>
-              {data.channels.map((c) => (
-                <option key={c.id} value={c.id}>
-                  #{c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="v2-field">
-            <label className="v2-check">
-              <input
-                type="checkbox"
-                checked={games.cs2?.ping !== false}
-                onChange={(e) => setCs2({ ping: e.target.checked })}
-              />
-              Pinguj gracza (powiadomienie)
-            </label>
-          </div>
-          <div className="v2-field">
-            <label htmlFor="cs2NoPing">Rola „bez pingów”</label>
-            <select
-              id="cs2NoPing"
-              value={games.cs2?.noPingRoleId ?? ''}
-              onChange={(e) => setCs2({ noPingRoleId: e.target.value })}
-            >
-              <option value="">— brak (bez przycisku) —</option>
-              {data.roles.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
-            <p className="v2-field-hint">
-              Po wybraniu roli każde ogłoszenie ma przycisk; kliknięcie nadaje lub zabiera rolę, a osoby z
-              rolą nie są pingowane. Bot potrzebuje „Zarządzanie rolami”, a rola musi być pod jego najwyższą rolą.
-            </p>
-          </div>
-          {[
-            ['winMessage', 'Wiadomość o wygranej'],
-            ['lossMessage', 'Wiadomość o przegranej'],
-            ['tieMessage', 'Wiadomość o remisie'],
-            ['expiredMessage', 'Wiadomość o braku meczu (zwrot)'],
-          ].map(([key, label]) => (
-            <div className="v2-field" key={key}>
-              <label htmlFor={`cs2-${key}`}>{label}</label>
-              <textarea
-                id={`cs2-${key}`}
-                rows={2}
-                maxLength={400}
-                value={games.cs2?.[key] ?? ''}
-                onChange={(e) => setCs2({ [key]: e.target.value })}
-              />
-            </div>
-          ))}
         </div>
 
         <div className="v2-section-gap">

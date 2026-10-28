@@ -1,3 +1,4 @@
+import { cs2BetHistory } from '../../db/cs2.js';
 import { normaliseFeedbackConfig, publishFeedbackPanel } from '../../modules/feedback.js';
 import {
   beginPersonalizerAudit,
@@ -769,6 +770,38 @@ router.post(
 );
 
 router.get(
+  '/guilds/:guildId/cs2',
+  asyncHandler(async (req, res) => {
+    const page = Math.max(0, Math.min(100000, Number.parseInt(req.query.page, 10) || 0));
+    const rows = await cs2BetHistory(req.guild.id, 26, page * 25);
+    const { config, enabled } = await getGuildModule(req.guild.id, 'economy');
+    res.json({
+      bets: rows.slice(0, 25),
+      hasMore: rows.length > 25,
+      page,
+      config: normaliseEconomy(config).games.cs2,
+      enabled,
+      channels: guildTextChannels(req.guild),
+      roles: assignableRoles(req.guild),
+    });
+  })
+);
+router.post(
+  '/guilds/:guildId/cs2/config',
+  asyncHandler(async (req, res) => {
+    const current = await getGuildModule(req.guild.id, 'economy');
+    const config = normaliseEconomy({ ...current.config, games: { ...current.config.games, cs2: req.body } });
+    await setGuildModule(req.guild.id, 'economy', { config });
+    await recordAudit(req.guild.id, {
+      actor: moderatorDisplayName(req),
+      action: 'module:economy',
+      detail: 'CS2 settings saved',
+    });
+    res.json({ config: config.games.cs2 });
+  })
+);
+
+router.get(
   '/guilds/:guildId/modules/economy/config',
   asyncHandler(async (req, res) => {
     const { config } = await getGuildModule(req.guild.id, 'economy');
@@ -783,7 +816,11 @@ router.get(
 router.post(
   '/guilds/:guildId/modules/economy/config',
   asyncHandler(async (req, res) => {
-    const config = normaliseEconomy(req.body);
+    const current = await getGuildModule(req.guild.id, 'economy');
+    const config = normaliseEconomy({
+      ...req.body,
+      games: { ...req.body.games, cs2: current.config.games?.cs2 },
+    });
     await setGuildModule(req.guild.id, 'economy', { config });
     await recordAudit(req.guild.id, {
       actor: moderatorDisplayName(req),
