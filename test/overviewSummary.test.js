@@ -45,3 +45,11 @@ test('buildOverview returns health + grouped cards covering every module', async
   assert.equal(automod.status, 'on');
   assert.ok(automod.lines.some((l) => l.label === 'Active filters'));
 });
+
+test('CS2 appears in the panel overview with a working dedicated page link', async () => {
+  const overview = await buildOverview(stubGuild(G));
+  const card = overview.groups.flatMap((group) => group.cards).find((item) => item.id === 'cs2');
+  assert.ok(card, 'CS2 must be discoverable from the panel overview');
+  assert.equal(card.href, `/guilds/${G}/cs2`);
+  assert.equal(card.hasToggle, false);
+});

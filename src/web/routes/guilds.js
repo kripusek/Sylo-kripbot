@@ -1,3 +1,4 @@
+import { cs2BetHistory } from '../../db/cs2.js';
 import { headerJson } from '../lib/httpJson.js';
 import { normaliseFeedbackConfig, publishFeedbackPanel } from '../../modules/feedback.js';
 import { normaliseChannelTickets, publishTicketPanel } from '../../modules/channelTickets.js';
@@ -293,6 +294,54 @@ router.get(
       overview: await buildOverview(req.guild),
       msg: typeof req.query.msg === 'string' ? req.query.msg : null,
     });
+  })
+);
+
+// Dedicated classic dashboard page; CS2 settings remain part of economy config.
+router.get(
+  '/:guildId/cs2',
+  asyncHandler(async (req, res) => {
+    const page = Math.max(0, Math.min(100000, Number.parseInt(req.query.page, 10) || 0));
+    const rows = await cs2BetHistory(req.guild.id, 26, page * 25);
+    const { config, enabled } = await getGuildModule(req.guild.id, 'economy');
+    res.render('guild', {
+      ...(await baseContext(req.guild, 'cs2')),
+      roles: assignableRoles(req.guild),
+      cs2Config: normaliseEconomy(config).games.cs2,
+      cs2Bets: rows.slice(0, 25),
+      cs2Page: page,
+      cs2HasMore: rows.length > 25,
+      economyEnabled: enabled,
+      msg: req.query.msg === 'saved' ? 'saved' : null,
+    });
+  })
+);
+router.post(
+  '/:guildId/cs2/config',
+  asyncHandler(async (req, res) => {
+    const current = await getGuildModule(req.guild.id, 'economy');
+    const config = normaliseEconomy({
+      ...current.config,
+      games: {
+        ...current.config.games,
+        cs2: {
+          channelId: req.body.cs2_channel,
+          ping: req.body.cs2_ping === 'on',
+          noPingRoleId: req.body.cs2_noping_role,
+          winMessage: req.body.cs2_win,
+          lossMessage: req.body.cs2_loss,
+          tieMessage: req.body.cs2_tie,
+          expiredMessage: req.body.cs2_expired,
+        },
+      },
+    });
+    await setGuildModule(req.guild.id, 'economy', { config });
+    await recordAudit(req.guild.id, {
+      actor: moderatorDisplayName(req),
+      action: 'module:economy',
+      detail: 'CS2 settings saved',
+    });
+    res.redirect(`/guilds/${req.guild.id}/cs2?msg=saved`);
   })
 );
 
@@ -1395,15 +1444,7 @@ router.post(
           maxBet: req.body.games_maxBet,
           cooldownSeconds: req.body.games_cooldownSeconds,
           channelIds: list(req.body.gameChannels),
-          cs2: {
-            channelId: req.body.cs2_channel,
-            ping: checked(req.body.cs2_ping),
-            noPingRoleId: req.body.cs2_noping_role,
-            winMessage: req.body.cs2_win,
-            lossMessage: req.body.cs2_loss,
-            tieMessage: req.body.cs2_tie,
-            expiredMessage: req.body.cs2_expired,
-          },
+          cs2: (await getGuildModule(req.guild.id, 'economy')).config.games?.cs2,
         },
         activity: {
           messages: {

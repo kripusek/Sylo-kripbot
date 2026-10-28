@@ -51,6 +51,7 @@ const LAYOUT = [
       'counting',
       'leveling',
       'economy',
+      'cs2',
       'markets',
       'starboard',
       'sticky',
@@ -149,6 +150,20 @@ async function buildHealth(guild, settings, state) {
 }
 
 async function buildCard(id, guild, settings, state) {
+  if (id === 'cs2')
+    return {
+      kind: 'page',
+      id: 'cs2',
+      name: 'CS2',
+      icon: 'trophy',
+      description: 'Historia zakładów CS2 oraz konfiguracja kanału, pingów i ogłoszeń wyników.',
+      hasToggle: false,
+      enabled: true,
+      missingIntents: [],
+      status: 'on',
+      href: `/guilds/${guild.id}/cs2`,
+      lines: [],
+    };
   if (id === 'general') return generalCard(guild, settings);
   if (id === 'commands') return commandsCard(guild);
   if (id === 'messages') return messagesCard(guild);

@@ -37,6 +37,7 @@ const TOP = [
     guild: (g) => `/guilds/${g}/leaderboard`,
     noGuild: '/',
   },
+  { key: 'cs2', label: 'CS2', icon: 'trophy', guild: (g) => `/guilds/${g}/cs2`, noGuild: '/' },
   { key: 'personalizer', label: 'Bot Personalizer', icon: ICONS.personalizer, href: '/settings' },
   { key: 'settings', label: 'Settings', icon: 'gear', guild: (g) => `/guilds/${g}/settings`, noGuild: '/' },
   { key: 'roadmap', label: 'Roadmap', icon: 'megaphone', href: '/roadmap' },
@@ -134,6 +135,7 @@ export async function buildSidebar(req, gid = null) {
     let active;
     if (t.key === 'dashboard') active = path === '/' || (!!guild && path === `/guilds/${gid}/overview`);
     else if (t.key === 'leaderboard') active = !!guild && path === `/guilds/${gid}/leaderboard`;
+    else if (t.key === 'cs2') active = !!guild && path.startsWith(`/guilds/${gid}/cs2`);
     else if (t.key === 'settings') active = !!guild && path.startsWith(`/guilds/${gid}/settings`);
     else active = path === t.href || path.startsWith(`${t.href}/`);
     return { label: t.label, icon: t.icon, href, active };

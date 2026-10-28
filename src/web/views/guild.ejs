@@ -454,6 +454,9 @@
         </section>
       <% } %>
 
+    <% } else if (panel === 'cs2') { %>
+      <div class="mod-hero"><%- include('guild/_hero-inner', { icon: 'trophy', title: 'CS2' }) %></div>
+      <%- include('guild/cs2') %>
     <% } else if (panel === 'insights') { %>
       <div class="mod-hero"><%- include('guild/_hero-inner', { icon: 'trending-up', title: 'Server insights' }) %></div>
       <p class="muted">Messages, joins and leaves per day, aggregated from the moment the module was turned on. No message content is stored.</p>

@@ -8,7 +8,6 @@
   var shop = cfg.shop || {};
   var items = Array.isArray(shop.items) ? shop.items : [];
   var games = cfg.games || {};
-  var cs2 = games.cs2 || {};
   var gameChannels = Array.isArray(games.channelIds) ? games.channelIds : [];
   var activity = cfg.activity || {};
   var amsg = activity.messages || {};
@@ -180,33 +179,7 @@
     <%- include('../../partials/chip-picker', { field: 'gameChannels', kind: 'channel', items: channels, selected: gameChannels }) %>
     <p class="muted small">Leave empty to allow games in every channel.</p>
 
-    <h3 class="u-mt-4">CS2 match bets — announcements</h3>
-    <p class="muted small">Where and how the result of a /gry cs2 stake is announced. Leave a message empty to use the default. Placeholders: {user} {amount} {payout} {multiplier} {map} {score} {mode} {currency}. Markdown and custom emoji work.</p>
-    <label class="small u-mt-2">Announcement channel</label>
-    <select class="u-w-field" name="cs2_channel">
-      <option value="">— the channel where the stake was placed —</option>
-      <% (typeof channels !== 'undefined' ? channels : []).forEach(function (c) { %>
-        <option value="<%= c.id %>" <%= c.id === cs2.channelId ? 'selected' : '' %>>#<%= c.name %></option>
-      <% }) %>
-    </select>
-    <label class="checkline u-mt-2">
-      <input type="checkbox" name="cs2_ping" <%= cs2.ping !== false ? 'checked' : '' %> />
-      Ping the player (notification)
-    </label>
-    <label class="small u-mt-2">"No pings" role</label>
-    <select class="u-w-field" name="cs2_noping_role">
-      <option value="">— none (no button) —</option>
-      <% roles.forEach(function (role) { %><option value="<%= role.id %>" <%= role.id === cs2.noPingRoleId ? 'selected' : '' %>><%= role.name %></option><% }) %>
-    </select>
-    <p class="muted small">With a role chosen, every announcement gets a button; clicking it gives or removes the role, and members holding it are not pinged. The bot needs Manage Roles and the role must be below the bot's highest role.</p>
-    <label class="small u-mt-2">Win message</label>
-    <textarea name="cs2_win" rows="2" maxlength="400" placeholder="🏆 {user} wygrał mecz CS2 ({map} {score}, {mode})! Wypłata ×{multiplier}: {payout}."><%= cs2.winMessage || '' %></textarea>
-    <label class="small u-mt-2">Loss message</label>
-    <textarea name="cs2_loss" rows="2" maxlength="400" placeholder="💀 {user} przegrał mecz CS2 ({map} {score}, {mode}). Stawka {amount} przepadła."><%= cs2.lossMessage || '' %></textarea>
-    <label class="small u-mt-2">Tie message</label>
-    <textarea name="cs2_tie" rows="2" maxlength="400" placeholder="🤝 Remis w meczu CS2 ({map} {score}, {mode}) — {user} dostaje zwrot stawki: {amount}."><%= cs2.tieMessage || '' %></textarea>
-    <label class="small u-mt-2">No match found (refund) message</label>
-    <textarea name="cs2_expired" rows="2" maxlength="400" placeholder="⏳ Nie znalazłem meczu CS2 dla {user} — stawka {amount} wróciła na konto."><%= cs2.expiredMessage || '' %></textarea>
+    <p class="u-mt-4"><a href="/guilds/<%= guild.id %>/cs2">CS2 — historia zakładów i ustawienia ogłoszeń →</a></p>
   </details>
 
   <div class="u-mt-4"><button type="submit">Save economy settings</button></div>

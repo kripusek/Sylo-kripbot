@@ -40,6 +40,26 @@ test('CS2 history is guild scoped, newest first and paginated', async () => {
     assert.equal(config.startingBalance, 777);
     assert.equal(config.games.enabled, true);
     assert.equal(config.games.cs2.ping, false);
+    const classic = await fetch(`${app.base}/guilds/${GID}/cs2`);
+    assert.equal(classic.status, 200);
+    const html = await classic.text();
+    assert.ok(html.includes('Historia zakładów CS2'));
+    assert.ok(html.includes('history-user-1'));
+    assert.ok(html.includes(`/guilds/${GID}/cs2/config`));
+    const classicSave = await fetch(`${app.base}/guilds/${GID}/cs2/config`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ cs2_win: 'V1 {user}', cs2_ping: 'on' }),
+    });
+    assert.equal(classicSave.status, 302);
+    const updated = await getGuildModule(GID, 'economy');
+    assert.equal(updated.config.games.cs2.winMessage, 'V1 {user}');
+    assert.equal(updated.config.games.cs2.ping, true);
+    assert.equal(updated.config.startingBalance, 777);
+    const overviewResponse = await fetch(`${app.base}/guilds/${GID}/overview`);
+    assert.equal(overviewResponse.status, 200);
+    assert.ok((await overviewResponse.text()).includes(`/guilds/${GID}/cs2`));
   } finally {
     app.close();
   }

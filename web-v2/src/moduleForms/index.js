@@ -96,6 +96,7 @@ export const MODULE_FORMS = {
 // and Sidebar.jsx can't drift out of sync on which cards have a V2 page —
 // happened once already when 'general' was missed from both.
 export const SPECIAL_V2_PATHS = {
+  cs2: (guildId) => `/guilds/${guildId}/cs2`,
   messages: (guildId) => `/guilds/${guildId}/messages`,
   general: (guildId) => `/guilds/${guildId}/settings`,
   insights: (guildId) => `/guilds/${guildId}/insights`,

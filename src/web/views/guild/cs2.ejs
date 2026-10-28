@@ -1,0 +1,65 @@
+<%
+  var cs2 = cs2Config || {};
+  var statuses = { pending: 'Oczekujący', won: 'Wygrany', lost: 'Przegrany', tie: 'Remis', expired: 'Zwrot — brak meczu' };
+  var modes = { rush: 'Rush', wingman: 'Wingman', competitive: 'Competitive', premier: 'Premier', any: 'Dowolny' };
+  var date = (value) => value ? new Date(value).toLocaleString('pl-PL') : '—';
+%>
+<% if (!economyEnabled) { %><div class="banner info">Ekonomia jest wyłączona. Włącz ją, aby przyjmować nowe zakłady.</div><% } %>
+<details class="lvl-sec" open>
+  <summary>Historia zakładów CS2<span class="lvl-chev">▾</span></summary>
+  <p class="muted small">Wszystkie zakłady na tym serwerze, od najnowszych. Wypłata obejmuje zwrot stawki. Kwoty w wirtualnych monetach.</p>
+  <p><a href="/guilds/<%= guild.id %>/cs2?page=<%= cs2Page %>">Odśwież historię</a></p>
+  <div style="overflow-x:auto">
+  <table>
+    <thead><tr><% ['ID', 'Gracz (Discord ID)', 'Cel (Discord ID)', 'Typ', 'Tryb', 'Stawka', 'Status', 'Wypłata', 'Zysk / strata', 'Postawiono', 'Rozliczono'].forEach(function (label) { %><th scope="col"><%= label %></th><% }) %></tr></thead>
+    <tbody><% cs2Bets.forEach(function (bet) { %><tr>
+      <td>#<%= bet.id %></td><td><%= bet.userId %></td><td><%= bet.targetId || bet.userId %></td>
+      <td><%= bet.pick === 'lose' ? 'Przegra' : 'Wygra' %></td><td><%= modes[bet.mode] || bet.mode %></td>
+      <td><%= bet.amount.toLocaleString('pl-PL') %></td><td><%= statuses[bet.status] || bet.status %></td>
+      <td><%= bet.status === 'pending' ? '—' : bet.payout.toLocaleString('pl-PL') %></td>
+      <td><%= bet.status === 'pending' ? '—' : (bet.payout - bet.amount).toLocaleString('pl-PL') %></td>
+      <td><%= date(bet.createdAt) %></td><td><%= date(bet.settledAt) %></td>
+    </tr><% }) %></tbody>
+  </table>
+  </div>
+  <% if (!cs2Bets.length) { %><p>Brak zakładów na tej stronie.</p><% } %>
+  <nav class="btn-row u-mt-2" aria-label="Strony historii zakładów">
+    <% if (cs2Page > 0) { %><a class="btn" href="/guilds/<%= guild.id %>/cs2?page=<%= cs2Page - 1 %>">Poprzednia</a><% } %>
+    <span>Strona <%= cs2Page + 1 %></span>
+    <% if (cs2HasMore) { %><a class="btn" href="/guilds/<%= guild.id %>/cs2?page=<%= cs2Page + 1 %>">Następna</a><% } %>
+  </nav>
+</details>
+<form method="POST" action="/guilds/<%= guild.id %>/cs2/config">
+  <% if (typeof csrfToken !== 'undefined' && csrfToken) { %><input type="hidden" name="_csrf" value="<%= csrfToken %>" /><% } %>
+  <details class="lvl-sec" open>
+    <summary>Ustawienia ogłoszeń CS2<span class="lvl-chev">▾</span></summary>
+    <h3 class="u-mt-4">Zakłady CS2 — ogłoszenia wyników</h3>
+    <p class="muted small">Gdzie i jak ogłaszany jest wynik zakładu /gry cs2. Pusta wiadomość = domyślna. Znaczniki: {user} {amount} {payout} {multiplier} {map} {score} {mode} {currency}. Działa Markdown i własne emoji.</p>
+    <label class="small u-mt-2">Kanał ogłoszeń</label>
+    <select class="u-w-field" name="cs2_channel">
+      <option value="">— kanał, na którym postawiono stawkę —</option>
+      <% (typeof channels !== 'undefined' ? channels : []).forEach(function (c) { %>
+        <option value="<%= c.id %>" <%= c.id === cs2.channelId ? 'selected' : '' %>>#<%= c.name %></option>
+      <% }) %>
+    </select>
+    <label class="checkline u-mt-2">
+      <input type="checkbox" name="cs2_ping" <%= cs2.ping !== false ? 'checked' : '' %> />
+      Pinguj gracza (powiadomienie)
+    </label>
+    <label class="small u-mt-2">Rola „bez pingów”</label>
+    <select class="u-w-field" name="cs2_noping_role">
+      <option value="">— brak (bez przycisku) —</option>
+      <% roles.forEach(function (role) { %><option value="<%= role.id %>" <%= role.id === cs2.noPingRoleId ? 'selected' : '' %>><%= role.name %></option><% }) %>
+    </select>
+    <p class="muted small">Wybranie roli dodaje do ogłoszeń przycisk włączający lub wyłączający pingowanie. Bot potrzebuje uprawnienia Zarządzanie rolami, a wybrana rola musi być poniżej jego najwyższej roli.</p>
+    <label class="small u-mt-2">Wiadomość o wygranej</label>
+    <textarea name="cs2_win" rows="2" maxlength="400" placeholder="🏆 {user} wygrał mecz CS2 ({map} {score}, {mode})! Wypłata ×{multiplier}: {payout}."><%= cs2.winMessage || '' %></textarea>
+    <label class="small u-mt-2">Wiadomość o przegranej</label>
+    <textarea name="cs2_loss" rows="2" maxlength="400" placeholder="💀 {user} przegrał mecz CS2 ({map} {score}, {mode}). Stawka {amount} przepadła."><%= cs2.lossMessage || '' %></textarea>
+    <label class="small u-mt-2">Wiadomość o remisie</label>
+    <textarea name="cs2_tie" rows="2" maxlength="400" placeholder="🤝 Remis w meczu CS2 ({map} {score}, {mode}) — {user} dostaje zwrot stawki: {amount}."><%= cs2.tieMessage || '' %></textarea>
+    <label class="small u-mt-2">Wiadomość o braku meczu (zwrot)</label>
+    <textarea name="cs2_expired" rows="2" maxlength="400" placeholder="⏳ Nie znalazłem meczu CS2 dla {user} — stawka {amount} wróciła na konto."><%= cs2.expiredMessage || '' %></textarea>
+  </details>
+  <button type="submit" class="btn btn-primary">Zapisz ustawienia CS2</button>
+</form>
