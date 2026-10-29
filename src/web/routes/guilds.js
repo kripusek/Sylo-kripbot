@@ -306,8 +306,17 @@ router.get(
     const activePage = Math.max(0, Math.min(100000, Number.parseInt(req.query.activePage, 10) || 0));
     const active = await activeGuildCs2Bets(req.guild.id, 26, activePage * 25);
     const { config, enabled } = await getGuildModule(req.guild.id, 'economy');
+    // Readable names where the bot has the member cached; the id is always shown too.
+    const cs2Names = {};
+    for (const bet of [...rows, ...active])
+      for (const id of [bet.userId, bet.targetId])
+        if (id && !(id in cs2Names)) {
+          const member = req.guild.members?.cache?.get(id);
+          if (member) cs2Names[id] = member.displayName ?? member.user?.username ?? '';
+        }
     res.render('guild', {
       ...(await baseContext(req.guild, 'cs2')),
+      cs2Names,
       roles: assignableRoles(req.guild),
       cs2Config: normaliseEconomy(config).games.cs2,
       cs2Bets: rows.slice(0, 25),

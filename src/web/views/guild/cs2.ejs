@@ -2,6 +2,8 @@
   var cs2 = cs2Config || {};
   var statuses = { refunded: 'Zwrot administratora', pending: 'Oczekujący', won: 'Wygrany', lost: 'Przegrany', tie: 'Remis', expired: 'Zwrot — brak meczu' };
   var modes = { rush: 'Rush', wingman: 'Wingman', competitive: 'Competitive', premier: 'Premier', any: 'Dowolny' };
+  var names = typeof cs2Names !== 'undefined' ? cs2Names : {};
+  var who = (id) => names[id] ? names[id] + ' (' + id + ')' : id;
   var date = (value) => value ? new Date(value).toLocaleString('pl-PL') : '—';
 %>
 <% if (!economyEnabled) { %><div class="banner info">Ekonomia jest wyłączona. Włącz ją, aby przyjmować nowe zakłady.</div><% } %>
@@ -10,9 +12,9 @@
   <summary>Aktywne mecze / zakłady CS2<span class="lvl-chev">▾</span></summary>
   <p class="muted small">Zakłady oczekujące na wynik meczu z Leetify — nie jest to podgląd rozgrywek na żywo. Zwrot zamyka zakład i oddaje stawkę obstawiającemu.</p>
   <div style="overflow-x:auto"><table>
-    <thead><tr><% ['ID', 'Gracz (Discord ID)', 'Cel (Discord ID)', 'Typ', 'Tryb', 'Stawka', 'Postawiono', 'Akcja'].forEach(function (label) { %><th scope="col"><%= label %></th><% }) %></tr></thead>
+    <thead><tr><% ['ID', 'Gracz', 'Cel', 'Typ', 'Tryb', 'Stawka', 'Postawiono', 'Akcja'].forEach(function (label) { %><th scope="col"><%= label %></th><% }) %></tr></thead>
     <tbody><% cs2Active.forEach(function (bet) { %><tr>
-      <td>#<%= bet.id %></td><td><%= bet.userId %></td><td><%= bet.targetId || bet.userId %></td>
+      <td>#<%= bet.id %></td><td><%= who(bet.userId) %></td><td><%= who(bet.targetId || bet.userId) %></td>
       <td><%= bet.pick === 'lose' ? 'Przegra' : 'Wygra' %></td><td><%= modes[bet.mode] || bet.mode %></td>
       <td><%= bet.amount.toLocaleString('pl-PL') %></td><td><%= date(bet.createdAt) %></td>
       <td><form method="POST" action="/guilds/<%= guild.id %>/cs2/<%= bet.id %>/refund">
@@ -34,9 +36,9 @@
   <p><a href="/guilds/<%= guild.id %>/cs2?page=<%= cs2Page %>">Odśwież historię</a></p>
   <div style="overflow-x:auto">
   <table>
-    <thead><tr><% ['ID', 'Gracz (Discord ID)', 'Cel (Discord ID)', 'Typ', 'Tryb', 'Stawka', 'Status', 'Wypłata', 'Zysk / strata', 'Postawiono', 'Rozliczono'].forEach(function (label) { %><th scope="col"><%= label %></th><% }) %></tr></thead>
+    <thead><tr><% ['ID', 'Gracz', 'Cel', 'Typ', 'Tryb', 'Stawka', 'Status', 'Wypłata', 'Zysk / strata', 'Postawiono', 'Rozliczono'].forEach(function (label) { %><th scope="col"><%= label %></th><% }) %></tr></thead>
     <tbody><% cs2Bets.forEach(function (bet) { %><tr>
-      <td>#<%= bet.id %></td><td><%= bet.userId %></td><td><%= bet.targetId || bet.userId %></td>
+      <td>#<%= bet.id %></td><td><%= who(bet.userId) %></td><td><%= who(bet.targetId || bet.userId) %></td>
       <td><%= bet.pick === 'lose' ? 'Przegra' : 'Wygra' %></td><td><%= modes[bet.mode] || bet.mode %></td>
       <td><%= bet.amount.toLocaleString('pl-PL') %></td><td><%= statuses[bet.status] || bet.status %></td>
       <td><%= bet.status === 'pending' ? '—' : bet.payout.toLocaleString('pl-PL') %></td>
