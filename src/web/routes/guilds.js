@@ -1625,6 +1625,7 @@ router.post(
               : [].concat(chans[i] || []),
           roleId: rolez[i] ?? '',
           onVideo: n === 'both' || n === 'video',
+          excludeShorts: [].concat(req.body.yt_excludeShorts ?? []).includes(String(rowKeys[i] ?? i)),
           onLive: n === 'both' || n === 'live',
           onEnd: ytEnd[i] ?? 'delete',
           videoMessage: vMsg[i] ?? '',

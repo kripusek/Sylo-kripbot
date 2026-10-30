@@ -504,3 +504,77 @@ test('multi-destination upload delivery retries only the failed channel and shar
     runtime.client = oldClient;
   }
 });
+
+test('Shorts filter skips Shorts, delivers regular videos and retries unknown responses', async () => {
+  const { runtime } = await import('../src/runtime.js');
+  const { isYoutubeShort } = await import('../src/modules/youtubeAlerts.js');
+  const previousFetch = globalThis.fetch;
+  const previousClient = runtime.client;
+  const guildId = '876543210987654399';
+  const sent = [];
+  let xml = '<feed></feed>';
+  let shortChecks = 0;
+  let unknown = true;
+  globalThis.fetch = async (url) => {
+    if (url.includes('/feeds/')) return { ok: true, text: async () => xml };
+    shortChecks++;
+    const video = url.split('/').at(-1);
+    if (video === 'unknown0001' && unknown)
+      return { ok: true, url, text: async () => '<html>Consent</html>' };
+    if (video === 'shortvideo1')
+      return { ok: true, url, text: async () => `<link rel="canonical" href="${url}">` };
+    return { ok: true, url: `https://www.youtube.com/watch?v=${video}` };
+  };
+  runtime.client = {
+    guilds: {
+      cache: new Map([
+        [
+          guildId,
+          {
+            members: {},
+            channels: {
+              cache: new Map([
+                [
+                  CH,
+                  {
+                    isTextBased: () => true,
+                    send: async (payload) => {
+                      sent.push(payload);
+                      return { id: 'post' };
+                    },
+                  },
+                ],
+              ]),
+            },
+          },
+        ],
+      ]),
+    },
+  };
+  const alert = { ytChannelId: UC, discordChannelId: CH, onVideo: true, excludeShorts: true };
+  try {
+    assert.equal(normaliseYoutubeConfig({ alerts: [alert] }).alerts[0].excludeShorts, true);
+    assert.equal(
+      normaliseYoutubeConfig({ alerts: [{ ...alert, excludeShorts: undefined }] }).alerts[0].excludeShorts,
+      false
+    );
+    await runAlert(guildId, alert);
+    xml =
+      '<feed><entry><yt:videoId>shortvideo1</yt:videoId><title>Short</title></entry><entry><yt:videoId>longvideo01</yt:videoId><title>Regular</title></entry></feed>';
+    await runAlert(guildId, alert);
+    assert.equal(sent.length, 1);
+    const checks = shortChecks;
+    await runAlert(guildId, alert);
+    assert.equal(shortChecks, checks);
+    xml = '<feed><entry><yt:videoId>unknown0001</yt:videoId><title>Unknown</title></entry></feed>';
+    await assert.rejects(runAlert(guildId, alert), /unrecognised/);
+    assert.equal(sent.length, 1);
+    unknown = false;
+    await runAlert(guildId, alert);
+    assert.equal(sent.length, 2);
+    await assert.rejects(isYoutubeShort('../bad'), /Invalid/);
+  } finally {
+    globalThis.fetch = previousFetch;
+    runtime.client = previousClient;
+  }
+});

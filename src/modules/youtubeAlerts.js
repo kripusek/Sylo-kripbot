@@ -65,6 +65,7 @@ export function normaliseYoutubeConfig(raw = {}) {
         ].slice(0, 50),
         roleId: isId(a.roleId) ? a.roleId : '',
         onVideo: a.onVideo !== false,
+        excludeShorts: a.excludeShorts === true,
         onLive: Boolean(a.onLive),
         onEnd: normaliseOnEnd(a.onEnd),
         videoMessage: String(a.videoMessage ?? '').slice(0, 1500),
@@ -290,6 +291,33 @@ export async function checkLive(ytChannelId) {
   }
 }
 
+// YouTube redirects normal videos away from /shorts/:id. On a Shorts
+// page require a matching canonical URL rather than guessing from duration
+// or title. Unknown/error responses are retried, never marked as seen.
+export async function isYoutubeShort(videoId) {
+  if (!/^[\w-]{11}$/.test(videoId)) throw new Error('Invalid YouTube video ID');
+  const res = await fetch(`https://www.youtube.com/shorts/${videoId}`, {
+    headers: { 'User-Agent': UA },
+    signal: AbortSignal.timeout(10_000),
+    redirect: 'follow',
+  });
+  if (!res.ok) throw new Error(`Shorts check ${videoId}: HTTP ${res.status}`);
+  const finalUrl = new URL(res.url);
+  if (finalUrl.hostname !== 'www.youtube.com' && finalUrl.hostname !== 'youtube.com')
+    throw new Error(`Shorts check ${videoId}: unexpected redirect`);
+  if (finalUrl.pathname === '/watch' && finalUrl.searchParams.get('v') === videoId) return false;
+  const html = await res.text();
+  const canonical = grabPage(/<link\b[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["']/i, html);
+  if (canonical) {
+    const url = new URL(canonical.replaceAll('&amp;', '&'), 'https://www.youtube.com');
+    if (['www.youtube.com', 'youtube.com'].includes(url.hostname)) {
+      if (url.pathname === `/shorts/${videoId}`) return true;
+      if (url.pathname === '/watch' && url.searchParams.get('v') === videoId) return false;
+    }
+  }
+  throw new Error(`Shorts check ${videoId}: unrecognised YouTube response; will retry`);
+}
+
 // --- rendering ----------------------------------------------------------
 
 export function fillMessage(tpl, dflt, { name, title, url }) {
@@ -394,6 +422,13 @@ async function runDestination(guildId, alert, requests) {
         for (const e of [...entries].reverse()) {
           if (await isVideoSeen(guildId, c, e.videoId)) continue;
           if (state?.live === true && e.videoId === state.videoId) continue;
+          if (
+            alert.excludeShorts &&
+            (await once(requests, `short:${e.videoId}`, () => isYoutubeShort(e.videoId)))
+          ) {
+            await markVideoSeen(guildId, c, e.videoId);
+            continue;
+          }
           const name = alert.name || e.author || 'Kanał YouTube';
           const delivered = await sendToChannel(
             guildId,

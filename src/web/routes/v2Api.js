@@ -1443,6 +1443,7 @@ router.post(
           : [].concat(a.discordChannelId || []),
         roleId: a.roleId ?? '',
         onVideo: notify === 'both' || notify === 'video',
+        excludeShorts: a.excludeShorts === true,
         onLive: notify === 'both' || notify === 'live',
         onEnd: a.onEnd ?? 'delete',
         videoMessage: a.videoMessage ?? '',

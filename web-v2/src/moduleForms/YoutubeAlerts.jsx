@@ -28,6 +28,7 @@ function toFormRow(a = {}) {
     discordChannelIds: a.discordChannelIds || (a.discordChannelId ? [a.discordChannelId] : []),
     roleId: a.roleId || '',
     notify: notifyOf(a),
+    excludeShorts: a.excludeShorts === true,
     onEnd: a.onEnd || 'delete',
     videoMessage: a.videoMessage || '',
     liveMessage: a.liveMessage || '',
@@ -88,6 +89,7 @@ export default function YoutubeAlerts() {
           discordChannelIds: a.discordChannelIds,
           roleId: a.roleId,
           notify: a.notify,
+          excludeShorts: a.excludeShorts,
           onEnd: a.onEnd,
           videoMessage: a.videoMessage,
           liveMessage: a.liveMessage,
@@ -192,6 +194,14 @@ export default function YoutubeAlerts() {
                 onChange={(e) => updateRow(a.key, { liveMessage: e.target.value })}
               />
             </div>
+            <label className="v2-check">
+              <input
+                type="checkbox"
+                checked={a.excludeShorts}
+                onChange={(e) => updateRow(a.key, { excludeShorts: e.target.checked })}
+              />
+              Pomijaj Shorts
+            </label>
             <div className="v2-field">
               <label>
                 When a livestream ends <span className="v2-field-hint">— the went-live post only</span>

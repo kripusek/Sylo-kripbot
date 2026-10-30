@@ -134,3 +134,28 @@ test('V2 stores one YouTube subscription with multiple destinations', async () =
     app.close();
   }
 });
+
+test('V1 persists Shorts filter independently for each alert row', async () => {
+  const app = await startWebApp();
+  try {
+    const body = new URLSearchParams(formBody(rows.slice(0, 2)));
+    body.append('yt_excludeShorts', '1');
+    const response = await post(app.base, `/guilds/${GID}/m/youtube-alerts/config`, body.toString());
+    assert.equal(response.status, 302);
+    let config = (await getGuildModule(GID, 'youtube-alerts')).config;
+    assert.deepEqual(
+      config.alerts.map((a) => a.excludeShorts),
+      [false, true]
+    );
+    const html = await (await fetch(`${app.base}/guilds/${GID}/m/youtube-alerts`)).text();
+    assert.match(html, /name="yt_excludeShorts" value="1" checked/);
+    await post(app.base, `/guilds/${GID}/m/youtube-alerts/config`, formBody(rows.slice(0, 2)));
+    config = (await getGuildModule(GID, 'youtube-alerts')).config;
+    assert.deepEqual(
+      config.alerts.map((a) => a.excludeShorts),
+      [false, false]
+    );
+  } finally {
+    app.close();
+  }
+});
