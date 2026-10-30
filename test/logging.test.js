@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Collection } from 'discord.js';
 import { runtime } from '../src/runtime.js';
-import { logSentMessage, logChannel, logVoiceChange } from '../src/modules/logging.js';
+import { logSentMessage, logChannel, logVoiceChange, findVoiceActor } from '../src/modules/logging.js';
 import { dispatch } from '../src/modules/dispatch.js';
 import { setGuildModule } from '../src/db/modules.js';
 
@@ -180,5 +180,64 @@ test('message logs preview images and link other attachments within Discord limi
   assert.equal(embeds[1].image.url, message.attachments.get('2').url);
   assert.match(embeds[0].fields.find((field) => field.name === 'Attachments').value, /file.pdf/);
   assert.equal(embeds[0].fields.find((field) => field.name === 'Content').value, '*none*');
+  runtime.client = null;
+});
+
+test('voice move log names the moderator who moved the member (matched by destination, credited once per entry)', async () => {
+  const sent = [];
+  runtime.client = {
+    guilds: {
+      cache: new Map([
+        [
+          'guild',
+          {
+            channels: {
+              cache: new Map([
+                [
+                  'logs',
+                  {
+                    isTextBased: () => true,
+                    send: async (p) => (sent.push(p.embeds[0].toJSON()), { id: 'x' }),
+                  },
+                ],
+              ]),
+            },
+            members: {},
+          },
+        ],
+      ]),
+    },
+  };
+  const now = Date.now();
+  const entry = (id, executorId, channelId, count, ageMs) => [
+    id,
+    {
+      createdTimestamp: now - ageMs,
+      executor: { id: executorId, tag: `${executorId}#0` },
+      extra: { channel: { id: channelId }, count },
+    },
+  ];
+  const guild = {
+    fetchAuditLogs: async () => ({
+      entries: new Map([entry('e1', 'mod', 'vc2', 1, 1000), entry('e0', 'old', 'vc2', 1, 60_000)]),
+    }),
+  };
+  const config = { channel: 'logs', events: { voiceMove: true } };
+  const state = (channelId, memberId = 'member') => ({ id: memberId, channelId, guild });
+
+  // A self move to another channel / by the same user is not credited to anyone.
+  assert.equal((await findVoiceActor(guild, 'move', 'mod', 'vc2')) ?? null, null);
+  assert.equal((await findVoiceActor(guild, 'move', 'a', 'vc9')) ?? null, null);
+
+  await logVoiceChange({ old: state('vc1'), new: state('vc2') }, config, 'guild', { delayMs: 0 });
+  assert.match(sent[0].fields.find((f) => f.name === 'Moved by').value, /mod/);
+  // The same single-person entry cannot be credited to a second member.
+  await logVoiceChange({ old: state('vc1', 'other'), new: state('vc2', 'other') }, config, 'guild', {
+    delayMs: 0,
+  });
+  assert.equal(
+    sent[1].fields.find((f) => f.name === 'Moved by'),
+    undefined
+  );
   runtime.client = null;
 });

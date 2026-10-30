@@ -158,8 +158,38 @@ on('logging', 'guildMemberUpdate', ({ old: o, new: n }, config, guildId) => {
   return Promise.all(embeds.map(([key, e]) => log(guildId, config, key, e)));
 });
 
+// Discord's audit log records a voice move / disconnect as ONE entry per batch:
+// who did it, the destination channel (moves) and how many people — but not
+// WHICH people. So the mover is matched by time and destination, and each
+// entry can be credited at most `count` times. Self-initiated moves leave no
+// entry, which is how they are told apart.
+const VOICE_AUDIT_WINDOW_MS = 6_000;
+const VOICE_AUDIT_DELAY_MS = 1_200; // the entry can land just after the gateway event
+const creditedVoiceEntries = new Map(); // entry id -> times already credited
+
+export async function findVoiceActor(guild, type, memberId, channelId = null, now = Date.now()) {
+  try {
+    const logs = await guild.fetchAuditLogs({ type, limit: 10 });
+    for (const [entryId, entry] of logs.entries) {
+      if (now - entry.createdTimestamp > VOICE_AUDIT_WINDOW_MS) continue;
+      if (channelId && entry.extra?.channel?.id !== channelId) continue;
+      if (!entry.executor || entry.executor.id === memberId) continue;
+      const count = Number(entry.extra?.count) || 1;
+      const used = creditedVoiceEntries.get(entryId) ?? 0;
+      if (used >= count) continue;
+      creditedVoiceEntries.set(entryId, used + 1);
+      if (creditedVoiceEntries.size > 500)
+        creditedVoiceEntries.delete(creditedVoiceEntries.keys().next().value);
+      return entry.executor;
+    }
+  } catch {
+    // no View Audit Log permission, or Discord is slow — the log just omits the actor
+  }
+  return null;
+}
+
 // Log channel transitions only; mute/deafen/video updates do not create noise.
-export function logVoiceChange({ old: previous, new: current }, config, guildId) {
+export async function logVoiceChange({ old: previous, new: current }, config, guildId, options = {}) {
   if (previous.channelId === current.channelId) return;
   const key = !previous.channelId ? 'voiceJoin' : !current.channelId ? 'voiceLeave' : 'voiceMove';
   if (!want(config, key)) return;
@@ -175,6 +205,23 @@ export function logVoiceChange({ old: previous, new: current }, config, guildId)
     .addFields({ name: 'Member ID', value: String(id), inline: true });
   if (previous.channelId) embed.addFields({ name: 'From', value: `<#${previous.channelId}>`, inline: true });
   if (current.channelId) embed.addFields({ name: 'To', value: `<#${current.channelId}>`, inline: true });
+  // Moves and disconnects can be done by a moderator: say who (when the audit log shows it).
+  const guild = current.guild ?? previous.guild ?? member?.guild;
+  if ((key === 'voiceMove' || key === 'voiceLeave') && guild?.fetchAuditLogs) {
+    await new Promise((resolve) => setTimeout(resolve, options.delayMs ?? VOICE_AUDIT_DELAY_MS));
+    const actor = await findVoiceActor(
+      guild,
+      key === 'voiceMove' ? AuditLogEvent.MemberMove : AuditLogEvent.MemberDisconnect,
+      id,
+      key === 'voiceMove' ? current.channelId : null
+    );
+    if (actor)
+      embed.addFields({
+        name: key === 'voiceMove' ? 'Moved by' : 'Disconnected by',
+        value: `<@${actor.id}> · ${actor.tag ?? actor.id}`,
+        inline: true,
+      });
+  }
   return log(guildId, config, key, embed);
 }
 on('logging', 'voiceStateUpdate', logVoiceChange);
