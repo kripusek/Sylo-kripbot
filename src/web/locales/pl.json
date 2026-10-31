@@ -2238,5 +2238,6 @@
   "— none (no button) —": "— brak (bez przycisku) —",
   "With a role chosen, every announcement gets a button; clicking it gives or removes the role, and members holding it are not pinged. The bot needs Manage Roles and the role must be below the bot's highest role.": "Po wybraniu roli każde ogłoszenie ma przycisk; kliknięcie nadaje lub zabiera rolę, a osoby z rolą nie są pingowane. Bot potrzebuje „Zarządzanie rolami”, a rola musi być pod jego najwyższą rolą.",
   "Bet on this member's match instead of your own": "Postaw na mecz tego gracza zamiast własnego",
-  "Will the player win? (tak pays the mode multiplier, nie pays x1.5)": "Czy gracz wygra? (tak płaci mnożnik trybu, nie płaci x1.5)"
+  "Will the player win? (tak pays the mode multiplier, nie pays x1.5)": "Czy gracz wygra? (tak płaci mnożnik trybu, nie płaci x1.5)",
+  "Operator only: restore your own admin access.": "Tylko dla operatora: przywróć sobie dostęp administratora."
 }
