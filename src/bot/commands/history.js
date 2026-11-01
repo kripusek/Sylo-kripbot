@@ -101,13 +101,22 @@ export function historyButtons({ page, pages }, disabled = false) {
 
 /** @param {import('discord.js').ChatInputCommandInteraction} interaction */
 export async function execute(interaction) {
-  const user = interaction.options.getUser('user', true);
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-  let state = await loadHistoryPage(
-    interaction.guild.id,
-    user.id,
-    interaction.options.getInteger('page') ?? 1
+  return showHistory(
+    interaction,
+    interaction.options.getUser('user', true),
+    interaction.options.getInteger('page') ?? 1,
+    'history'
   );
+}
+
+/**
+ * Private, paginated punishment history of one account. Shared by /history and
+ * /info kara; `commandName` is what the delegation / channel rules are checked
+ * against on every page turn.
+ */
+export async function showHistory(interaction, user, asked, commandName) {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  let state = await loadHistoryPage(interaction.guild.id, user.id, asked);
   const payload = () => ({
     embeds: [historyEmbed(user, state)],
     components: historyButtons(state),
@@ -125,7 +134,7 @@ export async function execute(interaction) {
     try {
       if (click.user.id !== interaction.user.id) {
         await click.reply({
-          content: 'Otwórz własną historię komendą /history.',
+          content: `Otwórz własną historię komendą /${commandName}.`,
           flags: MessageFlags.Ephemeral,
         });
         return;
@@ -140,7 +149,7 @@ export async function execute(interaction) {
       // Recheck delegated roles and disabled/channel restrictions on every click.
       const { overrideBlockReason } = await import('../events/interactionCreate.js');
       const blocked = await overrideBlockReason({
-        commandName: 'history',
+        commandName,
         inGuild: () => click.inGuild(),
         guildId: click.guildId,
         channelId: click.channelId,

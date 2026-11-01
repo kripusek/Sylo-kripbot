@@ -50,7 +50,7 @@ export const GROUPS = [
       'modlog',
     ],
   },
-  { name: 'Historia kar', commands: ['case', 'history'] },
+  { name: 'Historia kar', commands: ['case', 'history', 'info'] },
   { name: 'Zaproszenia', commands: ['inviter', 'invites', 'invites-leaderboard'] },
   {
     name: 'Kanały głosowe',

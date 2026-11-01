@@ -1,5 +1,5 @@
 <p class="muted">Disable a command in this server, or restrict it to channels / roles. Administrators bypass channel and role limits, but cannot use disabled commands.</p>
-<% commands.forEach(function (c) { const delegated = ['warn', 'ban', 'kick', 'timeout', 'untimeout', 'unban', 'case', 'history', 'purge', 'lock', 'unlock', 'lockdown', 'slowmode'].includes(c.name); %>
+<% commands.forEach(function (c) { const delegated = ['warn', 'ban', 'kick', 'timeout', 'untimeout', 'unban', 'case', 'history', 'info', 'purge', 'lock', 'unlock', 'lockdown', 'slowmode'].includes(c.name); %>
   <form method="POST" action="/guilds/<%= guild.id %>/commands/<%= c.name %>"
         hx-post="/guilds/<%= guild.id %>/commands/<%= c.name %>" hx-target="this" hx-swap="none"
         class="cmd-override">

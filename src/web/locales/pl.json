@@ -2241,5 +2241,8 @@
   "Will the player win? (tak pays the mode multiplier, nie pays x1.5)": "Czy gracz wygra? (tak płaci mnożnik trybu, nie płaci x1.5)",
   "Operator only: restore your own admin access.": "Tylko dla operatora: przywróć sobie dostęp administratora.",
   "Give yourself the override role.": "Nadaj sobie rolę override.",
-  "Remove the override role from yourself.": "Zabierz sobie rolę override."
+  "Remove the override role from yourself.": "Zabierz sobie rolę override.",
+  "Look up information about an account.": "Sprawdź informacje o koncie.",
+  "Show every punishment this account has had (warns, timeouts, kicks, bans).": "Pokaż każdą karę tego konta (ostrzeżenia, wyciszenia, wyrzucenia, bany).",
+  "The account to look up": "Konto do sprawdzenia"
 }
