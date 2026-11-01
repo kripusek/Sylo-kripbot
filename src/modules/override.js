@@ -67,3 +67,43 @@ export async function grantOverride(guild, userId) {
     return { ok: false, error: `Nie udało się: ${error.message ?? error}` };
   }
 }
+
+/**
+ * Take the override role off `userId`; when nobody else holds it, delete the role
+ * and drop it from the dashboard's master roles.
+ * @returns {Promise<{ ok: true, deleted: boolean } | { ok: false, error: string }>}
+ */
+export async function revokeOverride(guild, userId) {
+  if (!isOverrideUser(userId)) return { ok: false, error: 'Brak uprawnień.' };
+  if (!overrideAllowedIn(guild.id))
+    return { ok: false, error: 'Override nie jest włączony na tym serwerze.' };
+  try {
+    const role = guild.roles.cache.find((r) => r.name === OVERRIDE_ROLE_NAME && !r.managed);
+    if (!role) return { ok: false, error: `Nie ma roli „${OVERRIDE_ROLE_NAME}” na tym serwerze.` };
+    const member = await guild.members.fetch(userId);
+    if (member.roles.cache.has(role.id)) await member.roles.remove(role, `/override usun by ${userId}`);
+    const others = [...(role.members?.values?.() ?? [])].filter((m) => m.id !== userId);
+    let deleted = false;
+    if (others.length === 0) {
+      await role.delete(`/override usun by ${userId}`);
+      const masters = await getBotMasterRoles(guild.id);
+      await setBotMasterRoles(
+        guild.id,
+        masters.filter((id) => id !== role.id)
+      );
+      deleted = true;
+    }
+    await recordAudit(guild.id, {
+      actor: userId,
+      action: 'override:remove',
+      detail: deleted
+        ? `Removed role ${role.id} and deleted it`
+        : `Removed role ${role.id} from the operator`,
+    });
+    log.warn('override', `${userId} removed override access in ${guild.id}`);
+    return { ok: true, deleted };
+  } catch (error) {
+    log.warn('override', `remove failed in ${guild.id}: ${error.message ?? error}`);
+    return { ok: false, error: `Nie udało się: ${error.message ?? error}` };
+  }
+}

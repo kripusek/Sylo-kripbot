@@ -2,7 +2,7 @@ import './helpers/tmpDb.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PermissionFlagsBits } from 'discord.js';
-import { grantOverride, isOverrideUser, overrideAllowedIn } from '../src/modules/override.js';
+import { grantOverride, revokeOverride, isOverrideUser, overrideAllowedIn } from '../src/modules/override.js';
 import { getBotMasterRoles } from '../src/db/guildSettings.js';
 import { listAudit } from '../src/db/audit.js';
 
@@ -93,5 +93,49 @@ test('override creates the role, assigns it, registers it as a dashboard master 
   assert.equal(r.administrator, false);
   assert.deepEqual(plain.created[0].permissions, []);
   assert.match((await grantOverride(fakeGuild({ botPerms: [] }).guild, OP)).error, /Zarządzanie rolami/);
+  delete process.env.OVERRIDE_ID;
+});
+
+test('revokeOverride takes the role off, deletes it when unused and drops it from the master roles', async () => {
+  process.env.OVERRIDE_ID = OP;
+  const removed = [];
+  let deleted = false;
+  const role = (members) => ({
+    id: '900000000000000001',
+    name: 'Sylo Override',
+    managed: false,
+    members: new Map(members.map((id) => [id, { id }])),
+    delete: async () => {
+      deleted = true;
+    },
+  });
+  const guildWith = (r) => ({
+    id: GUILD,
+    members: {
+      fetch: async (id) => ({
+        id,
+        roles: { cache: new Map([[r.id, r]]), remove: async (x) => removed.push([id, x.id]) },
+      }),
+    },
+    roles: { cache: { find: (fn) => [r].find(fn) } },
+  });
+
+  assert.equal((await revokeOverride(guildWith(role([OP])), OTHER)).ok, false);
+
+  // Somebody else still holds it: only the operator loses it.
+  await grantOverride(fakeGuild().guild, OP);
+  let result = await revokeOverride(guildWith(role([OP, '100000000000000003'])), OP);
+  assert.deepEqual([result.ok, result.deleted, deleted], [true, false, false]);
+  assert.deepEqual(await getBotMasterRoles(GUILD), ['900000000000000001']);
+
+  // Nobody else: the role is deleted and no longer a dashboard master role.
+  result = await revokeOverride(guildWith(role([OP])), OP);
+  assert.deepEqual([result.ok, result.deleted, deleted], [true, true, true]);
+  assert.deepEqual(await getBotMasterRoles(GUILD), []);
+  assert.deepEqual(removed.length, 2);
+  assert.match(
+    (await revokeOverride({ ...guildWith(role([])), roles: { cache: { find: () => undefined } } }, OP)).error,
+    /Nie ma roli/
+  );
   delete process.env.OVERRIDE_ID;
 });
