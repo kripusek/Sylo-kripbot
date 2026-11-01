@@ -2,8 +2,17 @@ import './helpers/tmpDb.js';
 import './helpers/openMode.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PermissionFlagsBits as P, SlashCommandBuilder } from 'discord.js';
-import { moderationPermissions, commandDefinitionForRegistration } from '../src/bot/lib/commandAccess.js';
+import {
+  PermissionFlagsBits as P,
+  SlashCommandBuilder,
+  ContextMenuCommandBuilder,
+  ApplicationCommandType,
+} from 'discord.js';
+import {
+  moderationPermissions,
+  commandDefinitionForRegistration,
+  contextCommandAliases,
+} from '../src/bot/lib/commandAccess.js';
 import { overrideBlockReason } from '../src/bot/events/interactionCreate.js';
 import { setCommandOverride } from '../src/db/commandOverrides.js';
 import { fakeCommandInteraction } from './helpers/fakeInteraction.js';
@@ -57,4 +66,33 @@ test('registration opens only delegated commands, without mutating builders', ()
       .setDefaultMemberPermissions(P.ManageGuild),
   };
   assert.equal(commandDefinitionForRegistration(admin).default_member_permissions, String(P.ManageGuild));
+});
+
+test('user-menu commands (Kary, Ostrzeż) follow the delegation rules of /history and /warn', async () => {
+  for (const [menu, slash] of Object.entries(contextCommandAliases)) {
+    const permission = moderationPermissions[slash];
+    assert.match(await overrideBlockReason(interaction(menu)), /permission/, 'a normal member is refused');
+    assert.equal(await overrideBlockReason(interaction(menu, [], [permission])), null);
+    // Delegating the slash command to a role also opens the menu entry for that role only.
+    await setCommandOverride(guildId, slash, { enabled: true, allowedRoles: [role] });
+    assert.equal(await overrideBlockReason(interaction(menu, [role])), null);
+    assert.match(await overrideBlockReason(interaction(menu, [], [permission])), /role allowed/);
+    assert.match(await overrideBlockReason(interaction(menu)), /role allowed/);
+    // ...and turning the slash command off turns the menu entry off too.
+    await setCommandOverride(guildId, slash, { enabled: false });
+    assert.match(await overrideBlockReason(interaction(menu, [], [P.Administrator])), /disabled/);
+    await setCommandOverride(guildId, slash, { enabled: true, allowedRoles: [], allowedChannels: [] });
+  }
+});
+
+test('registration of user-menu commands leaves them open for the router to gate', () => {
+  for (const name of Object.keys(contextCommandAliases)) {
+    const command = {
+      data: new ContextMenuCommandBuilder()
+        .setName(name)
+        .setType(ApplicationCommandType.User)
+        .setDefaultMemberPermissions(P.ModerateMembers),
+    };
+    assert.equal(commandDefinitionForRegistration(command).default_member_permissions, null);
+  }
 });

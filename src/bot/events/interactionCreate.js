@@ -9,7 +9,7 @@ import { handleCustomSlash } from '../lib/customCommandSync.js';
 import { routeComponent } from '../lib/components.js';
 import { log } from '../../lib/log.js';
 import { inc } from '../../lib/metrics.js';
-import { moderationPermissions } from '../lib/commandAccess.js';
+import { moderationPermissions, accessNameOf } from '../lib/commandAccess.js';
 
 export const name = Events.InteractionCreate;
 
@@ -23,10 +23,11 @@ export const name = Events.InteractionCreate;
  * @param {import('discord.js').ChatInputCommandInteraction} interaction
  */
 export async function overrideBlockReason(interaction) {
-  const requiredPermission = moderationPermissions[interaction.commandName];
+  const accessName = accessNameOf(interaction.commandName);
+  const requiredPermission = moderationPermissions[accessName];
   if (!interaction.inGuild()) return requiredPermission ? 'This command can only be used in a server.' : null;
 
-  const ov = await getCommandOverride(interaction.guildId, interaction.commandName);
+  const ov = await getCommandOverride(interaction.guildId, accessName);
   if (ov && !ov.enabled) return 'This command is disabled in this server.';
 
   if (interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) return null;
@@ -54,14 +55,14 @@ export async function execute(interaction) {
     await routeComponent(interaction);
     return;
   }
-  if (!interaction.isChatInputCommand()) return;
+  if (!interaction.isChatInputCommand() && !interaction.isUserContextMenuCommand()) return;
 
   inc('sylo_commands_total', { command: interaction.commandName });
 
   const command = interaction.client.commands.get(interaction.commandName);
   if (!command) {
     try {
-      if (await handleCustomSlash(interaction)) return;
+      if (interaction.isChatInputCommand() && (await handleCustomSlash(interaction))) return;
     } catch (err) {
       log.error('bot', `Custom slash command "${interaction.commandName}" failed:`, err);
       return;

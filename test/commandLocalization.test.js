@@ -14,7 +14,10 @@ test('every built-in command and option has a valid Polish description on regist
   const folder = new URL('../src/bot/commands/', import.meta.url);
   for (const file of readdirSync(folder).filter((name) => name.endsWith('.js'))) {
     const command = await import(new URL(file, folder));
-    if (command.data) check(commandDefinitionForRegistration(command));
+    if (!command.data) continue;
+    const definition = commandDefinitionForRegistration(command);
+    if (definition.type === 2 || definition.type === 3) continue; // context menus have no description
+    check(definition);
   }
 });
 

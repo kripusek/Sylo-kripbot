@@ -46,49 +46,59 @@ export const data = new SlashCommandBuilder()
       .addUserOption((o) => o.setName('user').setDescription('Member to clear').setRequired(true))
   );
 
+/**
+ * Issue a warning (shared by /warn add and the "Ostrzeż" user menu).
+ * `interaction` may be a command or a modal submit — both can defer a reply.
+ */
+export async function issueWarning(interaction, user, reason) {
+  const guildId = interaction.guild.id;
+  if (user.bot) {
+    await interaction.reply({ content: "⚠️ You can't warn a bot.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  const { id, count } = await addWarning({
+    guildId,
+    userId: user.id,
+    moderatorId: interaction.user.id,
+    reason,
+  });
+  const dmed = await notifyTarget(user, {
+    guildName: interaction.guild.name,
+    action: 'warned',
+    reason,
+    extra: `This is warning #${count}.`,
+  });
+
+  const embed = resultEmbed({
+    action: 'Member warned',
+    target: user,
+    moderator: interaction.user,
+    reason,
+    fields: [
+      { name: 'Warning ID', value: `#${id}` },
+      { name: 'Total warnings', value: String(count) },
+      { name: 'Notified', value: dmed ? 'Yes (DM sent)' : 'No (DMs closed)' },
+    ],
+  });
+  await interaction.editReply({ embeds: [embed] });
+  await postModLog(interaction.guild, embed);
+  await applyWarnThresholds(interaction.guild, user, count, interaction.user.tag);
+  return;
+}
+
 /** @param {import('discord.js').ChatInputCommandInteraction} interaction */
 export async function execute(interaction) {
   const sub = interaction.options.getSubcommand();
   const guildId = interaction.guild.id;
 
   if (sub === 'add') {
-    const user = interaction.options.getUser('user', true);
-    const reason = interaction.options.getString('reason', true);
-
-    if (user.bot) {
-      await interaction.reply({ content: "⚠️ You can't warn a bot.", flags: MessageFlags.Ephemeral });
-      return;
-    }
-
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-    const { id, count } = await addWarning({
-      guildId,
-      userId: user.id,
-      moderatorId: interaction.user.id,
-      reason,
-    });
-    const dmed = await notifyTarget(user, {
-      guildName: interaction.guild.name,
-      action: 'warned',
-      reason,
-      extra: `This is warning #${count}.`,
-    });
-
-    const embed = resultEmbed({
-      action: 'Member warned',
-      target: user,
-      moderator: interaction.user,
-      reason,
-      fields: [
-        { name: 'Warning ID', value: `#${id}` },
-        { name: 'Total warnings', value: String(count) },
-        { name: 'Notified', value: dmed ? 'Yes (DM sent)' : 'No (DMs closed)' },
-      ],
-    });
-    await interaction.editReply({ embeds: [embed] });
-    await postModLog(interaction.guild, embed);
-    await applyWarnThresholds(interaction.guild, user, count, interaction.user.tag);
-    return;
+    return issueWarning(
+      interaction,
+      interaction.options.getUser('user', true),
+      interaction.options.getString('reason', true)
+    );
   }
 
   if (sub === 'list') {

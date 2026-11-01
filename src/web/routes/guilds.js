@@ -539,6 +539,7 @@ router.get(
       .map((r) => ({ id: r.id, name: r.name }));
 
     const commands = [...(runtime.client?.commands?.values() ?? [])]
+      .filter(({ data }) => data.type === undefined) // user-menu commands follow their slash twin
       .map(({ data }) => {
         const ov = overrides.get(data.name);
         return {
@@ -606,6 +607,7 @@ router.get(
 
     const overrides = await getCommandOverrides(guild.id);
     const commands = [...(runtime.client?.commands?.values() ?? [])]
+      .filter(({ data }) => data.type === undefined) // user-menu commands follow their slash twin
       .map(({ data }) => {
         const ov = overrides.get(data.name);
         return {

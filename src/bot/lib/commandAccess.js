@@ -18,10 +18,16 @@ export const moderationPermissions = Object.freeze({
   slowmode: P.ManageChannels,
 });
 
+// User-menu commands (right-click a member → Apps) share the delegation rules of
+// the slash command they mirror, so one dashboard setting governs both.
+export const contextCommandAliases = Object.freeze({ Kary: 'history', Ostrzeż: 'warn' });
+export const accessNameOf = (commandName) => contextCommandAliases[commandName] ?? commandName;
+
 export function commandDefinitionForRegistration(command) {
   const data = localizeCommandDefinition(command.data.toJSON());
   // Discord's native permission gate cannot express our per-server role grants.
   // The interaction router enforces permissions before executing these commands.
-  if (Object.hasOwn(moderationPermissions, data.name)) data.default_member_permissions = null;
+  if (Object.hasOwn(moderationPermissions, data.name) || Object.hasOwn(contextCommandAliases, data.name))
+    data.default_member_permissions = null;
   return data;
 }
