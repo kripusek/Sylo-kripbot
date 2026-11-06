@@ -13,6 +13,7 @@ import Messages from './pages/Messages.jsx';
 import MessageBuilder from './pages/MessageBuilder.jsx';
 import Cs2 from './pages/Cs2.jsx';
 import Insights from './pages/Insights.jsx';
+import PunishmentRanking from './pages/PunishmentRanking.jsx';
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route element={<Shell />}>
           <Route index element={<GuildPicker />} />
           <Route path="guilds/:guildId" element={<Overview />} />
+          <Route path="guilds/:guildId/punishment-ranking" element={<PunishmentRanking />} />
           <Route path="guilds/:guildId/leaderboard" element={<Leaderboard />} />
           <Route path="guilds/:guildId/settings" element={<Settings />} />
           <Route path="guilds/:guildId/m/:moduleId" element={<ModulePage />} />

@@ -1,3 +1,4 @@
+import { punishmentRanking, savePunishmentRankingRoles } from '../lib/punishmentRanking.js';
 import { cs2BetHistory } from '../../db/cs2.js';
 import { normaliseFeedbackConfig, publishFeedbackPanel } from '../../modules/feedback.js';
 import {
@@ -299,6 +300,18 @@ function loadGuildJson(req, res, next) {
 // wrapper checks response.ok/content-type before parsing JSON and falls
 // back to a plain "log in" / "no access" state rather than crashing on it.
 router.use('/guilds/:guildId', loadGuildJson, requireGuildAdmin);
+
+router.get('/guilds/:guildId/punishment-ranking', asyncHandler(async (req, res) => {
+  res.json(await punishmentRanking(req.guild, req.query.role));
+}));
+router.post('/guilds/:guildId/punishment-ranking', asyncHandler(async (req, res) => {
+  if (!Array.isArray(req.body?.roles) || req.body.roles.some((id) => typeof id !== 'string')) {
+    return res.status(400).json({ error: 'Invalid roles' });
+  }
+  await savePunishmentRankingRoles(req.guild, req.body.roles);
+  res.json(await punishmentRanking(req.guild));
+}));
+
 
 router.get(
   '/guilds/:guildId/overview',

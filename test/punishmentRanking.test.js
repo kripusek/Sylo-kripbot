@@ -20,11 +20,16 @@ test('role settings filter recorded punishment counts and exclude notes and auto
   await setCaseActive(GID, 2, false);
   let page = await (await fetch(app.base + url)).text();
   assert.match(page, /Wybierz przynajmniej jedną rolę/);
+  assert.match(page, /href="\/guilds\/900000000000000123\/punishment-ranking"/);
+  assert.match(page, /Ranking kar/);
   assert.doesNotMatch(page, /Test Moderator/);
   const saved = await post(app.base, url, { roles: ROLE.admin });
   assert.equal(saved.status, 302);
   page = await (await fetch(app.base + url)).text();
   assert.match(page, /Test Moderator/);
+  const api = await (await fetch(app.base + `/api/v2/guilds/${GID}/punishment-ranking`)).json();
+  assert.deepEqual(api.selected, [ROLE.admin]);
+  assert.equal(api.ranking[0].total, 2);
   assert.match(page, /<td>1<\/td><td>0<\/td><td>0<\/td><td>1<\/td><td>2<\/td>/);
   const removed = await post(app.base, url, '');
   assert.equal(removed.status, 302);

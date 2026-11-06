@@ -82,6 +82,7 @@ export default function Sidebar({ activeGuildId, open, onClose }) {
       icon: 'trophy',
       href: activeGuildId ? `/guilds/${activeGuildId}/leaderboard` : '/',
     },
+    ...(activeGuildId ? [{ key: 'punishment-ranking', label: 'Ranking kar', icon: 'trophy', href: `/guilds/${activeGuildId}/punishment-ranking` }] : []),
     ...(activeGuildId
       ? [{ key: 'cs2', label: 'CS2', icon: 'trophy', href: `/guilds/${activeGuildId}/cs2` }]
       : []),
