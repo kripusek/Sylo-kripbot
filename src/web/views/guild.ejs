@@ -241,9 +241,34 @@
       <div class="mod-hero"><%- include('guild/_hero-inner', { icon: 'command', title: 'Commands' }) %></div>
       <%- include('guild/commands', { guild: guild, commands: commands, roles: roles, channels: channels }) %>
 
+    <% } else if (panel === 'punishment-ranking') { %>
+      <div class="mod-hero"><%- include('guild/_hero-inner', { icon: 'shield', title: 'Ranking kar' }) %></div>
+      <p><a href="/guilds/<%= guild.id %>/moderation">← Moderacja</a></p>
+      <p class="muted">Ranking moderatorów według liczby nadanych warnów, timeoutów, kicków i banów zapisanych przez bota. Liczą się również kary zakończone lub oznaczone jako nieaktywne; usuniętych z bazy nie można odzyskać. Automatyczne kary nie są przypisywane moderatorom.</p>
+      <form method="POST" action="/guilds/<%= guild.id %>/punishment-ranking" class="stack">
+        <h3>Role uwzględniane w rankingu</h3>
+        <p class="muted small">Zaznacz role moderatorów. Liczy się ich obecna rola; osoby, które opuściły serwer, nie są wyświetlane.</p>
+        <% roles.forEach(function(role) { %>
+          <label><input type="checkbox" name="roles" value="<%= role.id %>" <%= selected.includes(role.id) ? 'checked' : '' %> /> <%= role.name %></label>
+        <% }) %>
+        <div><button type="submit">Zapisz role</button></div>
+      </form>
+      <form method="GET" action="/guilds/<%= guild.id %>/punishment-ranking" class="row-form u-mt-3">
+        <label>Filtruj rolę <select name="role"><option value="">Wszystkie wybrane role</option>
+          <% roles.filter((r) => selected.includes(r.id)).forEach(function(role) { %><option value="<%= role.id %>" <%= roleFilter === role.id ? 'selected' : '' %>><%= role.name %></option><% }) %>
+        </select></label><button type="submit">Pokaż</button>
+      </form>
+      <% if (lookupErrors) { %><p class="warn-text">Nie udało się pobrać części moderatorów z Discorda. Ranking może być niepełny.</p><% } %>
+      <% if (!selected.length) { %><p class="muted">Wybierz przynajmniej jedną rolę, aby wyświetlić ranking.</p>
+      <% } else if (!ranking.length) { %><p class="muted">Brak zapisanych kar dla wybranych ról.</p>
+      <% } else { %><table><thead><tr><th>#</th><th>Moderator</th><th>Warny</th><th>Timeouty</th><th>Kicki</th><th>Bany</th><th>Razem</th></tr></thead><tbody>
+        <% ranking.forEach(function(row, i) { %><tr><td><%= i + 1 %></td><td><%= row.name %> <span class="muted mono"><%= row.id %></span></td><td><%= row.warn %></td><td><%= row.timeout %></td><td><%= row.kick %></td><td><%= row.ban %></td><td><%= row.total %></td></tr><% }) %>
+      </tbody></table><% } %>
+
     <% } else if (panel === 'moderation') { %>
       <div class="mod-hero"><%- include('guild/_hero-inner', { icon: 'shield', title: 'Moderator' }) %></div>
       <p class="muted">Auto-moderation, warning auto-actions, infractions, immunity, audit logging and command permissions.</p>
+      <p><a href="/guilds/<%= guild.id %>/punishment-ranking">📊 Ranking nadawania kar</a></p>
 
       <div class="mod-tabbed">
         <% var mtab = typeof modTab !== 'undefined' ? modTab : 'automod'; %>

@@ -92,7 +92,7 @@ export default function Moderation() {
       <p className="v2-field-hint">
         Warning thresholds apply an action automatically once a member reaches a given warning count — the{' '}
         <strong>strictest</strong> matching rule wins. Warnings and bans themselves are managed on the{' '}
-        <a href={`/guilds/${guildId}/moderation`}>Moderation</a> page, not here.
+        <a href={`/guilds/${guildId}/moderation`}>Moderation</a> page, not here. <a href={`/guilds/${guildId}/punishment-ranking`}>Ranking nadawania kar</a>.
       </p>
 
       <form onSubmit={onSave}>

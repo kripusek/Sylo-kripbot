@@ -145,6 +145,19 @@ export async function listGuildCases(guildId, limit = 200) {
   return { rows, total };
 }
 
+// Count recorded punishments regardless of whether a ban/timeout was later lifted.
+// Notes, reversals and automated actions are not attributed to moderators.
+const rankingStmt = prepare(`
+  SELECT moderator_id, action, COUNT(*) AS total
+  FROM infractions
+  WHERE guild_id = ? AND action IN ('warn', 'timeout', 'kick', 'ban')
+  GROUP BY moderator_id, action
+`);
+
+export async function punishmentCounts(guildId) {
+  return rankingStmt.all(guildId);
+}
+
 /** @returns {Promise<boolean>} whether a row changed */
 export async function editCaseReason(guildId, caseNumber, reason) {
   const info = await editReasonStmt.run(String(reason ?? '').slice(0, 1000), guildId, caseNumber);

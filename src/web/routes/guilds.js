@@ -25,6 +25,7 @@ import {
 } from '../../db/guildSettings.js';
 import {
   listGuildCases,
+  punishmentCounts,
   getCase,
   editCaseReason,
   setCaseActive,
@@ -558,6 +559,54 @@ router.get(
       roles,
       msg: typeof req.query.msg === 'string' ? req.query.msg : null,
     });
+  })
+);
+
+// Private moderator ranking, limited to members currently holding a selected role.
+router.get(
+  '/:guildId/punishment-ranking',
+  asyncHandler(async (req, res) => {
+    const guild = req.guild;
+    const roles = assignableRoles(guild);
+    const cfg = (await getGuildModule(guild.id, 'punishment-ranking')).config;
+    const selected = Array.isArray(cfg.roles) ? cfg.roles.filter((id) => roles.some((r) => r.id === id)) : [];
+    const roleFilter = typeof req.query.role === 'string' && selected.includes(req.query.role) ? req.query.role : '';
+    const totals = new Map();
+    for (const row of await punishmentCounts(guild.id)) {
+      if (!/^\d{17,20}$/.test(row.moderator_id)) continue;
+      const entry = totals.get(row.moderator_id) || { id: row.moderator_id, warn: 0, timeout: 0, kick: 0, ban: 0, total: 0 };
+      entry[row.action] = Number(row.total);
+      entry.total += Number(row.total);
+      totals.set(entry.id, entry);
+    }
+    let lookupErrors = 0;
+    const ranking = [];
+    if (selected.length) {
+      for (const entry of totals.values()) {
+        let member;
+        try { member = await guild.members.fetch(entry.id); }
+        catch (err) { if (err.code !== 10007) lookupErrors++; continue; }
+        if (!selected.some((id) => member.roles.cache.has(id))) continue;
+        if (roleFilter && !member.roles.cache.has(roleFilter)) continue;
+        ranking.push({ ...entry, name: member.displayName });
+      }
+    }
+    ranking.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+    res.render('guild', {
+      ...(await baseContext(guild, 'punishment-ranking')),
+      roles, selected, roleFilter, ranking, lookupErrors,
+      msg: typeof req.query.msg === 'string' ? req.query.msg : null,
+    });
+  })
+);
+
+router.post(
+  '/:guildId/punishment-ranking',
+  asyncHandler(async (req, res) => {
+    const allowed = new Set(assignableRoles(req.guild).map((role) => role.id));
+    const roles = [...new Set([].concat(req.body.roles ?? []).filter((id) => typeof id === 'string' && allowed.has(id)))];
+    await setGuildModule(req.guild.id, 'punishment-ranking', { config: { roles } });
+    res.redirect(`/guilds/${req.guild.id}/punishment-ranking?msg=saved`);
   })
 );
 
