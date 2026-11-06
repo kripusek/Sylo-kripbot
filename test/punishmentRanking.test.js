@@ -36,3 +36,11 @@ test('role settings filter recorded punishment counts and exclude notes and auto
   page = await (await fetch(app.base + url)).text();
   assert.doesNotMatch(page, /Test Moderator/);
 });
+
+test('individual moderators can be included without selecting a role', async () => {
+  const url = `/guilds/${GID}/punishment-ranking`;
+  await post(app.base, url, { users: moderator });
+  const page = await (await fetch(app.base + url)).text();
+  assert.match(page, /Test Moderator/);
+  assert.match(page, new RegExp(moderator));
+});

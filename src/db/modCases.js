@@ -25,6 +25,12 @@ registerPostgresBootstrap(`
   );
   CREATE INDEX IF NOT EXISTS idx_infractions_user ON infractions (guild_id, user_id, case_number DESC);
 
+  CREATE TABLE IF NOT EXISTS external_punishments (
+    guild_id TEXT NOT NULL, audit_id TEXT NOT NULL, moderator_id TEXT NOT NULL,
+    user_id TEXT NOT NULL, action TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '',
+    created_at BIGINT NOT NULL, PRIMARY KEY (guild_id, audit_id)
+  );
+
   CREATE TABLE IF NOT EXISTS case_counters (
     guild_id    TEXT PRIMARY KEY,
     next_number INTEGER NOT NULL DEFAULT 0
@@ -152,10 +158,22 @@ const rankingStmt = prepare(`
   FROM infractions
   WHERE guild_id = ? AND action IN ('warn', 'timeout', 'kick', 'ban')
   GROUP BY moderator_id, action
+  UNION ALL
+  SELECT moderator_id, action, COUNT(*) AS total
+  FROM external_punishments WHERE guild_id = ? GROUP BY moderator_id, action
 `);
 
 export async function punishmentCounts(guildId) {
-  return rankingStmt.all(guildId);
+  return rankingStmt.all(guildId, guildId);
+}
+
+const externalPunishmentStmt = prepare(`
+  INSERT INTO external_punishments (guild_id, audit_id, moderator_id, user_id, action, reason, created_at)
+  VALUES (@guildId, @auditId, @moderatorId, @userId, @action, @reason, @createdAt)
+  ON CONFLICT (guild_id, audit_id) DO NOTHING
+`);
+export async function recordExternalPunishment(event) {
+  return externalPunishmentStmt.run(event);
 }
 
 /** @returns {Promise<boolean>} whether a row changed */

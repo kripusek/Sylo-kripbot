@@ -74,3 +74,9 @@ Actions taken outside the bot are not imported retroactively.
 
 Access requires Moderate Members, Administrator, or a role granted access to
 `/history` in the dashboard's command settings. Replies do not ping anyone.
+
+## Ranking and mass bans
+
+The private **Ranking kar** dashboard page includes selected roles and individual Discord IDs. It counts recorded bot warnings, bans, kicks and timeouts, plus bans, kicks and timeouts made directly in Discord while the bot is online and has **View Audit Log**. Historic external actions and events missed while offline are not imported. Discord actions are counted in the ranking separately from the bot's case history. A timeout modification is counted as another timeout.
+
+`/massban users:<IDs or mentions> reason:<reason>` permanently bans up to ten current members. The caller needs Ban Members, and role hierarchy is checked per member. The reply reports each result.

@@ -251,7 +251,9 @@
         <% roles.forEach(function(role) { %>
           <label><input type="checkbox" name="roles" value="<%= role.id %>" <%= selected.includes(role.id) ? 'checked' : '' %> /> <%= role.name %></label>
         <% }) %>
-        <div><button type="submit">Zapisz role</button></div>
+        <label>Poszczególne osoby — ID Discord, oddzielone przecinkami lub spacjami <input type="text" name="users" value="<%= users.join(', ') %>" placeholder="ID użytkowników" /></label>
+        <p class="muted small">Kary nadane ręcznie w Discordzie są liczone od uruchomienia tej wersji, jeśli bot ma dostęp do dziennika audytu.</p>
+        <div><button type="submit">Zapisz ustawienia</button></div>
       </form>
       <form method="GET" action="/guilds/<%= guild.id %>/punishment-ranking" class="row-form u-mt-3">
         <label>Filtruj rolę <select name="role"><option value="">Wszystkie wybrane role</option>
@@ -259,7 +261,7 @@
         </select></label><button type="submit">Pokaż</button>
       </form>
       <% if (lookupErrors) { %><p class="warn-text">Nie udało się pobrać części moderatorów z Discorda. Ranking może być niepełny.</p><% } %>
-      <% if (!selected.length) { %><p class="muted">Wybierz przynajmniej jedną rolę, aby wyświetlić ranking.</p>
+      <% if (!selected.length && !users.length) { %><p class="muted">Wybierz przynajmniej jedną rolę, aby wyświetlić ranking, lub dodaj osobę.</p>
       <% } else if (!ranking.length) { %><p class="muted">Brak zapisanych kar dla wybranych ról.</p>
       <% } else { %><table><thead><tr><th>#</th><th>Moderator</th><th>Warny</th><th>Timeouty</th><th>Kicki</th><th>Bany</th><th>Razem</th></tr></thead><tbody>
         <% ranking.forEach(function(row, i) { %><tr><td><%= i + 1 %></td><td><%= row.name %> <span class="muted mono"><%= row.id %></span></td><td><%= row.warn %></td><td><%= row.timeout %></td><td><%= row.kick %></td><td><%= row.ban %></td><td><%= row.total %></td></tr><% }) %>

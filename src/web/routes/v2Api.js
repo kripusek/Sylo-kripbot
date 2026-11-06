@@ -308,7 +308,10 @@ router.post('/guilds/:guildId/punishment-ranking', asyncHandler(async (req, res)
   if (!Array.isArray(req.body?.roles) || req.body.roles.some((id) => typeof id !== 'string')) {
     return res.status(400).json({ error: 'Invalid roles' });
   }
-  await savePunishmentRankingRoles(req.guild, req.body.roles);
+  if (req.body.users !== undefined && (!Array.isArray(req.body.users) || req.body.users.some((id) => typeof id !== 'string'))) {
+    return res.status(400).json({ error: 'Invalid users' });
+  }
+  await savePunishmentRankingRoles(req.guild, req.body.roles, req.body.users);
   res.json(await punishmentRanking(req.guild));
 }));
 

@@ -60,6 +60,7 @@ export const GUILD_TABLES = [
   'guild_modules',
   'command_overrides',
   'infractions',
+  'external_punishments',
   'case_counters',
   'tickets',
   'composed_messages',
@@ -118,6 +119,7 @@ export async function purgeGuild(guildId) {
 
 const userStmts = {
   warnings: prepare('DELETE FROM infractions WHERE guild_id = ? AND user_id = ?'),
+  externalPunishments: prepare('DELETE FROM external_punishments WHERE guild_id = ? AND (user_id = ? OR moderator_id = ?)'),
   leveling: prepare('DELETE FROM leveling WHERE guild_id = ? AND user_id = ?'),
   levelingPeriods: prepare('DELETE FROM leveling_periods WHERE guild_id = ? AND user_id = ?'),
   economy: prepare('DELETE FROM economy_accounts WHERE guild_id = ? AND user_id = ?'),
@@ -155,6 +157,7 @@ const userStmts = {
  */
 export async function forgetUser(guildId, userId) {
   const warnings = (await userStmts.warnings.run(guildId, userId)).changes;
+  await userStmts.externalPunishments.run(guildId, userId, userId);
   const leveling =
     (await userStmts.leveling.run(guildId, userId)).changes +
     (await userStmts.levelingPeriods.run(guildId, userId)).changes;

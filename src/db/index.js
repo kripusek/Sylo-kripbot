@@ -965,6 +965,12 @@ export const MIGRATIONS = [
     database.exec(`ALTER TABLE cs2_bets ADD COLUMN target_id TEXT NOT NULL DEFAULT '';`);
     database.exec(`ALTER TABLE cs2_bets ADD COLUMN pick TEXT NOT NULL DEFAULT 'win';`);
   },
+  // External Discord audit events, idempotent even across duplicate deliveries.
+  (database) => database.exec(`CREATE TABLE IF NOT EXISTS external_punishments (
+    guild_id TEXT NOT NULL, audit_id TEXT NOT NULL, moderator_id TEXT NOT NULL,
+    user_id TEXT NOT NULL, action TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '',
+    created_at BIGINT NOT NULL, PRIMARY KEY (guild_id, audit_id)
+  );`),
 ];
 
 /** Highest schema version this build knows how to run. */

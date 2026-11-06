@@ -567,10 +567,10 @@ router.get(
   '/:guildId/punishment-ranking',
   asyncHandler(async (req, res) => {
     const guild = req.guild;
-    const { roles, selected, roleFilter, ranking, lookupErrors } = await punishmentRanking(guild, req.query.role);
+    const { roles, selected, users, roleFilter, ranking, lookupErrors } = await punishmentRanking(guild, req.query.role);
     res.render('guild', {
       ...(await baseContext(guild, 'punishment-ranking')),
-      roles, selected, roleFilter, ranking, lookupErrors,
+      roles, selected, users, roleFilter, ranking, lookupErrors,
       msg: typeof req.query.msg === 'string' ? req.query.msg : null,
     });
   })
@@ -579,7 +579,8 @@ router.get(
 router.post(
   '/:guildId/punishment-ranking',
   asyncHandler(async (req, res) => {
-    await savePunishmentRankingRoles(req.guild, [].concat(req.body.roles ?? []));
+    const users = String(req.body.users ?? '').match(/\d{17,20}/g) || [];
+    await savePunishmentRankingRoles(req.guild, [].concat(req.body.roles ?? []), users);
     res.redirect(`/guilds/${req.guild.id}/punishment-ranking?msg=saved`);
   })
 );
