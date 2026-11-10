@@ -20,7 +20,14 @@ export const moderationPermissions = Object.freeze({
 
 // User-menu commands (right-click a member → Apps) share the delegation rules of
 // the slash command they mirror, so one dashboard setting governs both.
-export const contextCommandAliases = Object.freeze({ Kary: 'history', Ostrzeż: 'warn' });
+export const contextCommandAliases = Object.freeze({
+  Kary: 'history',
+  Ostrzeż: 'warn',
+  Wycisz: 'timeout',
+  Odcisz: 'untimeout',
+  Wyrzuć: 'kick',
+  Zbanuj: 'ban',
+});
 export const accessNameOf = (commandName) => contextCommandAliases[commandName] ?? commandName;
 
 export function commandDefinitionForRegistration(command) {

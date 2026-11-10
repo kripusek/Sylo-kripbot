@@ -239,5 +239,31 @@ test('voice move log names the moderator who moved the member (matched by destin
     sent[1].fields.find((f) => f.name === 'Moved by'),
     undefined
   );
+
+  // Server mute by a moderator: logged with who did it; an unchanged state logs nothing.
+  const muteGuild = {
+    fetchAuditLogs: async () => ({
+      entries: new Map([
+        [
+          'm1',
+          {
+            createdTimestamp: Date.now() - 500,
+            executor: { id: 'mod', tag: 'mod#0' },
+            target: { id: 'member' },
+            changes: [{ key: 'mute', new: true }],
+          },
+        ],
+      ]),
+    }),
+  };
+  const muteConfig = { channel: 'logs', events: { voiceMute: true } };
+  const muteState = (serverMute) => ({ id: 'member', channelId: 'vc1', serverMute, guild: muteGuild });
+  const beforeMute = sent.length;
+  await logVoiceChange({ old: muteState(false), new: muteState(true) }, muteConfig, 'guild', { delayMs: 0 });
+  assert.equal(sent.length, beforeMute + 1);
+  assert.equal(sent.at(-1).title, 'Server muted');
+  assert.match(sent.at(-1).fields.find((f) => f.name === 'Muted by').value, /mod/);
+  await logVoiceChange({ old: muteState(true), new: muteState(true) }, muteConfig, 'guild', { delayMs: 0 });
+  assert.equal(sent.length, beforeMute + 1);
   runtime.client = null;
 });

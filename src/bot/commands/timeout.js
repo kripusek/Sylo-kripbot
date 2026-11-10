@@ -20,9 +20,17 @@ export const data = new SlashCommandBuilder()
 
 /** @param {import('discord.js').ChatInputCommandInteraction} interaction */
 export async function execute(interaction) {
-  const target = interaction.options.getMember('user');
-  const reason = interaction.options.getString('reason') ?? NO_REASON;
-  const ms = parseDuration(interaction.options.getString('duration', true));
+  return applyTimeout(
+    interaction,
+    interaction.options.getMember('user'),
+    interaction.options.getString('reason') ?? NO_REASON,
+    interaction.options.getString('duration', true)
+  );
+}
+
+/** Shared by /timeout and the "Wycisz" user menu (a command or a modal submit). */
+export async function applyTimeout(interaction, target, reason, durationInput) {
+  const ms = parseDuration(durationInput);
 
   if (!target) {
     await interaction.reply({ content: "That user isn't in this server.", flags: MessageFlags.Ephemeral });

@@ -2244,5 +2244,6 @@
   "Remove the override role from yourself.": "Zabierz sobie rolę override.",
   "Look up information about an account.": "Sprawdź informacje o koncie.",
   "Show every punishment this account has had (warns, timeouts, kicks, bans).": "Pokaż każdą karę tego konta (ostrzeżenia, wyciszenia, wyrzucenia, bany).",
-  "The account to look up": "Konto do sprawdzenia"
+  "The account to look up": "Konto do sprawdzenia",
+  "Voice muted / deafened by a moderator": "Wyciszenie / ogłuszenie na VC przez moderatora"
 }

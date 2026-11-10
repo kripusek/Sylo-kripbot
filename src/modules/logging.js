@@ -21,6 +21,7 @@ export const LOG_EVENTS = [
   ['voiceJoin', 'Voice channel joined'],
   ['voiceLeave', 'Voice channel left'],
   ['voiceMove', 'Voice channel switched'],
+  ['voiceMute', 'Voice muted / deafened by a moderator'],
   ['messageCreate', 'Message sent'],
   ['messageDelete', 'Message deleted'],
   ['messageEdit', 'Message edited'],
@@ -188,9 +189,56 @@ export async function findVoiceActor(guild, type, memberId, channelId = null, no
   return null;
 }
 
-// Log channel transitions only; mute/deafen/video updates do not create noise.
+// Server mute / deafen (done by a moderator, not the member's own toggles). The
+// audit log's MemberUpdate entry names the moderator and the member it hit.
+export async function findVoiceMuteActor(guild, memberId, changeKey, now = Date.now()) {
+  try {
+    const logs = await guild.fetchAuditLogs({ type: AuditLogEvent.MemberUpdate, limit: 10 });
+    for (const entry of logs.entries.values()) {
+      if (now - entry.createdTimestamp > VOICE_AUDIT_WINDOW_MS) continue;
+      if (entry.target?.id !== memberId || !entry.executor) continue;
+      if (!entry.changes?.some((change) => change.key === changeKey)) continue;
+      return entry.executor;
+    }
+  } catch {
+    // no View Audit Log permission — the log just omits the moderator
+  }
+  return null;
+}
+
+async function logVoiceMute({ old: previous, new: current }, config, guildId, options = {}) {
+  if (!want(config, 'voiceMute')) return;
+  const member = current.member ?? previous.member;
+  const id = current.id ?? previous.id ?? member?.id;
+  const guild = current.guild ?? previous.guild ?? member?.guild;
+  const changes = [
+    ['mute', 'Server muted', 'Server unmuted', previous.serverMute, current.serverMute],
+    ['deaf', 'Server deafened', 'Server undeafened', previous.serverDeaf, current.serverDeaf],
+  ].filter(([, , , before, after]) => Boolean(before) !== Boolean(after));
+  for (const [changeKey, onLabel, offLabel, , after] of changes) {
+    const embed = base(after ? COLORS.remove : COLORS.add, after ? onLabel : offLabel)
+      .setDescription(`<@${id}> · ${member?.user?.tag ?? id}`)
+      .addFields({ name: 'Member ID', value: String(id), inline: true });
+    if (current.channelId)
+      embed.addFields({ name: 'Channel', value: `<#${current.channelId}>`, inline: true });
+    if (guild?.fetchAuditLogs) {
+      await new Promise((resolve) => setTimeout(resolve, options.delayMs ?? VOICE_AUDIT_DELAY_MS));
+      const actor = await findVoiceMuteActor(guild, id, changeKey);
+      if (actor)
+        embed.addFields({
+          name: after ? 'Muted by' : 'Unmuted by',
+          value: `<@${actor.id}> · ${actor.tag ?? actor.id}`,
+          inline: true,
+        });
+    }
+    await log(guildId, config, 'voiceMute', embed);
+  }
+}
+
+// Log channel transitions and server mute/deafen; video / self-mute updates stay out.
 export async function logVoiceChange({ old: previous, new: current }, config, guildId, options = {}) {
-  if (previous.channelId === current.channelId) return;
+  if (previous.channelId === current.channelId)
+    return logVoiceMute({ old: previous, new: current }, config, guildId, options);
   const key = !previous.channelId ? 'voiceJoin' : !current.channelId ? 'voiceLeave' : 'voiceMove';
   if (!want(config, key)) return;
   const member = current.member ?? previous.member;

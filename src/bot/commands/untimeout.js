@@ -16,9 +16,15 @@ export const data = new SlashCommandBuilder()
 
 /** @param {import('discord.js').ChatInputCommandInteraction} interaction */
 export async function execute(interaction) {
-  const target = interaction.options.getMember('user');
-  const reason = interaction.options.getString('reason') ?? NO_REASON;
+  return applyUntimeout(
+    interaction,
+    interaction.options.getMember('user'),
+    interaction.options.getString('reason') ?? NO_REASON
+  );
+}
 
+/** Shared by /untimeout and the "Odcisz" user menu. */
+export async function applyUntimeout(interaction, target, reason) {
   if (!target) {
     await interaction.reply({ content: "That user isn't in this server.", flags: MessageFlags.Ephemeral });
     return;

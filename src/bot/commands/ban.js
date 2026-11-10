@@ -43,11 +43,17 @@ export const data = new SlashCommandBuilder()
 
 /** @param {import('discord.js').ChatInputCommandInteraction} interaction */
 export async function execute(interaction) {
-  const user = interaction.options.getUser('user', true);
-  const member = interaction.options.getMember('user'); // null if not in the guild
-  const reason = interaction.options.getString('reason') ?? NO_REASON;
-  const deleteMessageSeconds = interaction.options.getInteger('delete_messages') ?? 0;
-  const durationInput = interaction.options.getString('duration');
+  return applyBan(interaction, {
+    user: interaction.options.getUser('user', true),
+    member: interaction.options.getMember('user'), // null if not in the guild
+    reason: interaction.options.getString('reason') ?? NO_REASON,
+    deleteMessageSeconds: interaction.options.getInteger('delete_messages') ?? 0,
+    durationInput: interaction.options.getString('duration'),
+  });
+}
+
+/** Shared by /ban and the "Zbanuj" user menu. */
+export async function applyBan(interaction, { user, member, reason, deleteMessageSeconds, durationInput }) {
   const { guild } = interaction;
 
   let tempMs = null;

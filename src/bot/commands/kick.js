@@ -16,9 +16,15 @@ export const data = new SlashCommandBuilder()
 
 /** @param {import('discord.js').ChatInputCommandInteraction} interaction */
 export async function execute(interaction) {
-  const target = interaction.options.getMember('user');
-  const reason = interaction.options.getString('reason') ?? NO_REASON;
+  return applyKick(
+    interaction,
+    interaction.options.getMember('user'),
+    interaction.options.getString('reason') ?? NO_REASON
+  );
+}
 
+/** Shared by /kick and the "Wyrzuć" user menu. */
+export async function applyKick(interaction, target, reason) {
   if (!target) {
     await interaction.reply({ content: "That user isn't in this server.", flags: MessageFlags.Ephemeral });
     return;
