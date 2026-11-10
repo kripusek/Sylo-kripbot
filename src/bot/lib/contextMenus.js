@@ -1,5 +1,5 @@
-// User menu (right-click a member → Apps): Wycisz, Odcisz, Wyrzuć, Zbanuj.
-// Each runs the same code as its slash command (/timeout, /untimeout, /kick, /ban)
+// User menu (right-click a member → Apps): Wycisz / odcisz, Wyrzuć, Zbanuj.
+// Each runs the same code as its slash command (/timeout or /untimeout, /kick, /ban)
 // and follows that command's delegation rules (see commandAccess.js).
 // Helper module (not a command): the per-command ctx-*.js files import it.
 import {

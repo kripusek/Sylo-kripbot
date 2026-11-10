@@ -96,3 +96,7 @@ test('registration of user-menu commands leaves them open for the router to gate
     assert.equal(commandDefinitionForRegistration(command).default_member_permissions, null);
   }
 });
+
+test('Discord allows at most 5 user-menu commands per app', () => {
+  assert.ok(Object.keys(contextCommandAliases).length <= 5);
+});

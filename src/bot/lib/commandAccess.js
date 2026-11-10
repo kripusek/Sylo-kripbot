@@ -23,8 +23,7 @@ export const moderationPermissions = Object.freeze({
 export const contextCommandAliases = Object.freeze({
   Kary: 'history',
   Ostrzeż: 'warn',
-  Wycisz: 'timeout',
-  Odcisz: 'untimeout',
+  'Wycisz / odcisz': 'timeout',
   Wyrzuć: 'kick',
   Zbanuj: 'ban',
 });
