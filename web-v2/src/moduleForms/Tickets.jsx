@@ -247,7 +247,10 @@ export default function Tickets() {
         <div className="v2-field">
           <label>
             Staff roles{' '}
-            <span className="v2-field-hint">— may read/reply to tickets even without Manage Server</span>
+            <span className="v2-field-hint">
+              — may read/reply to tickets even without Manage Server; pinged only when someone clicks “Call
+              staff”
+            </span>
           </label>
           <ChipPicker
             kind="role"

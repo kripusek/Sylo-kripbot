@@ -418,10 +418,12 @@ export async function handleChannelTicket(interaction) {
       const key = `${guild.id}:${channel.id}`;
       if ((callCooldowns.get(key) || 0) > Date.now())
         return interaction.editReply('Poczekaj 5 minut przed kolejnym przywołaniem.');
-      const roles = [...new Set(cfg.pingRoles || [])]
+      // Role obsługi są pingowane wyłącznie po kliknięciu „Przywołaj”; role z pingRoles tylko przy otwarciu ticketa.
+      const roles = [...new Set(cfg.staffRoles || [])]
         .filter((role) => role !== guild.id && guild.roles.cache.has(role))
         .slice(0, 20);
-      if (!roles.length) return interaction.editReply('Administracja nie ustawiła ról do przywołania.');
+      if (!roles.length)
+        return interaction.editReply('Administracja nie ustawiła ról obsługi do przywołania.');
       callCooldowns.set(key, Date.now() + 300000);
       try {
         await channel.send({

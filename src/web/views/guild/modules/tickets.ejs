@@ -92,12 +92,12 @@
     <% }) %>
   </select>
 
-  <label>Staff roles <span class="muted small">— may read/reply to tickets even without Manage Server</span></label>
+  <label>Staff roles <span class="muted small">— may read/reply to tickets even without Manage Server; pinged only when someone clicks “Call staff”</span></label>
   <%- include('../../partials/chip-picker', { field: 'staffRoles', kind: 'role', items: roles, selected: staff }) %>
 
   <label>Roles to ping when a ticket opens</label>
   <%- include('../../partials/chip-picker', { field: 'pingRoles', kind: 'role', items: roles, selected: cfg.pingRoles || [] }) %>
-  <p class="muted small">Selected roles are mentioned in the new ticket and can read and reply there. Leave empty to disable role pings. Roles must be mentionable, or the bot needs Mention Everyone permission.</p>
+  <p class="muted small">Selected roles are mentioned only once, when the ticket opens, and can read and reply there. Leave empty to disable role pings. Roles must be mentionable, or the bot needs Mention Everyone permission.</p>
 
   <label class="check">
     <input type="checkbox" name="showMessageInAlert" <%= cfg.showMessageInAlert ? 'checked' : '' %> />

@@ -183,8 +183,8 @@ test('private tickets route to a category, reject duplicates and unauthorized cl
   assert.equal(sent.length, beforeCall);
   await handleChannelTicket(interaction('ticket-channel:call'));
   assert.equal(sent.length, beforeCall + 1);
-  assert.equal(sent.at(-1).content, 'Przywołano: <@&100000000000000701>');
-  assert.deepEqual(sent.at(-1).allowedMentions, { parse: [], roles: ['100000000000000701'] });
+  assert.equal(sent.at(-1).content, 'Przywołano: <@&100000000000000700>');
+  assert.deepEqual(sent.at(-1).allowedMentions, { parse: [], roles: ['100000000000000700'] });
   assert.equal(interaction.lastReply, 'Przywołano administrację.');
   await handleChannelTicket(interaction('ticket-channel:call'));
   assert.equal(sent.length, beforeCall + 1);
